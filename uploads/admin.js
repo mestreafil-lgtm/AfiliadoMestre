@@ -80,8 +80,17 @@
     let adminCatalogLoading = false;
     let adminCatalogLoaded = false;
     let explorerAbort = null;
-    let explorerResults = [];
+    let explorerProducts = [];
     let explorerSelected = new Set();
+    let explorerBusy = false;
+    let adminSearchTerm = "";
+    let adminFilterCategory = "";
+    let adminFilterType = "";
+    let adminFilterSort = "recent";
+    let adminSearchTimer = null;
+    let campaignPerfRows = [];
+    let campaignPerfSelected = "";
+    let campaignPerfLoading = false;
 
     const ADMIN_VIEWS = {
         dashboard: { title: "Dashboard", subtitle: "Visão geral da operação" },
