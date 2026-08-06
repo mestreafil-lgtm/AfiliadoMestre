@@ -2698,7 +2698,7 @@ async function loadOffersFromSupabase(opts = {}) {
             if (window.__AM_ADMIN) return window.__AM_ADMIN;
             await new Promise((resolve, reject) => {
                 const s = document.createElement("script");
-                s.src = "/uploads/admin.min.js";
+                s.src = window.__AM_ADMIN_JS || ("/uploads/admin.min.js?v=" + Date.now());
                 s.onload = () => resolve();
                 s.onerror = () => reject(new Error("Falha ao carregar admin.js"));
                 document.head.appendChild(s);

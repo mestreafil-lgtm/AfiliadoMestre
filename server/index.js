@@ -227,8 +227,9 @@ const VITRINE_ASSET_FILES = [
   { rel: "/uploads/fa-solid.min.css", abs: path.join(ROOT, "uploads", "fa-solid.min.css") },
   { rel: "/uploads/storefront.min.js", abs: path.join(ROOT, "uploads", "storefront.min.js") },
 ];
+const ADMIN_JS_ABS = path.join(ROOT, "uploads", "admin.min.js");
 let vitrineHtmlCache = null;
-let vitrineHtmlMtimeMs = 0;
+let vitrineHtmlCacheKey = "";
 
 function assetVersion(absPath) {
   try {
@@ -239,8 +240,11 @@ function assetVersion(absPath) {
 }
 
 function buildVitrineHtml() {
-  const stat = fs.statSync(VITRINE_HTML);
-  if (vitrineHtmlCache && stat.mtimeMs === vitrineHtmlMtimeMs) return vitrineHtmlCache;
+  const htmlStat = fs.statSync(VITRINE_HTML);
+  const adminV = assetVersion(ADMIN_JS_ABS);
+  const assetKey = VITRINE_ASSET_FILES.map(({ abs }) => assetVersion(abs)).join("|") + "|" + adminV;
+  const cacheKey = `${htmlStat.mtimeMs}|${assetKey}`;
+  if (vitrineHtmlCache && vitrineHtmlCacheKey === cacheKey) return vitrineHtmlCache;
   let html = fs.readFileSync(VITRINE_HTML, "utf8");
   for (const { rel, abs } of VITRINE_ASSET_FILES) {
     const v = assetVersion(abs);
@@ -249,8 +253,13 @@ function buildVitrineHtml() {
     const re = new RegExp(`(["'])(${escaped})(?!\\?)([\\s"'#])`, "g");
     html = html.replace(re, `$1$2?v=${v}$3`);
   }
+  // admin.min.js é carregado dinamicamente — injeta URL versionada pra furar cache immutable.
+  html = html.replace(
+    /<\/head>/i,
+    `<script>window.__AM_ADMIN_JS="/uploads/admin.min.js?v=${adminV}";</script>\n</head>`
+  );
   vitrineHtmlCache = html;
-  vitrineHtmlMtimeMs = stat.mtimeMs;
+  vitrineHtmlCacheKey = cacheKey;
   return html;
 }
 
