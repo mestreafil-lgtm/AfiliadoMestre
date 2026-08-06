@@ -1861,19 +1861,22 @@ async function loadOffersFromSupabase(opts = {}) {
         }
 
         async function setStoreSort(sort, opts = {}) {
-            currentStoreSort = sort || 'recent';
+            currentStoreSort = sort || 'money';
+            currentPage = 0;
             document.querySelectorAll('.store-sort-btn').forEach((btn) => {
                 const active = btn.getAttribute('data-sort') === currentStoreSort;
                 btn.className = active
-                    ? 'store-sort-btn px-2.5 py-1.5 rounded-md bg-shopee-orange text-white shadow-sm'
-                    : 'store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500 hover:bg-slate-50';
+                    ? 'store-sort-btn px-2.5 py-1.5 rounded-md bg-white text-shopee-orange shadow-sm'
+                    : 'store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500';
             });
+            // Ordena o que já está em memória na hora — sem esperar a API.
+            renderStoreProducts();
+            scrollToStoreGrid();
             if (apiLive) {
-                await loadOffersFromSupabase({ silent: true, reset: true, sort: currentStoreSort });
-            } else {
-                renderStoreProducts();
+                try {
+                    await loadOffersFromSupabase({ silent: true, reset: true, sort: currentStoreSort });
+                } catch (_) {}
             }
-            renderHomeSections();
         }
 
         async function setStoreCategory(catId, opts = {}) {
@@ -2741,7 +2744,9 @@ async function loadOffersFromSupabase(opts = {}) {
                 return productMatchesSubcategory(p, currentStoreCategory, currentStoreSubcategory);
             });
             if (onHome) {
-                filtered = sortByMoney(femaleOnly(filtered));
+                // Home: respeita o filtro escolhido (Mais vendidos, desconto, etc.)
+                filtered = femaleOnly(filtered);
+                filtered = sortProductsLocal(filtered);
             } else {
                 filtered = sortProductsLocal(filtered);
                 if (currentStoreCategory === 'todos' && !searchVal) {
@@ -2903,8 +2908,11 @@ async function loadOffersFromSupabase(opts = {}) {
 
         // Abre o popup com as informações do produto para o cliente
         function openProductModal(id, section = null) {
-            const p = productsDatabase.find(prod => prod.id === id);
-            if (!p) return;
+            const p = productsDatabase.find(prod => String(prod.id) === String(id));
+            if (!p) {
+                console.warn('[modal] produto não encontrado:', id);
+                return;
+            }
             activeProductForBuy = p;
             if (section) currentNavSection = section;
 
@@ -3014,6 +3022,7 @@ async function loadOffersFromSupabase(opts = {}) {
 
             const modal = document.getElementById('product-modal');
             const card = document.getElementById('modal-card');
+            if (!modal || !card) return;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             document.body.style.overflow = 'hidden';
@@ -4442,6 +4451,7 @@ async function loadOffersFromSupabase(opts = {}) {
         function closeProductModal() {
             const modal = document.getElementById('product-modal');
             const card = document.getElementById('modal-card');
+            if (!modal || !card) return;
             modal.classList.add('opacity-0');
             card.classList.add('scale-95');
             document.body.style.overflow = '';
