@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Afiliada Mestre — Ofertas selecionadas na Shopee</title>
+    <link rel="icon" type="image/png" href="/uploads/logo-bg.png">
+    <meta name="description" content="Afiliada Mestre — ofertas selecionadas facilitando sua vida. Achadinhos e promoções da Shopee todos os dias.">
+    <meta property="og:title" content="Afiliada Mestre — Ofertas selecionadas na Shopee">
+    <meta property="og:description" content="Ofertas selecionadas facilitando sua vida. Achadinhos e promoções da Shopee todos os dias.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://afiliada-mestre.vercel.app/">
+    <meta property="og:image" content="https://afiliada-mestre.vercel.app/uploads/logo-bg.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://afiliada-mestre.vercel.app/uploads/logo-bg.png">
+    <!-- As fotos vêm do CDN da Shopee: abrir DNS+TLS antes economiza ~300ms no 4G. -->
+    <link rel="preconnect" href="https://cf.shopee.com.br" crossorigin>
+    <link rel="dns-prefetch" href="https://cf.shopee.com.br">
+    <link rel="preconnect" href="https://down-br.img.susercontent.com" crossorigin>
+    <link rel="dns-prefetch" href="https://down-br.img.susercontent.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- FA não bloqueia o 1º paint: carrega como print e troca pra all -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
+    <!-- Menos pesos de fonte = menos arquivos no 4G -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        shopee: {
+                            orange: '#ee4d2d',
+                            orangeHover: '#d33b1c',
+                            orangeLight: '#ffebd7',
+                            yellow: '#f8d135',
+                            darkYellow: '#f5a623',
+                            grayBg: '#f5f5f5',
+                            textDark: '#222222',
+                            textMuted: '#757575',
+                            greenFree: '#26aa99',
+                            greenLight: '#e8f7f5'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        shopee: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4d4d4;
+            border-radius: 6px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        /* Pulse Animation for VIP badges */
+        @keyframes subtle-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .animate-subtle-pulse {
+            animation: subtle-pulse 2s infinite;
+        }
+        /* Esqueleto animado atrás da foto: a imagem em object-cover cobre ao carregar */
+        @keyframes img-shimmer {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+        .img-skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: img-shimmer 1.4s linear infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .img-skeleton { animation: none; }
+        }
+        /* Custom UI highlights */
+        .api-glow {
+            box-shadow: 0 0 15px rgba(238, 77, 45, 0.15);
+        }
+        .tab-active {
+            border-color: #ee4d2d;
+            color: #ee4d2d;
+            background-color: rgba(238, 77, 45, 0.04);
+        }
+        /* Admin panel */
+        body.admin-mode { background: #f1f5f9; }
+        body.admin-mode #main-storefront-section,
+        body.admin-mode > footer { display: none !important; }
+        #admin-panel-root { min-height: 100vh; }
+        #admin-sidebar {
+            width: 260px;
+            transition: transform 0.25s ease;
+        }
+        @media (max-width: 1023px) {
+            #admin-sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
+                top: 0;
+                left: 0;
+                height: 100vh;
+            }
+            #admin-sidebar.open { transform: translateX(0); }
+        }
+        .admin-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            border-radius: 0.65rem;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #94a3b8;
+            transition: all 0.15s;
+        }
+        .admin-nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+        .admin-nav-item.active {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(238,77,45,0.25), rgba(238,77,45,0.08));
+            border-left: 3px solid #ee4d2d;
+        }
+        .admin-nav-group { margin-top: 0.25rem; }
+        .admin-nav-group-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.85rem 0.25rem;
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .admin-nav-sub {
+            padding-left: 0.35rem;
+            margin-bottom: 0.35rem;
+        }
+        .admin-nav-item.sub {
+            padding: 0.5rem 0.85rem 0.5rem 1.85rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .admin-nav-item.sub.active {
+            border-left-width: 2px;
+        }
+        .admin-stat-card {
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .admin-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(15,23,42,0.08);
+        }
+        .admin-view { display: none; }
+        .admin-view.active { display: block; }
+        /* Shopee Explorer */
+        .shopee-preset {
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.85rem;
+            text-align: left;
+            transition: all 0.15s;
+            background: #fff;
+        }
+        .shopee-preset:hover { border-color: #fdba74; background: #fffbf7; }
+        .shopee-preset.active {
+            border-color: #ee4d2d;
+            background: linear-gradient(135deg, #fff7f5, #fff);
+            box-shadow: 0 4px 14px rgba(238,77,45,0.12);
+        }
+        .shopee-result-row.selected { background: #fff7f5; border-color: #fdba74; }
+
+        /* ——— Mobile polish ——— */
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        body { overflow-x: hidden; }
+        img, video, svg, canvas { max-width: 100%; }
+        #store-header { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+        #store-sort-tabs {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            flex-wrap: nowrap;
+        }
+        #store-sort-tabs::-webkit-scrollbar { display: none; }
+        #store-sort-tabs .store-sort-btn { white-space: nowrap; flex-shrink: 0; }
+        #store-products-grid > *,
+        #hero-products-track > *,
+        #flash-products-container > *,
+        #home-sections .grid > * {
+            min-width: 0;
+        }
+        #mobile-category-strip {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        #mobile-category-strip::-webkit-scrollbar { display: none; }
+        @media (max-width: 379px) {
+            #store-main { padding-left: 0.75rem; padding-right: 0.75rem; }
+            #store-products-grid { gap: 0.5rem; }
+            #store-header .bg-white.p-1 input { font-size: 14px; } /* evita zoom iOS */
+            #store-header button.bg-shopee-orange { padding-left: 0.85rem; padding-right: 0.85rem; }
+        }
+        @media (max-width: 639px) {
+            #product-modal #modal-card { border-radius: 0; }
+            #product-modal.opacity-0 #modal-card { transform: translateY(10px); }
+            #product-modal:not(.opacity-0) #modal-card { transform: none; }
+        }
+        @media (max-height: 640px) {
+            #product-modal .aspect-square { max-height: 34dvh; }
+        }
+    </style>
+</head>
+<body class="bg-shopee-grayBg text-shopee-textDark font-sans selection:bg-shopee-orange selection:text-white min-h-screen flex flex-col">
+
+    <!-- SECTION 1: PUBLIC STOREFRONT MODE -->
+    <div id="main-storefront-section" class="flex-1 flex flex-col">
+        <!-- Shopee Style Header Block -->
+        <div id="store-header" class="bg-shopee-orange pb-6 pt-4 text-white sticky top-0 z-40 shadow-md">
+            <div class="hidden md:block border-b border-white/10 mb-3">
+                <div class="max-w-7xl mx-auto px-4 flex items-center gap-4 py-1.5 text-[11px]">
+                    <a href="/mais-vendidos" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Mais Vendidos</a>
+                    <a href="/maiores-descontos" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Maiores Descontos</a>
+                    <a href="/melhor-avaliados" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Melhor Avaliados</a>
+                    <a href="/lojas-oficiais" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Lojas Oficiais</a>
+                    <a href="/relampago" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Relâmpago</a>
+                    <span class="ml-auto text-white/85 font-semibold">Curadoria · compra 100% segura no app Shopee</span>
+                </div>
+            </div>
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <a href="/" class="flex items-center gap-3 shrink-0">
+                        <img src="/uploads/logo.png" alt="Afiliada Mestre" class="h-12 md:h-14 w-auto drop-shadow-sm">
+                    </a>
+
+                    <div class="w-full md:max-w-2xl">
+                        <div class="bg-white p-1 rounded-lg flex items-center shadow-md border-2 border-white focus-within:border-amber-300 transition-all">
+                            <i class="fas fa-search text-slate-400 ml-3 mr-2"></i>
+                            <input 
+                                type="text" 
+                                id="store-search-input"
+                                oninput="searchStoreProducts()"
+                                placeholder="O que você está procurando?" 
+                                class="w-full bg-transparent text-base sm:text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                            >
+                            <button
+                                type="button"
+                                id="store-search-clear"
+                                onclick="clearStoreSearch()"
+                                class="hidden text-slate-300 hover:text-slate-500 px-2 shrink-0"
+                                aria-label="Limpar busca"
+                            ><i class="fas fa-circle-xmark"></i></button>
+                            <button 
+                                onclick="searchStoreProducts()"
+                                class="bg-shopee-orange hover:bg-shopee-orangeHover text-white px-6 py-2.5 rounded-md transition font-bold text-xs uppercase shrink-0"
+                            >
+                                Buscar
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2 text-[11px] text-orange-100 px-1 flex-wrap">
+                            <span class="font-semibold text-white shrink-0">Populares:</span>
+                            <div id="popular-terms" class="flex flex-wrap items-center gap-1.5"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="md:hidden mt-2.5 text-center text-[10px] text-white/90 font-semibold leading-snug">
+                    Finalize a compra com segurança no app oficial da Shopee
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-amber-50 border-b border-amber-100 text-amber-950">
+            <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-center gap-2 text-[11px] md:text-xs font-semibold text-center">
+                <i class="fas fa-shield-halved text-shopee-orange shrink-0"></i>
+                <span>Nenhum pagamento neste site — você é redirecionada para a Shopee com segurança.</span>
+            </div>
+        </div>
+
+        <!-- CORE PUBLIC STOREFRONT CONTENT -->
+        <main id="store-main" class="max-w-7xl w-full mx-auto p-4 pb-24 md:pb-4 space-y-6 flex-1">
+            <!-- Hero: produtos em destaque (ofertas relâmpago) -->
+            <section id="hero-products" class="space-y-3 scroll-mt-24">
+                <div class="flex items-end justify-between gap-2">
+                    <div>
+                        <p class="text-[11px] font-extrabold text-shopee-orange uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-bolt text-shopee-yellow"></i> Promoção por tempo limitado
+                        </p>
+                        <h2 class="text-xl md:text-2xl font-black text-slate-800 leading-tight">Relâmpago pra ela</h2>
+                    </div>
+                    <button onclick="navigateTo('/relampago')" class="hidden sm:inline-flex text-xs font-bold text-shopee-orange hover:underline items-center gap-1">
+                        Ver ofertas relâmpago <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div id="hero-products-track" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+                    <div class="col-span-full py-8 text-center text-slate-400 text-xs">
+                        <i class="fas fa-spinner fa-spin mr-2"></i> Carregando produtos…
+                    </div>
+                </div>
+            </section>
+
+            <!-- Categories Row -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/60 scroll-mt-24" id="store-categories-card">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="h-2 w-2 rounded-full bg-shopee-orange"></span> Categorias
+                    </h3>
+                    <button onclick="openMobileCategorySheet()" class="sm:hidden text-xs font-bold text-shopee-orange flex items-center gap-1 active:opacity-70">
+                        Ver Mais <i class="fas fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Mobile: faixa de fotos + nomes (sem "Tudo"; toque abre página de categorias) -->
+                <div class="sm:hidden mt-4 -mx-1 px-1">
+                    <div id="mobile-category-strip" class="grid grid-flow-col auto-cols-[22%] grid-rows-2 gap-2 overflow-x-auto snap-x pb-2 scrollbar-thin">
+                        <!-- Dynamic photo tiles -->
+                    </div>
+                </div>
+
+                <!-- Desktop / tablet: grid de fotos (sem "Tudo") -->
+                <div class="hidden sm:block mt-4">
+                    <div class="grid sm:grid-cols-8 gap-2" id="store-categories-container">
+                        <!-- Dynamic categories generated inside script -->
+                    </div>
+                </div>
+
+                <!-- Subcategorias inline (somente desktop) -->
+                <div id="store-subcategories" class="hidden mt-4 pt-3 border-t border-slate-100">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">Subcategorias</span>
+                            <span id="subcat-breadcrumb" class="text-[10px] text-shopee-orange font-bold truncate"></span>
+                        </div>
+                    </div>
+                    <div id="store-subcategories-container" class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        <!-- Dynamic subcategories -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLASH SALE BOX -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200/60 scroll-mt-24" id="flash-sale-section">
+                <div class="bg-gradient-to-r from-orange-500/10 to-red-500/10 p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center bg-shopee-orange text-white font-black px-3 py-1.5 rounded-lg text-xs italic tracking-wide animate-subtle-pulse">
+                            <i class="fas fa-bolt mr-1.5 text-shopee-yellow"></i> TERMINA EM BREVE
+                        </div>
+                        <div class="flex items-center space-x-1 font-bold text-sm text-slate-800">
+                            <span id="flash-hour" class="bg-slate-900 text-white px-2 py-1 rounded text-xs">--</span>
+                            <span>:</span>
+                            <span id="flash-min" class="bg-slate-900 text-white px-2 py-1 rounded text-xs">--</span>
+                            <span>:</span>
+                            <span id="flash-sec" class="bg-slate-900 text-white px-2 py-1 rounded text-xs">--</span>
+                        </div>
+                    </div>
+                    <span class="text-xs text-slate-500 font-semibold">Baseado no prazo real da oferta</span>
+                </div>
+                <div class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3 pb-6" id="flash-products-container"></div>
+            </div>
+
+            <!-- PRODUCTS SHOWCASE GRID -->
+            <div id="home-sections" class="space-y-4"></div>
+
+            <div id="store-grid-section" class="space-y-4 pt-2 scroll-mt-24">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 shrink-0">
+                        <i class="fas fa-fire text-shopee-orange"></i> Ofertas em destaque
+                    </h3>
+                    <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto min-w-0">
+                        <div class="flex bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold overflow-x-auto max-w-full" id="store-sort-tabs">
+                            <button type="button" data-sort="money" onclick="setStoreSort('money')" class="store-sort-btn px-2.5 py-1.5 rounded-md bg-white text-shopee-orange shadow-sm">Melhor oferta</button>
+                            <button type="button" data-sort="recent" onclick="setStoreSort('recent')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Recentes</button>
+                            <button type="button" data-sort="sales" onclick="setStoreSort('sales')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Mais vendidos</button>
+                            <button type="button" data-sort="discount" onclick="setStoreSort('discount')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Maior desconto</button>
+                            <button type="button" data-sort="rating" onclick="setStoreSort('rating')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Melhor avaliação</button>
+                            <button type="button" data-sort="price-asc" onclick="setStoreSort('price-asc')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Menor preço</button>
+                            <button type="button" data-sort="price-desc" onclick="setStoreSort('price-desc')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Maior preço</button>
+                        </div>
+                        <div id="store-results-info" class="text-xs text-slate-500 shrink-0">Carregando ofertas…</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-3.5" id="store-products-grid"></div>
+            </div>
+        </main>
+
+        <!-- BACK TO TOP -->
+        <button id="back-to-top-btn" onclick="scrollToStoreTop()" class="hidden fixed right-4 bottom-20 md:bottom-6 h-11 w-11 rounded-full bg-slate-900/90 text-white shadow-lg items-center justify-center z-40 hover:bg-slate-900" aria-label="Voltar ao topo"><i class="fas fa-arrow-up"></i></button>
+
+        <!-- MOBILE BOTTOM NAV -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 flex justify-around items-stretch z-40 shadow-[0_-2px_12px_rgba(0,0,0,0.25)]" style="padding-bottom:env(safe-area-inset-bottom);">
+            <button onclick="scrollToStoreTop()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-house text-[15px] text-slate-100"></i>Início</button>
+            <button onclick="scrollToStoreCategories()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-table-cells-large text-[15px] text-slate-100"></i>Categorias</button>
+            <button onclick="scrollToFlashSale()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-bolt text-[15px] text-slate-100"></i>Relâmpago</button>
+            <button onclick="scrollToStoreGrid()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-bag-shopping text-[15px] text-slate-100"></i>Ofertas</button>
+            <button onclick="focusStoreSearch()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-magnifying-glass text-[15px] text-slate-100"></i>Buscar</button>
+        </nav>
+    </div>
+
+    <!-- Página de categorias em tela cheia (estilo Shopee): sidebar + painel de subcategorias -->
+    <div id="mobile-category-sheet" class="hidden sm:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+        <div class="bg-shopee-orange text-white px-4 pb-3 pt-4 flex items-center gap-3 shrink-0" style="padding-top:max(env(safe-area-inset-top),16px);">
+            <button onclick="closeMobileCategorySheet()" aria-label="Voltar" class="h-10 w-10 rounded-full flex items-center justify-center active:bg-white/20">
+                <i class="fas fa-arrow-left text-white text-lg"></i>
+            </button>
+            <h4 class="flex-1 text-center font-black text-lg text-white pr-10">Categorias</h4>
+        </div>
+        <div class="flex flex-1 min-h-0">
+            <aside id="category-page-sidebar" class="w-[96px] shrink-0 overflow-y-auto bg-slate-100/80 pb-6"></aside>
+            <section id="category-page-panel" class="flex-1 overflow-y-auto px-3 py-4 bg-white pb-10"></section>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL — página dedicada (?admin=1) -->
+    <!-- LOGIN DO PAINEL (substitui o prompt de ADMIN_TOKEN) -->
+    <div id="admin-login-screen" class="hidden fixed inset-0 z-[60] items-center justify-center p-4"
+         style="background: radial-gradient(circle at top, #fff4ec 0%, #f8fafc 45%, #e2e8f0 100%);">
+        <form id="admin-login-form" onsubmit="return submitAdminLogin(event)"
+              class="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
+            <div class="text-center space-y-2">
+                <img src="/uploads/logo.png" alt="Afiliada Mestre" class="h-12 w-auto mx-auto">
+                <h2 class="text-lg font-black text-slate-800">Entrar no painel</h2>
+                <p class="text-xs text-slate-500">Acesso restrito da Afiliada Mestre</p>
+            </div>
+            <div class="space-y-1.5">
+                <label for="admin-login-user" class="text-[11px] font-bold text-slate-600 uppercase tracking-wide">E-mail</label>
+                <input id="admin-login-user" name="email" type="email" autocomplete="username" required
+                       class="w-full p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-shopee-orange"
+                       placeholder="seuemail@exemplo.com">
+            </div>
+            <div class="space-y-1.5">
+                <label for="admin-login-pass" class="text-[11px] font-bold text-slate-600 uppercase tracking-wide">Senha</label>
+                <input id="admin-login-pass" name="password" type="password" autocomplete="current-password" required
+                       class="w-full p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-shopee-orange"
+                       placeholder="••••••••">
+            </div>
+            <p id="admin-login-error" class="hidden text-xs text-red-600 font-semibold"></p>
+            <button type="submit" id="admin-login-submit"
+                    class="w-full py-2.5 rounded-lg bg-shopee-orange hover:bg-shopee-orangeHover text-white font-bold text-sm transition">
+                Entrar
+            </button>
+            <a href="/" class="block text-center text-xs text-slate-400 hover:text-shopee-orange font-semibold">← Voltar à vitrine</a>
+        </form>
+    </div>
+
+    <div id="admin-panel-root" class="hidden flex min-h-screen w-full">
+        <div id="admin-sidebar-backdrop" onclick="toggleAdminSidebar(false)" class="fixed inset-0 bg-black/50 z-40 lg:hidden hidden"></div>
+
+        <aside id="admin-sidebar" class="bg-slate-900 text-white flex flex-col shrink-0 w-[260px] shadow-xl">
+            <div class="p-5 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <img src="/uploads/logo.png" alt="Afiliada Mestre" class="h-10 w-auto">
+                    <div>
+                        <p class="font-black text-sm leading-tight">Afiliada Mestre</p>
+                        <p class="text-[10px] text-slate-400">Painel administrativo</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+                <button type="button" data-admin-view="dashboard" onclick="switchAdminView('dashboard')" class="admin-nav-item active" id="nav-dashboard">
+                    <i class="fas fa-gauge-high w-5 text-center"></i> Dashboard
+                </button>
+                <button type="button" data-admin-view="catalogo" onclick="switchAdminView('catalogo')" class="admin-nav-item" id="nav-catalogo">
+                    <i class="fas fa-cloud-arrow-down w-5 text-center"></i> Catálogo & Sync
+                </button>
+                <button type="button" data-admin-view="produtos" onclick="switchAdminView('produtos')" class="admin-nav-item" id="nav-produtos">
+                    <i class="fas fa-box-open w-5 text-center"></i> Produtos
+                </button>
+                <button type="button" data-admin-view="duplicados" onclick="switchAdminView('duplicados')" class="admin-nav-item" id="nav-duplicados">
+                    <i class="fas fa-clone w-5 text-center"></i> Remover duplicados
+                </button>
+                <div class="admin-nav-group">
+                    <div class="admin-nav-group-label">
+                        <i class="fas fa-bullhorn w-5 text-center"></i> Campanhas
+                    </div>
+                    <div class="admin-nav-sub">
+                        <button type="button" data-admin-view="campanhas" onclick="switchAdminView('campanhas')" class="admin-nav-item sub" id="nav-campanhas">
+                            Criar / gerenciar
+                        </button>
+                        <button type="button" data-admin-view="campanha-desempenho" onclick="switchAdminView('campanha-desempenho')" class="admin-nav-item sub" id="nav-campanha-desempenho">
+                            Desempenho da campanha
+                        </button>
+                    </div>
+                </div>
+                <button type="button" data-admin-view="desempenho" onclick="switchAdminView('desempenho')" class="admin-nav-item" id="nav-desempenho">
+                    <i class="fas fa-chart-line w-5 text-center"></i> Desempenho geral
+                </button>
+                <button type="button" data-admin-view="meu-site" onclick="switchAdminView('meu-site')" class="admin-nav-item" id="nav-meu-site">
+                    <i class="fas fa-sack-dollar w-5 text-center text-emerald-500"></i> Meu Site (vendas)
+                </button>
+                <button type="button" data-admin-view="ferramentas" onclick="switchAdminView('ferramentas')" class="admin-nav-item" id="nav-ferramentas">
+                    <i class="fas fa-toolbox w-5 text-center"></i> Ferramentas
+                </button>
+            </nav>
+            <div class="p-3 border-t border-slate-800 space-y-2">
+                <a href="/" class="admin-nav-item !text-emerald-400 hover:!bg-emerald-500/10">
+                    <i class="fas fa-store w-5 text-center"></i> Ver vitrine pública
+                </a>
+                <button type="button" onclick="logoutAdmin()" class="admin-nav-item !text-red-300 hover:!bg-red-500/10 w-full text-left">
+                    <i class="fas fa-right-from-bracket w-5 text-center"></i> Sair
+                </button>
+                <p class="text-[9px] text-slate-500 px-2">Clientes não veem este painel</p>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0 min-h-screen">
+            <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-sm">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button type="button" onclick="toggleAdminSidebar()" class="lg:hidden h-9 w-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="min-w-0">
+                        <h1 id="admin-page-title" class="font-black text-slate-800 text-base truncate">Dashboard</h1>
+                        <p id="admin-page-subtitle" class="text-[11px] text-slate-400 truncate">Visão geral do catálogo e vendas</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span id="admin-api-badge" class="hidden text-[10px] font-bold px-2.5 py-1 rounded-full bg-orange-50 text-shopee-orange border border-orange-100">API…</span>
+                    <button onclick="loadAdminStats(); loadAutoStatus(); showToast('Dados atualizados','success');" class="h-9 w-9 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center" title="Atualizar">
+                        <i class="fas fa-rotate"></i>
+                    </button>
+                </div>
+            </header>
+
+            <main id="main-console-section" class="flex-1 p-4 md:p-6 space-y-6 overflow-y-auto max-w-7xl w-full mx-auto">
+
+        <!-- VIEW: Dashboard -->
+        <section id="admin-view-dashboard" class="admin-view active space-y-6">
+
+        <!-- STATS REAIS (clicáveis) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div onclick="switchAdminView('produtos')" class="admin-stat-card bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div class="space-y-1">
+                    <span class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Produtos no banco</span>
+                    <h3 class="text-2xl font-black text-slate-800" id="stat-db-products">—</h3>
+                    <p class="text-[10px] text-slate-400">Clique para gerenciar</p>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-orange-50 text-shopee-orange flex items-center justify-center text-xl">
+                    <i class="fas fa-box"></i>
+                </div>
+            </div>
+
+            <div onclick="switchAdminView('catalogo')" class="admin-stat-card bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div class="space-y-1">
+                    <span class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Categorias ativas</span>
+                    <h3 class="text-2xl font-black text-slate-800" id="stat-db-categories">—</h3>
+                    <p class="text-[10px] text-slate-400">Sincronizar catálogo</p>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+            </div>
+
+            <div onclick="switchAdminView('catalogo')" class="admin-stat-card bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div class="space-y-1">
+                    <span class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Auto-sync</span>
+                    <h3 class="text-lg font-black text-slate-800" id="stat-auto-state">—</h3>
+                    <p class="text-[10px] text-slate-400" id="stat-auto-next">próxima: —</p>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                    <i class="fas fa-robot"></i>
+                </div>
+            </div>
+
+            <div onclick="switchAdminView('desempenho')" class="admin-stat-card bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div class="space-y-1">
+                    <span class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Última sincronização</span>
+                    <h3 class="text-sm font-black text-slate-800" id="stat-auto-last">—</h3>
+                    <p class="text-[10px] text-slate-400" id="stat-auto-upserts">itens salvos: —</p>
+                </div>
+                <div class="h-12 w-12 rounded-xl bg-yellow-50 text-shopee-orange flex items-center justify-center text-xl">
+                    <i class="fas fa-clock-rotate-left"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ações rápidas -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <button onclick="runAutoSyncNow()" id="btn-run-auto" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-shopee-orange hover:shadow-md transition group">
+                <i class="fas fa-bolt text-shopee-orange text-lg mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                <p class="text-[11px] font-bold text-slate-800">Sync agora</p>
+            </button>
+            <button onclick="runTopPerformanceNow()" id="btn-top-perf" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-amber-400 hover:shadow-md transition group">
+                <i class="fas fa-trophy text-amber-500 text-lg mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                <p class="text-[11px] font-bold text-slate-800">Destaques</p>
+            </button>
+            <button onclick="loadOffersFromSupabase({silent:false, reset:true})" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-blue-400 hover:shadow-md transition group">
+                <i class="fas fa-rotate text-blue-500 text-lg mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                <p class="text-[11px] font-bold text-slate-800">Recarregar</p>
+            </button>
+            <button onclick="switchAdminView('produtos'); openNewProductForm();" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-emerald-400 hover:shadow-md transition group">
+                <i class="fas fa-plus text-emerald-500 text-lg mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                <p class="text-[11px] font-bold text-slate-800">Produto manual</p>
+            </button>
+            <button onclick="switchAdminView('campanhas')" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-purple-400 hover:shadow-md transition group">
+                <i class="fas fa-bullhorn text-purple-500 text-lg mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                <p class="text-[11px] font-bold text-slate-800">Campanhas</p>
+            </button>
+            <button onclick="switchAdminView('desempenho')" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-shopee-orange hover:shadow-md transition group">
+                <i class="fas fa-chart-line text-shopee-orange text-lg mb-2 group-hover:scale-110 transition-transform inline-block"></i>
+                <p class="text-[11px] font-bold text-slate-800">Vendas</p>
+            </button>
+        </div>
+
+        <!-- Resumo vendas no dashboard -->
+        <div onclick="switchAdminView('desempenho')" class="admin-stat-card bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Desempenho Shopee</p>
+                <p class="text-sm text-slate-300 mt-1">Veja conversões, comissões e Sub IDs das vendas deste site.</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-center">
+                    <p class="text-[9px] text-slate-400 uppercase">Conversões</p>
+                    <p id="dash-conversion-total" class="text-xl font-black">—</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[9px] text-slate-400 uppercase">Comissão</p>
+                    <p id="dash-conversion-commission" class="text-lg font-black text-emerald-400">—</p>
+                </div>
+                <span class="bg-shopee-orange px-4 py-2 rounded-lg text-xs font-bold">Abrir relatório →</span>
+            </div>
+        </div>
+        </section>
+
+        <!-- VIEW: Catálogo & Sync -->
+        <section id="admin-view-catalogo" class="admin-view space-y-6">
+
+                <!-- Cobertura feminina 95/5 -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wide"><i class="fas fa-venus text-pink-500 mr-1"></i> Cobertura feminina (95/5)</h4>
+                            <p class="text-[10px] text-slate-500 mt-1">Preenche buracos por categoria/sub · home 100% feminina · sync + <strong>shortlink automático</strong></p>
+                            <p id="coverage-status-line" class="text-[11px] text-slate-700 font-semibold mt-2"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando cobertura…</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="loadCoverageReport()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">
+                                <i class="fas fa-sync mr-1"></i> Atualizar
+                            </button>
+                            <button type="button" id="btn-coverage-fill" onclick="runCoverageFill()" class="px-3 py-2 rounded-lg bg-pink-600 text-white text-[11px] font-bold hover:bg-pink-700 disabled:opacity-50">
+                                <i class="fas fa-fill-drip mr-1"></i> Preencher buracos
+                            </button>
+                        </div>
+                    </div>
+                    <div id="coverage-table" class="p-4 text-[11px] text-slate-400 max-h-72 overflow-y-auto">—</div>
+                </div>
+
+                <!-- Shortlinks pré-gerados (acelera clique "Comprar") -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wide"><i class="fas fa-bolt text-amber-500 mr-1"></i> Shortlinks pré-gerados</h4>
+                            <p class="text-[10px] text-slate-500 mt-1">Gera o que ainda falta. Sync, cobertura e auto-feed já salvam produtos <strong>com shope.ee</strong>.</p>
+                            <p id="shortlink-status-line" class="text-[11px] text-slate-700 font-semibold mt-2"><i class="fas fa-spinner fa-spin mr-1"></i> Verificando…</p>
+                            <div class="mt-2 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div id="shortlink-status-bar" class="h-full bg-emerald-500 transition-all" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <button type="button" id="btn-shortlink-backfill" onclick="runShortlinkBackfill()" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-wand-magic-sparkles mr-1"></i> Gerar tudo que falta
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Fila dinheiro: top comissão com ações reais -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wide"><i class="fas fa-coins text-amber-500 mr-1"></i> Mais dinheiro agora</h4>
+                            <p class="text-[10px] text-slate-500 mt-1">Top femininos por comissão × vendas × nota — shortlink, copiar e abrir na Shopee</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="renderMoneyQueue()" class="px-3 py-2 rounded-lg bg-amber-500 text-white text-[11px] font-bold hover:bg-amber-600">
+                                <i class="fas fa-chart-line mr-1"></i> Atualizar top
+                            </button>
+                            <button type="button" onclick="moneyQueueShortlinkTop()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700">
+                                <i class="fas fa-bolt mr-1"></i> Shortlink no top
+                            </button>
+                        </div>
+                    </div>
+                    <div id="money-queue-box" class="p-4 text-[11px] text-slate-400">Clique em Atualizar top para listar os produtos com maior potencial de comissão.</div>
+                </div>
+
+                <!-- Categorias da vitrine (mapa real do servidor) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wide"><i class="fas fa-layer-group text-pink-500 mr-1"></i> Categorias</h4>
+                            <p class="text-[10px] text-slate-500 mt-1">Mapa oficial da vitrine · carrega keywords no Explorador · sync por cat</p>
+                        </div>
+                        <button type="button" onclick="renderAdminCategoriesPanel()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">
+                            <i class="fas fa-sync mr-1"></i> Atualizar
+                        </button>
+                    </div>
+                    <div id="admin-categories-panel" class="p-4 text-[11px] text-slate-400 max-h-80 overflow-y-auto">Carregando categorias…</div>
+                </div>
+
+                <!-- Ofertas oficiais Shopee -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wide"><i class="fas fa-bullhorn text-shopee-orange mr-1"></i> Ofertas oficiais Shopee</h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Campanhas/coleções da API (shopeeOfferV2) — distinto das campanhas de rastreio FB/IG</p>
+                        </div>
+                        <button type="button" onclick="loadOfficialShopeeOffers()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700">
+                            <i class="fas fa-cloud-download-alt mr-1"></i> Carregar oficiais
+                        </button>
+                    </div>
+                    <div id="official-offers-box" class="p-4 text-[11px] text-slate-400">Clique em Carregar para listar ofertas oficiais.</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-700 p-4 border-b border-slate-600 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h4 class="font-bold text-xs text-white uppercase flex items-center gap-1.5 tracking-wide">
+                                <i class="fas fa-compass text-shopee-orange"></i> Explorador Shopee
+                            </h4>
+                            <p class="text-[10px] text-slate-300 mt-1">Presets · multi-keyword · multi-página · filtros de qualidade · salvar seleção</p>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5" id="explorer-presets">
+                            <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="explorer-preset px-2.5 py-1 rounded-md bg-shopee-orange text-white text-[10px] font-bold border border-shopee-orange">Feminino + comissão</button>
+                            <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Mais vendidos</button>
+                            <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Top performance</button>
+                            <button type="button" data-preset="commission" onclick="applyExplorerPreset('commission')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Maior comissão</button>
+                            <button type="button" data-preset="collection" onclick="applyExplorerPreset('collection')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Coleção (matchId)</button>
+                            <button type="button" data-preset="shop" onclick="applyExplorerPreset('shop')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Loja (shopId)</button>
+                            <button type="button" data-preset="rated" onclick="applyExplorerPreset('rated')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Bem avaliados</button>
+                            <button type="button" data-preset="budget" onclick="applyExplorerPreset('budget')" class="explorer-preset px-2.5 py-1 rounded-md bg-white/10 hover:bg-shopee-orange text-white text-[10px] font-bold border border-white/10">Custo-benefício</button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-3 text-xs">
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Palavras-chave <span class="font-semibold text-slate-400">(vírgula ou uma por linha · opcional se usar matchId/shopId)</span></label>
+                            <textarea id="admin-keyword" oninput="updateExplorerKwCount()" rows="2" placeholder="ex: vestido longo feminino, kit skincare, perfume feminino" class="w-full p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-shopee-orange focus:ring-1 focus:ring-shopee-orange/30 resize-y min-h-[64px]">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino</textarea>
+                            <p class="text-[10px] text-slate-400 mt-1" id="explorer-kw-count">4 keywords</p>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Tipo de lista</label>
+                                <select id="admin-list-type" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange" onchange="updateExplorerModeHint()">
+                                    <option value="0">0 — Recomendados</option>
+                                    <option value="1" selected>1 — Maior comissão</option>
+                                    <option value="2">2 — Top performance</option>
+                                    <option value="3">3 — Landing categoria</option>
+                                    <option value="4">4 — Detalhe categoria</option>
+                                    <option value="5">5 — Detalhe loja</option>
+                                    <option value="6">6 — Detalhe coleção</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Ordenação</label>
+                                <select id="admin-sort-type" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange" onchange="updateExplorerModeHint()">
+                                    <option value="1">1 — Relevância</option>
+                                    <option value="2">2 — Mais vendidos</option>
+                                    <option value="3">3 — Maior preço</option>
+                                    <option value="4">4 — Menor preço</option>
+                                    <option value="5" selected>5 — Maior comissão</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Itens / página</label>
+                                <select id="admin-limit" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                    <option value="10">10</option>
+                                    <option value="20" selected>20</option>
+                                    <option value="30">30</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Páginas (1–N)</label>
+                                <select id="admin-pages" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                    <option value="1" selected>1 página</option>
+                                    <option value="2">2 páginas</option>
+                                    <option value="3">3 páginas</option>
+                                    <option value="5">5 páginas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">matchId <span class="font-normal text-slate-400">(cat/coleção)</span></label>
+                                <input type="number" id="admin-match-id" min="1" placeholder="ex: collectionId" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange" oninput="updateExplorerModeHint()">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">shopId <span class="font-normal text-slate-400">(loja)</span></label>
+                                <input type="number" id="admin-shop-id" min="1" placeholder="ID da loja Shopee" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange" oninput="updateExplorerModeHint()">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Comissão mín. %</label>
+                                <input type="number" id="admin-min-commission" min="0" max="100" step="0.5" value="0" placeholder="0" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                            </div>
+                            <div class="flex items-end">
+                                <p class="text-[10px] text-slate-500 leading-snug">listType <strong>4/6</strong> → matchId · <strong>5</strong> → shopId (vem das Ofertas oficiais)</p>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2" id="explorer-mode-hint">
+                            Modo: <strong class="text-slate-700">Maior comissão</strong> · ordenado por <strong class="text-slate-700">Maior comissão</strong>
+                        </p>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Nota mínima</label>
+                                <input type="number" id="admin-min-rating" min="0" max="5" step="0.1" value="4.0" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Vendas mín.</label>
+                                <input type="number" id="admin-min-sales" min="0" step="1" value="20" placeholder="0" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                            </div>
+                            <div class="flex items-end">
+                                <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-lg w-full cursor-pointer hover:bg-slate-50">
+                                    <input type="checkbox" id="admin-require-commission" checked class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange">
+                                    <span class="font-bold text-slate-600 leading-tight">Exigir comissão</span>
+                                </label>
+                            </div>
+                            <div class="flex items-end gap-2">
+                                <button type="button" id="btn-explorer-search" onclick="runExplorerSearch({sync:false})" class="flex-1 px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-shopee-orangeHover flex items-center justify-center gap-1.5">
+                                    <i class="fas fa-magnifying-glass"></i> Pré-visualizar
+                                </button>
+                                <button type="button" id="btn-explorer-cancel" onclick="cancelExplorerSearch()" class="hidden px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-[11px] font-bold hover:bg-slate-300">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Progress -->
+                        <div id="explorer-progress" class="hidden space-y-1.5">
+                            <div class="flex justify-between text-[10px] font-bold text-slate-500">
+                                <span id="explorer-progress-label">Buscando…</span>
+                                <span id="explorer-progress-pct">0%</span>
+                            </div>
+                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div id="explorer-progress-bar" class="h-full bg-shopee-orange rounded-full transition-all duration-300" style="width:0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Preview toolbar -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <label class="flex items-center gap-1.5 font-bold text-slate-600 cursor-pointer">
+                                    <input type="checkbox" id="explorer-select-all" onchange="toggleExplorerSelectAll(this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange">
+                                    Selecionar todos
+                                </label>
+                                <span class="text-[10px] text-slate-400" id="explorer-selection-meta">0 selecionados</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="runExplorerSearch({sync:true})" class="px-3 py-2 rounded-lg border border-shopee-orange text-shopee-orange text-[11px] font-bold hover:bg-orange-50 flex items-center gap-1.5">
+                                    <i class="fas fa-cloud-arrow-down"></i> Buscar e salvar tudo
+                                </button>
+                                <button type="button" id="btn-explorer-save" onclick="saveExplorerSelection()" disabled class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                    <i class="fas fa-floppy-disk"></i> Salvar selecionados
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="explorer-status" class="hidden text-[11px] rounded-lg px-3 py-2 border"></div>
+                        <div id="explorer-preview" class="max-h-80 overflow-y-auto space-y-2 empty:hidden">
+                            <div class="text-center py-8 text-slate-400 text-[11px]">
+                                <i class="fas fa-box-open text-2xl text-slate-300 mb-2 block"></i>
+                                Escolha um preset ou digite keywords e clique em <strong>Pré-visualizar</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sync por categoria -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                                <i class="fas fa-layer-group text-shopee-orange"></i> Sync por categoria
+                            </h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Puxa keywords da categoria, grava no Supabase e gera <strong>shortlink</strong> na hora</p>
+                        </div>
+                        <span class="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-white border border-slate-200 px-2 py-1 rounded-md">Lote por keywords</span>
+                    </div>
+                    <div class="p-4 space-y-3 text-xs">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                            <div class="sm:col-span-2">
+                                <label class="block text-slate-600 font-bold mb-1">Categoria</label>
+                                <select id="admin-cat-sync" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange"></select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Páginas</label>
+                                <select id="admin-cat-pages" class="w-full p-2 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                    <option value="1" selected>1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" id="btn-sync-cat" onclick="adminSyncCategory()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700 flex items-center gap-1.5">
+                                <i class="fas fa-rotate"></i> Sincronizar categoria
+                            </button>
+                            <button type="button" onclick="applyExplorerPreset('bestsellers'); const sel=document.getElementById('admin-cat-sync'); if(sel?.value){ const opt=sel.options[sel.selectedIndex]; document.getElementById('admin-keyword').value = (opt?.text||'').replace(/\s*\(\d+\)\s*$/,'').trim(); }"
+                                class="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-[11px] font-bold hover:bg-slate-50 flex items-center gap-1.5">
+                                <i class="fas fa-wand-magic-sparkles"></i> Usar no Explorador
+                            </button>
+                        </div>
+                        <div id="cat-sync-status" class="hidden text-[11px] rounded-lg px-3 py-2 border"></div>
+                    </div>
+                </div>
+
+                <!-- Status do auto-sync -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                                <i class="fas fa-robot text-shopee-orange"></i> Alimentação automática
+                            </h4>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Lotes leves · cobertura 95/5 · cada produto sai com shortlink shope.ee</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="auto-enabled-badge" class="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border bg-slate-100 text-slate-500 border-slate-200">—</span>
+                            <button type="button" onclick="loadAutoStatus()" class="text-[10px] text-shopee-orange font-bold hover:underline">Atualizar</button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div id="auto-status-box" class="text-[11px] text-slate-600 space-y-1 font-mono bg-slate-50 border border-slate-100 rounded-lg p-3">
+                            Carregando status…
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="runAutoSyncNow()" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-shopee-orangeHover flex items-center gap-1.5">
+                                <i class="fas fa-bolt"></i> Rodar lote agora
+                            </button>
+                            <button type="button" onclick="runTopPerformanceNow()" class="px-3 py-2 rounded-lg bg-amber-500 text-white text-[11px] font-bold hover:bg-amber-600 flex items-center gap-1.5">
+                                <i class="fas fa-trophy"></i> Popular destaques
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">
+                            Com <code class="text-[9px] bg-slate-100 px-1 rounded">AUTO_SYNC=0</code> o agendador fica pausado; os botões manuais acima continuam funcionando.
+                        </p>
+                        <button type="button" onclick="resetVitrineAndRefill()"
+                            class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700">
+                            <i class="fas fa-broom mr-1"></i> Limpar e realimentar vitrine
+                        </button>
+                    </div>
+                </div>
+
+        </section>
+
+        <!-- VIEW: Remover duplicados -->
+        <section id="admin-view-duplicados" class="admin-view space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wide"><i class="fas fa-clone text-rose-500 mr-1"></i> Remover duplicados</h4>
+                        <p class="text-[10px] text-slate-500 mt-1">Só marca duplicata real: mesma loja + nome idêntico, ou mesmo item/link Shopee. Mantém o melhor (shortlink + comissão + vendas).</p>
+                        <p id="duplicates-status-line" class="text-[11px] text-slate-700 font-semibold mt-2">Clique em Analisar para escanear o catálogo.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="scanCatalogDuplicates()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">
+                            <i class="fas fa-magnifying-glass mr-1"></i> Analisar
+                        </button>
+                        <button type="button" id="btn-remove-duplicates" onclick="removeCatalogDuplicates()" disabled class="px-3 py-2 rounded-lg bg-rose-600 text-white text-[11px] font-bold hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fas fa-trash mr-1"></i> Remover duplicados
+                        </button>
+                        <button type="button" onclick="scanWeakOffers()" class="px-3 py-2 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold hover:bg-amber-200">
+                            <i class="fas fa-filter mr-1"></i> Analisar fracos
+                        </button>
+                        <button type="button" id="btn-purge-weak" onclick="purgeWeakOffers()" disabled class="px-3 py-2 rounded-lg bg-amber-600 text-white text-[11px] font-bold hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fas fa-broom mr-1"></i> Limpar fracos
+                        </button>
+                        <button type="button" onclick="refreshTopOffers()" class="px-3 py-2 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold hover:bg-emerald-200">
+                            <i class="fas fa-arrows-rotate mr-1"></i> Atualizar top
+                        </button>
+                    </div>
+                </div>
+                <div id="duplicates-table" class="p-4 text-[11px] text-slate-400 max-h-[28rem] overflow-y-auto">Nenhuma análise ainda.</div>
+                <div id="weak-offers-table" class="p-4 text-[11px] text-slate-400 border-t border-slate-100 max-h-[16rem] overflow-y-auto hidden"></div>
+            </div>
+        </section>
+
+        <!-- VIEW: Produtos -->
+        <section id="admin-view-produtos" class="admin-view space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-black text-slate-800 text-base">Catálogo de produtos</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Filtre, selecione em massa e envie para campanhas.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 shrink-0">
+                    <button type="button" id="btn-load-full-catalog" onclick="loadAdminCatalogFull({force:true})" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-[11px] font-bold hover:border-shopee-orange hover:text-shopee-orange">
+                        <i class="fas fa-cloud-arrow-down mr-1"></i> Carregar catálogo completo
+                    </button>
+                    <button onclick="openNewProductForm()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700">
+                        <i class="fas fa-plus mr-1"></i> Produto manual
+                    </button>
+                    <button onclick="switchAdminView('campanhas')" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-shopee-orangeHover">
+                        <i class="fas fa-bullhorn mr-1"></i> Campanhas
+                    </button>
+                </div>
+            </div>
+
+                <!-- Adicionar produto manual — puxa dados reais da Shopee via API -->
+                <div id="new-product-form-card" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+                    <div class="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                        <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                            <i class="fas fa-plus-circle text-shopee-orange"></i> Adicionar produto pela URL Shopee
+                        </h4>
+                        <button onclick="closeNewProductForm()" class="text-slate-400 hover:text-slate-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 space-y-3 text-xs">
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-[11px] text-blue-800">
+                            <p class="font-bold mb-1">Como funciona</p>
+                            <p>Cola a URL do produto na Shopee. O sistema puxa nome, preço, comissão, avaliação e imagem <strong>direto da API oficial</strong>, gera o link de afiliada com seu SITE_SUBID e publica na vitrine.</p>
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">URL do produto na Shopee (obrigatória)</label>
+                            <input type="url" id="add-source-url" placeholder="https://shopee.com.br/product/123456/789012" class="w-full p-2 border border-slate-200 rounded outline-shopee-orange font-mono">
+                            <p class="text-[10px] text-slate-400 mt-1">Aceita os formatos <code>/product/SHOPID/ITEMID</code> e <code>/produto-i.SHOPID.ITEMID</code>.</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Categoria da vitrine (opcional)</label>
+                                <select id="add-category" class="w-full p-2 border border-slate-200 rounded outline-shopee-orange">
+                                    <option value="">Automática (pelo título)</option>
+                                    <option value="moda">Moda Feminina</option>
+                                    <option value="beleza">Beleza</option>
+                                    <option value="acessorios">Acessórios</option>
+                                    <option value="maternidade">Mãe &amp; Bebê</option>
+                                    <option value="fitness">Fitness</option>
+                                    <option value="casa">Casa</option>
+                                    <option value="pet">Pet Shop</option>
+                                    <option value="eletronicos">Eletrônicos</option>
+                                    <option value="celular">Celular</option>
+                                    <option value="infantil">Infantil</option>
+                                    <option value="utilidades">Utilidades</option>
+                                    <option value="automotivo">Automotivo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Subcategoria (opcional)</label>
+                                <input type="text" id="add-subcategory" placeholder="ex: vestidos, batom, tenis" class="w-full p-2 border border-slate-200 rounded outline-shopee-orange">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Imagem customizada (opcional)</label>
+                            <input type="url" id="add-img-url" placeholder="Deixe em branco para usar a imagem oficial da Shopee" class="w-full p-2 border border-slate-200 rounded outline-shopee-orange font-mono">
+                        </div>
+                        <button onclick="saveNewProduct()" id="btn-save-product" class="w-full bg-shopee-orange hover:bg-shopee-orangeHover text-white font-bold py-2.5 rounded-lg shadow-md transition text-xs uppercase tracking-wider mt-1">
+                            Publicar na vitrine
+                        </button>
+                        <div id="add-product-result" class="text-[11px]"></div>
+                    </div>
+                </div>
+
+                <!-- Products Database Grid Manager -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-4 border-b border-slate-200 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                                <i class="fas fa-list-check text-slate-500"></i> Produtos no catálogo (<span id="count-db-items">0</span>)
+                                <span class="normal-case font-semibold text-slate-400 ml-1 text-[10px]" id="count-db-loaded"></span>
+                            </h4>
+                            <span id="admin-filter-summary" class="text-[10px] text-slate-400 font-semibold"></span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 text-xs">
+                            <div class="relative sm:col-span-2 lg:col-span-2">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input type="text" id="admin-search" oninput="onAdminSearch()" placeholder="Buscar nome, ID, categoria, loja…" class="w-full pl-8 p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-shopee-orange">
+                            </div>
+                            <select id="admin-filter-category" onchange="onAdminFiltersChange()" class="p-2.5 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                <option value="">Todas as categorias</option>
+                            </select>
+                            <select id="admin-filter-type" onchange="onAdminFiltersChange()" class="p-2.5 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                <option value="">Todos os tipos</option>
+                                <option value="flash">Só relâmpago</option>
+                                <option value="normal">Só normal</option>
+                            </select>
+                            <select id="admin-filter-sort" onchange="onAdminFiltersChange()" class="p-2.5 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                <option value="recent">Mais recentes</option>
+                                <option value="name">Nome A–Z</option>
+                                <option value="price_asc">Menor preço</option>
+                                <option value="price_desc">Maior preço</option>
+                                <option value="discount">Maior desconto</option>
+                                <option value="commission">Maior comissão</option>
+                            </select>
+                            <select id="admin-page-size" onchange="onAdminPageSizeChange()" class="p-2.5 border border-slate-200 rounded-lg focus:outline-shopee-orange">
+                                <option value="12">12 / página</option>
+                                <option value="24" selected>24 / página</option>
+                                <option value="48">48 / página</option>
+                                <option value="100">100 / página</option>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                            <label class="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 cursor-pointer font-bold text-slate-600 hover:border-shopee-orange">
+                                <input type="checkbox" id="admin-select-page" onchange="toggleSelectAdminPage(this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange">
+                                Página
+                            </label>
+                            <button type="button" onclick="selectAllFilteredProducts()" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 font-bold text-slate-600 hover:border-shopee-orange">
+                                Selecionar todos filtrados
+                            </button>
+                            <button type="button" onclick="clearAdminProductSelection()" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 font-bold text-slate-500 hover:border-slate-300">
+                                Limpar seleção
+                            </button>
+                            <button type="button" onclick="clearAdminFilters()" class="px-2.5 py-1.5 rounded-lg text-slate-400 font-bold hover:text-slate-600">
+                                <i class="fas fa-filter-circle-xmark mr-1"></i> Limpar filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Barra de ações em massa -->
+                    <div id="admin-bulk-bar" class="hidden px-4 py-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-xs font-bold">
+                            <span id="admin-selected-count">0</span> produto(s) selecionado(s)
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" onclick="addSelectedProductsToCampaign()" class="px-3 py-1.5 rounded-lg bg-shopee-orange hover:bg-shopee-orangeHover text-[11px] font-bold">
+                                <i class="fas fa-bullhorn mr-1"></i> Adicionar à campanha
+                            </button>
+                            <button type="button" onclick="clearAdminProductSelection()" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-2" id="console-products-list">
+                        <!-- Populated inside scripts -->
+                    </div>
+                    <div class="p-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2" id="console-pagination">
+                        <button onclick="adminPrevPage()" id="admin-prev" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </button>
+                        <span class="text-[11px] text-slate-500" id="admin-page-info">Página 1</span>
+                        <button onclick="adminNextPage()" id="admin-next" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                            Próxima <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+        </section>
+
+        <!-- VIEW: Campanhas -->
+        <section id="admin-view-campanhas" class="admin-view space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-4 border-b border-slate-200">
+                        <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                            <i class="fas fa-chart-simple text-slate-500"></i> Criar campanha de rastreamento
+                        </h4>
+                        <p class="text-[10px] text-slate-400 mt-1">Gere links com Sub IDs para Facebook, Instagram, WhatsApp etc.</p>
+                    </div>
+                    <div class="p-4 space-y-3 text-xs">
+                        <p class="text-slate-500 leading-relaxed">
+                            Na <strong>puxada dos produtos</strong>, cada item já recebe Sub IDs no banco
+                            (<code class="text-[10px]">afiliada_mestre | organico | vitrine | categoria | pID</code>).
+                            Use o gerador abaixo quando for divulgar — o clique troca canal/campanha e identifica a origem.
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Canal</label>
+                                <select id="campaign-link-channel" onchange="updateCampaignLinkPreview()" class="w-full p-2 border rounded-lg outline-shopee-orange">
+                                    <option value="facebook">Facebook</option>
+                                    <option value="instagram">Instagram</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="tiktok">TikTok</option>
+                                    <option value="stories">Stories</option>
+                                    <option value="google">Google</option>
+                                    <option value="email">E-mail</option>
+                                    <option value="organico">Orgânico / direto</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-bold mb-1">Campanha</label>
+                                <input id="campaign-link-name" type="text" value="promo_vitrine" oninput="updateCampaignLinkPreview()"
+                                    placeholder="ex: ads_vestidos" class="w-full p-2 border rounded-lg outline-shopee-orange font-mono">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Produtos da campanha</label>
+                            <div class="flex gap-2">
+                                <input id="campaign-product-search" type="text" oninput="renderCampaignProductPicker()"
+                                    placeholder="Buscar por nome ou ID…" class="flex-1 p-2 border rounded-lg outline-shopee-orange">
+                                <button type="button" onclick="addCampaignProductById()"
+                                    class="px-3 py-2 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50 shrink-0">
+                                    + ID
+                                </button>
+                                <button type="button" onclick="switchAdminView('produtos')"
+                                    class="px-3 py-2 rounded-lg bg-slate-100 text-[11px] font-bold text-slate-600 hover:bg-slate-200 shrink-0">
+                                    <i class="fas fa-box-open mr-1"></i> Escolher na lista
+                                </button>
+                            </div>
+                            <div id="campaign-product-picker" class="mt-2 max-h-28 overflow-y-auto space-y-1 empty:hidden"></div>
+                            <div id="campaign-selected-products" class="mt-2 space-y-1.5"></div>
+                            <p class="text-[10px] text-slate-400 mt-1">Sem produtos = link geral da vitrine. Com produtos = um link por item (abre o produto certo).</p>
+                        </div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+                            <p class="text-[9px] uppercase font-black text-slate-400">Links para divulgar</p>
+                            <div id="campaign-link-preview" class="space-y-2"></div>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="copyCampaignLink()"
+                                    class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700">
+                                    <i class="fas fa-copy mr-1"></i> Copiar todos os links
+                                </button>
+                                <button type="button" onclick="saveCurrentCampaign()"
+                                    class="px-3 py-1.5 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-shopee-orangeHover">
+                                    <i class="fas fa-save mr-1"></i> Salvar campanha
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-100 rounded-lg p-3 font-mono text-[10px] text-slate-700 space-y-1">
+                            <div><span class="text-shopee-orange font-bold">1</span> afiliada_mestre → marca do site</div>
+                            <div><span class="text-shopee-orange font-bold">2</span> canal → facebook / instagram / …</div>
+                            <div><span class="text-shopee-orange font-bold">3</span> campanha → nome da campanha</div>
+                            <div><span class="text-shopee-orange font-bold">4</span> categoria → no clique</div>
+                            <div><span class="text-shopee-orange font-bold">5</span> produto → p + ID no clique</div>
+                        </div>
+                        <p id="subid-preview" class="text-[10px] text-slate-400 font-mono break-all"></p>
+                    </div>
+                </div>
+
+        <!-- Campanhas salvas -->
+        <div id="campaigns-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                        <i class="fas fa-bullhorn text-shopee-orange"></i> Campanhas salvas
+                    </h4>
+                    <p class="text-[10px] text-slate-400 mt-1">Guarde links de Facebook, Instagram etc. e reabra quando for anunciar.</p>
+                </div>
+                <button type="button" onclick="switchAdminView('campanha-desempenho')" class="px-3 py-2 rounded-lg border border-shopee-orange text-shopee-orange text-[11px] font-bold hover:bg-orange-50">
+                    <i class="fas fa-chart-pie mr-1"></i> Ver desempenho
+                </button>
+            </div>
+            <div class="p-4 grid md:grid-cols-2 gap-4 text-xs">
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
+                    <h5 class="font-bold text-slate-800 flex items-center gap-1.5"><i class="fab fa-meta text-blue-600"></i> Como anunciar no Facebook / Meta</h5>
+                    <ol class="list-decimal pl-4 text-slate-600 space-y-1.5 leading-relaxed">
+                        <li>Crie a campanha aqui, escolha canal <strong>Facebook</strong> e os produtos.</li>
+                        <li>Clique em <strong>Salvar campanha</strong> e copie o link.</li>
+                        <li>No <strong>Gerenciador de Anúncios Meta</strong> → criar anúncio → destino = <strong>Tráfego / site</strong>.</li>
+                        <li>Cole o link gerado no campo <strong>URL do site</strong> (não use o link cru da Shopee).</li>
+                        <li>Publique. Quem clicar e comprar leva seus Sub IDs.</li>
+                    </ol>
+                    <p class="text-[10px] text-slate-500 pt-1">O Sub ID aparece no relatório oficial da Shopee (campo utmContent / Sub IDs), desde que a pessoa use o botão Comprar da vitrine.</p>
+                </div>
+                <div id="saved-campaigns-list" class="space-y-3 md:col-span-1">
+                    <p class="text-slate-400 text-center py-8">Nenhuma campanha salva ainda.</p>
+                </div>
+            </div>
+        </div>
+        </section>
+
+        <!-- VIEW: Desempenho por campanha -->
+        <section id="admin-view-campanha-desempenho" class="admin-view space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                            <i class="fas fa-chart-pie text-shopee-orange"></i> Desempenho por campanha
+                        </h4>
+                        <p class="text-[10px] text-slate-400 mt-1">Agrupa vendas da API Shopee pelo Sub ID da campanha (slot 3 do utmContent).</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <select id="camp-perf-days" onchange="loadCampaignPerformance({reset:true})" class="p-2 border rounded-lg">
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="60">Últimos 60 dias</option>
+                            <option value="90">Últimos 90 dias</option>
+                        </select>
+                        <select id="camp-perf-status" onchange="loadCampaignPerformance({reset:true})" class="p-2 border rounded-lg">
+                            <option value="">Todos os status</option>
+                            <option value="PENDING">Pendente</option>
+                            <option value="COMPLETED">Concluído</option>
+                            <option value="CANCELLED">Cancelado</option>
+                            <option value="UNPAID">Não pago</option>
+                        </select>
+                        <button onclick="loadCampaignPerformance({reset:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
+                            <i class="fas fa-rotate mr-1"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 border-b border-slate-100">
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Campanhas</p>
+                        <p id="camp-perf-count" class="text-xl font-black text-slate-800">0</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Conversões</p>
+                        <p id="camp-perf-conversions" class="text-xl font-black text-slate-800">0</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos</p>
+                        <p id="camp-perf-orders" class="text-xl font-black text-slate-800">0</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Comissão</p>
+                        <p id="camp-perf-commission" class="text-lg font-black text-emerald-600">R$ 0,00</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3 col-span-2 md:col-span-1">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Itens vendidos</p>
+                        <p id="camp-perf-items" class="text-xl font-black text-shopee-orange">0</p>
+                    </div>
+                </div>
+
+                <div id="camp-perf-list" class="p-4 space-y-3">
+                    <div class="py-8 text-center text-slate-400 text-xs">Clique em Atualizar para carregar o desempenho.</div>
+                </div>
+            </div>
+
+            <!-- Detalhe de uma campanha -->
+            <div id="camp-perf-detail" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-800 text-white p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">Detalhe da campanha</p>
+                        <h3 id="camp-perf-detail-title" class="font-black text-lg">—</h3>
+                        <p id="camp-perf-detail-meta" class="text-[11px] text-slate-400 mt-0.5"></p>
+                    </div>
+                    <button type="button" onclick="closeCampaignPerfDetail()" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold">
+                        <i class="fas fa-times mr-1"></i> Fechar
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100" id="camp-perf-detail-stats"></div>
+                <div class="p-4 grid lg:grid-cols-2 gap-4">
+                    <div>
+                        <h5 class="text-[10px] uppercase font-black text-slate-400 mb-2">Canais</h5>
+                        <div id="camp-perf-detail-channels" class="space-y-2 text-xs"></div>
+                    </div>
+                    <div>
+                        <h5 class="text-[10px] uppercase font-black text-slate-400 mb-2">Produtos mais vendidos</h5>
+                        <div id="camp-perf-detail-products" class="space-y-2 text-xs"></div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100">
+                    <h5 class="text-[10px] uppercase font-black text-slate-400 mb-3">Pedidos desta campanha</h5>
+                    <div id="camp-perf-detail-orders" class="space-y-3"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: Desempenho -->
+        <section id="admin-view-desempenho" class="admin-view space-y-6">
+        <div id="performance-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                        <i class="fas fa-chart-line text-shopee-orange"></i> Conversões por Sub ID
+                    </h4>
+                    <p class="text-[10px] text-slate-400 mt-1">Só vendas geradas por este site (Sub ID afiliada_mestre). Outras campanhas da Shopee ficam de fora.</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <select id="conversion-days" onchange="loadConversions({reset:true})" class="p-2 border rounded-lg">
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="30" selected>Últimos 30 dias</option>
+                        <option value="60">Últimos 60 dias</option>
+                        <option value="90">Últimos 90 dias</option>
+                    </select>
+                    <select id="conversion-status" onchange="loadConversions({reset:true})" class="p-2 border rounded-lg">
+                        <option value="">Todos os status</option>
+                        <option value="PENDING">Pendente</option>
+                        <option value="COMPLETED">Concluído</option>
+                        <option value="CANCELLED">Cancelado</option>
+                        <option value="UNPAID">Não pago</option>
+                    </select>
+                    <button onclick="loadConversions({reset:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
+                        Atualizar
+                    </button>
+                    <button onclick="prioritizeConversionWinners()" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700">
+                        <i class="fas fa-bolt mr-1"></i> Priorizar no sync
+                    </button>
+                    <button onclick="loadConversionSummary()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">
+                        Por canal
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100">
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <p class="text-[9px] uppercase font-bold text-slate-400">Conversões</p>
+                    <p id="conversion-total" class="text-xl font-black text-slate-800">0</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos</p>
+                    <p id="conversion-orders" class="text-xl font-black text-slate-800">0</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <p class="text-[9px] uppercase font-bold text-slate-400">Comissão</p>
+                    <p id="conversion-commission" class="text-lg font-black text-emerald-600">R$ 0,00</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3">
+                    <p class="text-[9px] uppercase font-bold text-slate-400">Sub IDs encontrados</p>
+                    <p id="conversion-subids" class="text-xl font-black text-shopee-orange">0</p>
+                </div>
+            </div>
+            <div id="conversion-list" class="p-4 space-y-3">
+                <div class="py-8 text-center text-slate-400 text-xs">Clique em “Atualizar relatório” para carregar.</div>
+            </div>
+            <div id="conversion-pagination" class="hidden p-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <button id="conversion-prev" onclick="previousConversionPage()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fas fa-chevron-left mr-1"></i> Anterior
+                </button>
+                <span id="conversion-page-info" class="text-[11px] font-semibold text-slate-500">Página 1</span>
+                <button id="conversion-next" onclick="nextConversionPage()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                    Próxima <i class="fas fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+        </section>
+
+        <!-- VIEW: Meu Site (vendas rastreadas por SITE_SUBID) -->
+        <section id="admin-view-meu-site" class="admin-view space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                            <i class="fas fa-sack-dollar text-emerald-500"></i> Meu Site — vendas rastreadas
+                        </h4>
+                        <p class="text-[10px] text-slate-400 mt-1">
+                            Filtro fixo <code class="bg-slate-100 px-1 rounded">sub_id1 = afiliadamestre</code>. Outras fontes ficam de fora.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <select id="ms-days" class="p-2 border rounded-lg">
+                            <option value="1">Hoje</option>
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30" selected>Últimos 30 dias</option>
+                            <option value="60">Últimos 60 dias</option>
+                            <option value="90">Últimos 90 dias</option>
+                        </select>
+                        <label class="text-[11px] text-slate-500 flex items-center gap-1">
+                            <input type="checkbox" id="ms-only-me" checked class="rounded">
+                            Só meu site
+                        </label>
+                        <button onclick="loadMeuSiteSummary()" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
+                            <i class="fas fa-rotate mr-1"></i> Atualizar
+                        </button>
+                        <button onclick="pullConversionsNow()" title="Puxa conversões da Shopee agora" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700">
+                            <i class="fas fa-cloud-arrow-down mr-1"></i> Puxar Shopee
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100">
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-emerald-700">Comissão líquida</p>
+                        <p id="ms-net" class="text-xl font-black text-emerald-700">R$ 0,00</p>
+                        <p class="text-[10px] text-emerald-600 mt-0.5">após MCN fee</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Comissão bruta</p>
+                        <p id="ms-gross" class="text-lg font-black text-slate-800">R$ 0,00</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos</p>
+                        <p id="ms-orders" class="text-xl font-black text-slate-800">0</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5">ticket médio: <span id="ms-ticket">R$ 0,00</span></p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Saúde</p>
+                        <p id="ms-health" class="text-sm font-black text-slate-800">—</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5"><span id="ms-cancel-pct">0%</span> cancel · <span id="ms-fraud-pct">0%</span> fraude</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
+                    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="bg-slate-50 px-3 py-2 border-b border-slate-100">
+                            <p class="text-[10px] uppercase font-bold text-slate-600">Top 10 produtos</p>
+                        </div>
+                        <div id="ms-top-items" class="p-2 text-[11px] text-slate-500">—</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="bg-slate-50 px-3 py-2 border-b border-slate-100">
+                            <p class="text-[10px] uppercase font-bold text-slate-600">Top 10 lojas</p>
+                        </div>
+                        <div id="ms-top-shops" class="p-2 text-[11px] text-slate-500">—</div>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="bg-slate-50 px-3 py-2 border-b border-slate-100">
+                            <p class="text-[10px] uppercase font-bold text-slate-600">Top 10 campanhas (sub_id3)</p>
+                        </div>
+                        <div id="ms-top-campaigns" class="p-2 text-[11px] text-slate-500">—</div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-[10px] text-slate-500">
+                        Janela: <span id="ms-window">—</span> · Amostra: <span id="ms-sample">0</span>
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="reprocessSubIdsDry()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">
+                            <i class="fas fa-magnifying-glass mr-1"></i> Ver quantos precisam reprocessar
+                        </button>
+                        <button onclick="reprocessSubIdsRun()" class="px-3 py-2 rounded-lg bg-amber-500 text-white text-[11px] font-bold hover:bg-amber-600">
+                            <i class="fas fa-wand-magic-sparkles mr-1"></i> Reprocessar sub_ids antigos
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: Ferramentas (Links em lote + Decoder + Reverificar item + Feed) -->
+        <section id="admin-view-ferramentas" class="admin-view space-y-6">
+
+            <!-- Reverificar 1 item -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b border-slate-200">
+                    <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                        <i class="fas fa-arrows-rotate text-emerald-500"></i> Reverificar item — número de venda errado?
+                    </h4>
+                    <p class="text-[10px] text-slate-400 mt-1">
+                        Puxa direto da Shopee: sales, avaliação, comissão, preço. Corrige valores desatualizados.
+                    </p>
+                </div>
+                <div class="p-4 space-y-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="number" id="reverify-item-id" placeholder="item_id"
+                            class="p-2 border border-slate-200 rounded text-xs w-40 font-mono">
+                        <button onclick="runReverify()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
+                            <i class="fas fa-rotate mr-1"></i> Reverificar agora
+                        </button>
+                    </div>
+                    <div id="reverify-result" class="text-[11px]"></div>
+                </div>
+            </div>
+
+            <!-- Feed em massa -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b border-slate-200">
+                    <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
+                        <i class="fas fa-cloud-arrow-down text-purple-500"></i> Feed em massa (getItemFeedData)
+                    </h4>
+                    <p class="text-[10px] text-slate-400 mt-1">
+                        Puxa catálogo inteiro em blocos de 500 (muito mais barato que sync por keyword). FULL diário · DELTA horário.
+                    </p>
+                </div>
+                <div class="p-4 flex flex-wrap gap-2">
+                    <button onclick="runFeed('feed-full')" class="px-3 py-2 rounded-lg bg-purple-600 text-white text-[11px] font-bold hover:bg-purple-700">
+                        <i class="fas fa-download mr-1"></i> Rodar FULL agora
+                    </button>
+                    <button onclick="runFeed('feed-delta')" class="px-3 py-2 rounded-lg bg-purple-500 text-white text-[11px] font-bold hover:bg-purple-600">
+                        <i class="fas fa-bolt mr-1"></i> Rodar DELTA agora
+                    </button>
+                    <button onclick="runRefreshMetrics()" class="px-3 py-2 rounded-lg bg-emerald-500 text-white text-[11px] font-bold hover:bg-emerald-600">
+                        <i class="fas fa-arrows-rotate mr-1"></i> Reverificar métricas (batch)
+                    </button>
+                </div>
+                <div id="feed-result" class="p-4 text-[11px]"></div>
+            </div>
+
+        </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- POPUP DE DETALHES DO PRODUTO (cliente) -->
+    <div id="product-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-stretch sm:items-center justify-center z-50 p-0 sm:p-4 opacity-0 transition-opacity duration-200" onclick="if(event.target===this) closeProductModal()">
+        <div class="bg-white sm:rounded-2xl shadow-2xl overflow-hidden w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] flex flex-col transform scale-95 transition-transform duration-200" id="modal-card">
+            <div class="relative flex flex-col min-h-0 flex-1">
+                <button type="button" onclick="closeProductModal()" class="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-10 h-10 w-10 rounded-full bg-black/45 hover:bg-black/60 text-white flex items-center justify-center transition" aria-label="Fechar">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                    <div class="aspect-square max-h-[42dvh] md:max-h-none img-skeleton relative overflow-hidden flex items-center justify-center bg-slate-50">
+                        <img id="modal-img" src="" alt="" decoding="async" fetchpriority="high" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/500x500/ffebd7/ee4d2d?text=Shopee'">
+                        <span id="modal-discount" class="absolute top-3 left-3 bg-shopee-orange text-white font-black text-xs px-2.5 py-1 rounded-lg shadow"></span>
+                    </div>
+
+                    <div class="p-4 sm:p-5 flex flex-col pb-[max(1rem,env(safe-area-inset-bottom))]">
+                        <span id="modal-category" class="self-start bg-orange-50 text-shopee-orange text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wide mb-2"></span>
+                        <h3 id="modal-title" class="text-[15px] sm:text-base font-extrabold text-slate-800 leading-snug line-clamp-3 break-words"></h3>
+
+                        <div class="flex items-center gap-2 mt-2 flex-wrap">
+                            <div id="modal-stars" class="text-amber-400 text-xs flex"></div>
+                            <span id="modal-sales" class="text-[11px] text-slate-500"></span>
+                        </div>
+
+                        <div class="mt-3 rounded-xl bg-[#fff7f5] border border-[#ffe0d2] px-3.5 py-3">
+                            <p id="modal-old-price" class="text-xs text-slate-400 line-through"></p>
+                            <p id="modal-new-price" class="text-shopee-orange text-[1.75rem] sm:text-3xl font-black leading-none tracking-tight"></p>
+                        </div>
+
+                        <div id="modal-options" class="hidden mt-3 flex flex-wrap gap-1.5"></div>
+                        <p id="modal-options-hint" class="hidden text-[11px] text-slate-500 mt-2 leading-relaxed"></p>
+
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <span id="modal-shop" class="hidden bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded items-center gap-1">
+                                <i class="fas fa-store"></i> <span id="modal-shop-name"></span>
+                            </span>
+                        </div>
+
+                        <ul id="modal-benefits" class="mt-3 space-y-2 text-[12.5px] text-slate-600"></ul>
+                        <p id="modal-deadline" class="hidden text-[11px] text-red-600 font-bold mt-2 flex items-center justify-center gap-1"></p>
+
+                        <div class="mt-auto pt-4 sticky bottom-0 bg-white/95 backdrop-blur-sm -mx-4 sm:-mx-5 px-4 sm:px-5 pb-1 border-t border-slate-100 sm:border-0 sm:static sm:bg-transparent sm:backdrop-blur-none sm:px-0 sm:mx-0">
+                            <a id="modal-buy-btn" href="#" target="_blank" rel="nofollow sponsored noopener"
+                               class="block" onclick="return handleBuyClick(event)">
+                                <span class="w-full min-h-[48px] bg-shopee-orange hover:bg-shopee-orangeHover text-white py-3 px-4 rounded-xl font-extrabold text-sm shadow flex items-center justify-center gap-2 transition tracking-wide">
+                                    <i class="fas fa-bag-shopping"></i> <span id="modal-buy-label">Comprar na Shopee</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
+                                </span>
+                            </a>
+                            <p class="text-[10px] text-slate-400 text-center mt-2 mb-1">Você será direcionado de forma segura para o app/site oficial da Shopee.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST INJECTOR BOX -->
+    <div id="toast-container" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 space-y-2 z-50 pointer-events-none">
+        <!-- Managed dynamically in scripts -->
+    </div>
+
+    <footer class="bg-white border-t border-slate-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="space-y-3">
+                <img src="/uploads/logo-bg.png" alt="Afiliada Mestre" class="h-14 w-auto rounded-lg">
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Seleção diária de ofertas da Shopee. Ao clicar, você é direcionado para a página oficial do produto.
+                </p>
+                <p class="text-[11px] font-semibold text-slate-700 leading-relaxed">
+                    Nenhum pagamento é feito neste site. Finalize a compra com 100% de segurança no app/site da Shopee.
+                </p>
+            </div>
+            <div>
+                <h4 class="font-extrabold text-xs uppercase text-slate-700 tracking-wider mb-3">Como comprar</h4>
+                <ul class="text-xs text-slate-500 space-y-2">
+                    <li>1. Escolha um produto na vitrine</li>
+                    <li>2. Você abre a página na Shopee</li>
+                    <li>3. Finalize a compra com segurança</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-extrabold text-xs uppercase text-slate-700 tracking-wider mb-3">Aviso</h4>
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                    Site independente de divulgação de ofertas. Não somos a Shopee. Marcas e produtos pertencem aos respectivos donos. Preços e estoque podem mudar na Shopee. Ao comprar pelos nossos links, ganhamos uma comissão sem custo extra para você.
+                </p>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto mt-8 pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400 gap-4 px-4">
+            <p>© 2026 Afiliada Mestre</p>
+            <span id="api-status-badge" class="hidden text-shopee-orange font-bold">API Status: verificando…</span>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT APP ARCHITECTURE -->
+    <script src="/uploads/storefront.js" defer></script>
+
+</body>
+</html>
