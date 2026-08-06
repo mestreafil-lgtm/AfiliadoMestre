@@ -6,7 +6,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "build:css": "tailwindcss -i ./uploads/tailwind.input.css -o ./uploads/tailwind.css --minify"
   },
   "engines": {
     "node": ">=18"
@@ -17,5 +18,8 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jimp": "^1.6.1"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
   }
 }
