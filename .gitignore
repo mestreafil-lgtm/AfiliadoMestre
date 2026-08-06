@@ -1,0 +1,13 @@
+﻿node_modules/
+.env
+.DS_Store
+*.log
+.thumbnail
+.claude/
+.cursor/
+
+# Local secrets & scratch — nunca commitar
+_railway_vars.txt
+*_vars.txt
+_design_import/
+_design_import_v2/
