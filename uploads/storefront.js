@@ -14,6 +14,9 @@
             : 36;
         let hasMore = false;
         let loadingMore = false;
+        let offersAbort = null;
+        let storeSortRequestId = 0;
+        let infiniteScrollPausedUntil = 0;
 
         // Core Products Mock database (fallback se o backend/Shopee estiver offline)
         const defaultProducts = [
@@ -743,29 +746,44 @@ async function loadOffersFromSupabase(opts = {}) {
             const category = opts.category ?? (currentStoreCategory !== "todos" ? currentStoreCategory : "");
             const reset = opts.reset !== false;
             if (reset) currentPage = 0;
-            const limit = PAGE_SIZE;
-            const offset = currentPage * PAGE_SIZE;
+            const limit = Number(opts.limit) > 0 ? Number(opts.limit) : PAGE_SIZE;
+            const offset = reset ? 0 : currentPage * PAGE_SIZE;
             const url = `${API_BASE}/api/ofertas/db?limit=${limit}&offset=${offset}`
                 + `&keyword=${encodeURIComponent(keyword)}`
                 + `&subcategory=${encodeURIComponent(subcategory)}`
                 + `&category=${encodeURIComponent(category)}`
                 + `&sort=${encodeURIComponent(opts.sort || currentStoreSort)}`;
             try {
-                const res = await fetch(url);
+                if (reset && !opts.keepPreviousAbort) {
+                    try { offersAbort?.abort(); } catch (_) {}
+                    offersAbort = new AbortController();
+                }
+                const res = await fetch(url, {
+                    signal: opts.signal || (reset ? offersAbort?.signal : undefined),
+                });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
                 const ok = applyProducts(data.products, "supabase", { append: !reset });
                 hasMore = (data.products || []).length >= limit;
-                renderLoadMoreBtn();
-                // Prefetch da página 2 só depois do usuário rolar — no mobile
-                // competia com as fotos da 1ª tela.
-                if (reset && ok && hasMore) setupPrefetchOnScroll();
+                if (reset && ok) {
+                    // Alinha a próxima página ao tamanho real do lote (sort usa limit > PAGE_SIZE).
+                    const got = (data.products || []).length;
+                    currentPage = Math.max(0, Math.ceil(got / PAGE_SIZE) - 1);
+                }
+                if (!opts.skipInfiniteSetup) {
+                    infiniteScrollPausedUntil = Date.now() + 900;
+                    renderLoadMoreBtn();
+                    // Prefetch da página 2 só depois do usuário rolar — no mobile
+                    // competia com as fotos da 1ª tela.
+                    if (reset && ok && hasMore && !opts.skipPrefetch) setupPrefetchOnScroll();
+                }
                 if (!opts.silent) {
                     showToast(ok ? `Supabase: ${data.count} ofertas` : "Banco vazio para esse filtro — rode um Sync", ok ? "success" : "error");
                 }
                 if (ok) setApiStatus("API Status: cache Supabase", true);
                 return ok;
             } catch (err) {
+                if (err && err.name === "AbortError") return false;
                 if (!opts.silent) showToast(`Erro Supabase: ${err.message}`, "error");
                 return false;
             }
@@ -777,10 +795,17 @@ async function loadOffersFromSupabase(opts = {}) {
 
         async function loadMoreProducts() {
             if (loadingMore || !hasMore) return;
+            if (Date.now() < infiniteScrollPausedUntil) return;
             loadingMore = true;
+            infiniteScrollPausedUntil = Date.now() + 600;
             currentPage += 1;
-            await loadOffersFromSupabase({ silent: true, reset: false });
-            loadingMore = false;
+            try {
+                await loadOffersFromSupabase({ silent: true, reset: false });
+            } finally {
+                loadingMore = false;
+                // Evita loop: botão continua na viewport e re-disparava na hora.
+                infiniteScrollPausedUntil = Date.now() + 1200;
+            }
         }
 
         function renderLoadMoreBtn() {
@@ -807,8 +832,12 @@ async function loadOffersFromSupabase(opts = {}) {
             const btn = document.getElementById('load-more-btn');
             if (!btn || typeof IntersectionObserver === 'undefined') return;
             infiniteScrollObs = new IntersectionObserver((entries) => {
+                if (Date.now() < infiniteScrollPausedUntil) return;
+                if (loadingMore || !hasMore) return;
                 if (entries.some((e) => e.isIntersecting)) loadMoreProducts();
             }, { rootMargin: '240px' });
+            // Grace após recriar o botão (sort / re-render) — senão entra em loop.
+            infiniteScrollPausedUntil = Math.max(infiniteScrollPausedUntil, Date.now() + 900);
             infiniteScrollObs.observe(btn);
         }
 
@@ -821,9 +850,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 prefetchNextPageIdle();
             };
             window.addEventListener("scroll", arm, { passive: true, once: true });
-            setTimeout(() => {
-                if (hasMore && !loadingMore) prefetchNextPageIdle();
-            }, 5000);
+            // Sem auto-prefetch por timer: competia com troca de filtro e piscava o grid.
         }
 
         function prefetchNextPageIdle() {
@@ -907,20 +934,30 @@ async function loadOffersFromSupabase(opts = {}) {
 
         function sortProductsLocal(list) {
             const arr = [...list];
+            const byId = (a, b) => String(a.id).localeCompare(String(b.id), "en");
+            const cmp = (diff, a, b) => (diff !== 0 ? diff : byId(a, b));
             if (currentStoreSort === 'money') {
-                arr.sort((a, b) => moneyScoreOf(b) - moneyScoreOf(a));
+                arr.sort((a, b) => cmp(moneyScoreOf(b) - moneyScoreOf(a), a, b));
             } else if (currentStoreSort === 'sales') {
-                arr.sort((a, b) => parseSalesNumber(b) - parseSalesNumber(a));
+                arr.sort((a, b) => cmp(parseSalesNumber(b) - parseSalesNumber(a), a, b));
             } else if (currentStoreSort === 'discount') {
-                arr.sort((a, b) => (b.discountPct || parseInt(b.discount, 10) || 0) - (a.discountPct || parseInt(a.discount, 10) || 0));
+                arr.sort((a, b) => cmp(
+                    (b.discountPct || parseInt(b.discount, 10) || 0) - (a.discountPct || parseInt(a.discount, 10) || 0),
+                    a, b
+                ));
             } else if (currentStoreSort === 'rating') {
-                arr.sort((a, b) => (b.stars || 0) - (a.stars || 0));
+                arr.sort((a, b) => cmp((b.stars || 0) - (a.stars || 0), a, b));
             } else if (currentStoreSort === 'ending') {
-                arr.sort((a, b) => (a.periodEnd || Infinity) - (b.periodEnd || Infinity));
+                arr.sort((a, b) => cmp((a.periodEnd || Infinity) - (b.periodEnd || Infinity), a, b));
             } else if (currentStoreSort === 'price-asc') {
-                arr.sort((a, b) => (a.newPrice || 0) - (b.newPrice || 0));
+                arr.sort((a, b) => cmp((a.newPrice || 0) - (b.newPrice || 0), a, b));
             } else if (currentStoreSort === 'price-desc') {
-                arr.sort((a, b) => (b.newPrice || 0) - (a.newPrice || 0));
+                arr.sort((a, b) => cmp((b.newPrice || 0) - (a.newPrice || 0), a, b));
+            } else if (currentStoreSort === 'recent') {
+                arr.sort((a, b) => cmp(
+                    (Date.parse(b.updatedAt || b.updated_at || 0) || 0) - (Date.parse(a.updatedAt || a.updated_at || 0) || 0),
+                    a, b
+                ));
             }
             return arr;
         }
@@ -970,12 +1007,38 @@ async function loadOffersFromSupabase(opts = {}) {
                     ? 'store-sort-btn px-2.5 py-1.5 rounded-md bg-white text-shopee-orange shadow-sm'
                     : 'store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500';
             });
+
+            // Cancela fetch antigo + trava infinite scroll (era o loop de piscar o grid).
+            const seq = ++storeSortRequestId;
+            try { offersAbort?.abort(); } catch (_) {}
+            offersAbort = new AbortController();
+            if (infiniteScrollObs) {
+                infiniteScrollObs.disconnect();
+                infiniteScrollObs = null;
+            }
+            prefetchScrollArmed = false;
+            loadingMore = false;
+            infiniteScrollPausedUntil = Date.now() + 2500;
+
             // Ordena o que já está em memória na hora — sem esperar a API.
             renderStoreProducts();
-            scrollToStoreGrid();
-            if (apiLive) {
+            if (!opts.skipScroll) scrollToStoreGrid();
+
+            // Uma recarga ordenada maior (sem paginar em cascata na hora).
+            if (apiLive && !opts.localOnly) {
                 try {
-                    await loadOffersFromSupabase({ silent: true, reset: true, sort: currentStoreSort });
+                    const limit = Math.max(PAGE_SIZE * 3, 72);
+                    await loadOffersFromSupabase({
+                        silent: true,
+                        reset: true,
+                        sort: currentStoreSort,
+                        limit,
+                        signal: offersAbort.signal,
+                        keepPreviousAbort: true,
+                        skipPrefetch: true,
+                    });
+                    if (seq !== storeSortRequestId) return;
+                    infiniteScrollPausedUntil = Date.now() + 1500;
                 } catch (_) {}
             }
         }
