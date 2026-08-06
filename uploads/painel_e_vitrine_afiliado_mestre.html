@@ -14,12 +14,18 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://afiliadomestre-production.up.railway.app/uploads/logo-bg.png">
     <!-- Só as origens críticas do 1º paint (máx. ~4 preconnects). -->
-    <link rel="preconnect" href="https://cf.shopee.com.br" crossorigin>
+    <!-- cf.shopee.com.br sem crossorigin: as <img> de produto são anônimas — o Lighthouse
+         reportava "Preconexão não usada" porque a conexão CORS não casava com a real. -->
+    <link rel="preconnect" href="https://cf.shopee.com.br">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://placehold.co">
     <link rel="dns-prefetch" href="https://down-br.img.susercontent.com">
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-    <!-- CSS próprio (Tailwind gerado) — sem CDN que bloqueia 700ms+ no 4G -->
-    <link rel="stylesheet" href="/uploads/tailwind.css">
+    <!-- CSS próprio (Tailwind gerado): preload + swap tira a folha do caminho crítico.
+         O CSS crítico do topo (header, aviso, reservas de altura) já está inline abaixo,
+         então não há "flash" enquanto a folha completa chega. -->
+    <link rel="preload" as="style" href="/uploads/tailwind.css" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/uploads/tailwind.css"></noscript>
     <!-- Fonte não bloqueia o 1º paint; display=optional evita CLS quando a fonte chega tarde -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=optional" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=optional"></noscript>
@@ -191,6 +197,10 @@
                 height: 100dvh;
                 max-height: 100dvh;
                 transform: none !important;
+                /* Reserva a área da Dynamic Island / notch: a foto do produto não
+                   grudava no topo em telas com safe-area, e o botão de fechar ficava
+                   colado no relógio do iPhone. */
+                padding-top: env(safe-area-inset-top);
             }
         }
         @media (max-height: 640px) {
@@ -230,6 +240,9 @@
             position: relative;
             z-index: 1;
         }
+        /* O badge -XX% precisa ficar na frente da foto (foto tem z-index: 1).
+           Fica abaixo do botão de fechar (z-30). */
+        #modal-card #modal-discount { z-index: 2; }
         #modal-card #modal-info {
             padding: 1rem;
             display: flex;
@@ -280,17 +293,24 @@
         #hero-products-track { min-height: 320px; }
         #store-products-grid { min-height: 480px; }
         #flash-products-container { min-height: 220px; }
-        /* Mobile: 4 linhas x ~70px + header do card + gap = ~340px */
-        #store-categories-card { min-height: 340px; contain: layout; }
+        /* Mobile Moto G: 4 linhas x ~70px + header + gap + padding real ≈ 400px */
+        #store-categories-card { min-height: 420px; contain: layout; }
         #mobile-category-strip { min-height: 172px; contain: layout; }
+        /* Home sections (home-sections) e ofertas em destaque também são pintados
+           depois do fetch — sem essa reserva o main "salta" no primeiro frame. */
+        #home-sections { min-height: 620px; contain: layout; }
+        #store-grid-section { min-height: 900px; contain: layout; }
         /* Reserva pro shell inteiro do main enquanto Nunito/produtos chegam */
         #main-storefront-section { min-height: calc(100dvh - 60px); }
         #store-main { min-height: 720px; contain: layout; }
         /* Header search input com altura fixa evita realinhamento vertical no mobile */
         #store-search-input { min-height: 40px; }
         img[src*="logo"] { height: auto; }
-        /* Placeholder do logo antes do PNG carregar — reserva a caixa exata */
-        img[src*="logo-bg.png"], img[src*="logo.png"] { aspect-ratio: 176 / 84; background: transparent; }
+        /* Aspect-ratio real do arquivo (medido: logo.png=240x114, logo-bg.png=240x126).
+           Antes a regra aplicava 176/84 aos dois → box reservado ≠ tamanho real do PNG.
+           Com essa correção o browser reserva exatamente o espaço final desde o 1º frame. */
+        img[src*="logo.png"] { aspect-ratio: 240 / 114; background: transparent; }
+        img[src*="logo-bg.png"] { aspect-ratio: 240 / 126; background: transparent; }
 
         /*
          * Font Awesome solid (self-host) — font-display: optional de verdade.
@@ -340,7 +360,10 @@
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex flex-col md:flex-row items-center justify-between gap-4">
                     <a href="/" class="flex items-center gap-3 shrink-0">
-                        <img src="/uploads/logo.png" alt="Afiliada Mestre" width="176" height="84" class="h-12 md:h-14 w-auto drop-shadow-sm" decoding="async" fetchpriority="high">
+                        <picture>
+                            <source srcset="/uploads/logo.webp" type="image/webp">
+                            <img src="/uploads/logo.png" alt="Afiliada Mestre" width="240" height="114" class="h-12 md:h-14 w-auto drop-shadow-sm" decoding="async" fetchpriority="high">
+                        </picture>
                     </a>
 
                     <div class="w-full md:max-w-2xl">
@@ -422,14 +445,31 @@
                 <!-- Mobile: faixa de fotos + nomes (sem "Tudo"; toque abre página de categorias) -->
                 <div class="sm:hidden mt-4 -mx-1 px-1">
                     <div id="mobile-category-strip" class="grid grid-flow-col auto-cols-[22%] grid-rows-2 gap-2 overflow-x-auto snap-x pb-2 scrollbar-thin">
-                        <!-- Dynamic photo tiles -->
+                        <!-- Skeletons ocupam o espaço exato até renderCategories() rodar; sem eles
+                             o strip aparece com 0px e a categorias-card recolhe → CLS. -->
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
                     </div>
                 </div>
 
                 <!-- Desktop / tablet: grid de fotos (sem "Tudo") -->
                 <div class="hidden sm:block mt-4">
                     <div class="grid sm:grid-cols-8 gap-2" id="store-categories-container">
-                        <!-- Dynamic categories generated inside script -->
+                        <!-- Skeletons desktop com mesma dimensão do tile final (rounded-full 64px). -->
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
                     </div>
                 </div>
 
@@ -527,7 +567,10 @@
         <form id="admin-login-form" onsubmit="return submitAdminLogin(event)"
               class="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
             <div class="text-center space-y-2">
-                <img src="/uploads/logo.png" alt="Afiliada Mestre" width="176" height="84" class="h-12 w-auto mx-auto" decoding="async">
+                <picture>
+                    <source srcset="/uploads/logo.webp" type="image/webp">
+                    <img src="/uploads/logo.png" alt="Afiliada Mestre" width="240" height="114" class="h-12 w-auto mx-auto" decoding="async">
+                </picture>
                 <h2 class="text-lg font-black text-slate-800">Entrar no painel</h2>
                 <p class="text-xs text-slate-500">Acesso restrito da Afiliada Mestre</p>
             </div>
@@ -1656,8 +1699,12 @@
     <!-- POPUP DE DETALHES DO PRODUTO (cliente) -->
     <div id="product-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-stretch sm:items-center justify-center z-50 p-0 sm:p-4 opacity-0 transition-opacity duration-200" onclick="if(event.target===this) closeProductModal()">
         <div class="bg-white sm:rounded-2xl shadow-2xl overflow-hidden w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] flex flex-col transform scale-95 transition-transform duration-200" id="modal-card">
-            <button type="button" onclick="closeProductModal()" class="absolute top-3 right-3 z-20 h-10 w-10 rounded-full bg-black/55 hover:bg-black/70 text-white flex items-center justify-center transition" style="top: max(0.75rem, env(safe-area-inset-top));" aria-label="Fechar">
-                <i class="fas fa-times"></i>
+            <!-- Botão de fechar: branco sólido + × em SVG inline (não depende do Font Awesome, que é deferido).
+                 44x44 é o mínimo Apple HIG pra área de toque. Sombra forte garante contraste em foto clara OU escura. -->
+            <button type="button" onclick="closeProductModal()" class="absolute right-3 z-30 h-11 w-11 rounded-full bg-white text-slate-900 flex items-center justify-center transition hover:bg-slate-100 active:scale-95" style="top: calc(env(safe-area-inset-top, 0px) + 0.75rem); box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.08);" aria-label="Fechar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
             </button>
 
             <!-- Área rolável (imagem + info). CTA fica fixo abaixo, fora do scroll. -->
@@ -1716,7 +1763,10 @@
     <footer class="bg-white border-t border-slate-200 mt-12 py-8">
         <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div class="space-y-3">
-                <img src="/uploads/logo-bg.png" alt="Afiliada Mestre" width="186" height="98" class="h-14 w-auto rounded-lg" decoding="async" loading="lazy">
+                <picture>
+                    <source srcset="/uploads/logo-bg.webp" type="image/webp">
+                    <img src="/uploads/logo-bg.png" alt="Afiliada Mestre" width="240" height="126" class="h-14 w-auto rounded-lg" decoding="async" loading="lazy">
+                </picture>
                 <p class="text-xs text-slate-500 leading-relaxed">
                     Seleção diária de ofertas da Shopee. Ao clicar, você é direcionado para a página oficial do produto.
                 </p>
