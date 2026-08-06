@@ -293,34 +293,18 @@
         img[src*="logo-bg.png"], img[src*="logo.png"] { aspect-ratio: 176 / 84; background: transparent; }
 
         /*
-         * Font Awesome — override font-display pra "optional".
-         * Como o CSS remoto do FA declara @font-face próprio, tem que redeclarar aqui
-         * (com mesmo font-family) para o browser adotar o font-display antes/junto
-         * da folha remota chegar. Evita o pequeno CLS do "flash de ícones".
+         * Font Awesome solid (self-host) — font-display: optional de verdade.
+         * Só o peso 900; a vitrine usa quase só `fas`.
          */
         @font-face {
             font-family: "Font Awesome 6 Free";
             font-style: normal;
             font-weight: 900;
             font-display: optional;
-            src: local("Font Awesome 6 Free");
-        }
-        @font-face {
-            font-family: "Font Awesome 6 Free";
-            font-style: normal;
-            font-weight: 400;
-            font-display: optional;
-            src: local("Font Awesome 6 Free");
-        }
-        @font-face {
-            font-family: "Font Awesome 6 Brands";
-            font-style: normal;
-            font-weight: 400;
-            font-display: optional;
-            src: local("Font Awesome 6 Brands");
+            src: url("/uploads/webfonts/fa-solid-900.woff2") format("woff2");
         }
     </style>
-    <!-- Font Awesome só depois do idle: não baixa woff2 no caminho crítico -->
+    <!-- CSS solid (sem regular/brands) — idle, fora do caminho crítico -->
     <script>
     (function () {
       function loadFa() {
@@ -328,14 +312,14 @@
         var l = document.createElement('link');
         l.id = 'fa-css';
         l.rel = 'stylesheet';
-        l.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
+        l.href = '/uploads/fa-solid.min.css';
         document.head.appendChild(l);
       }
       if ('requestIdleCallback' in window) requestIdleCallback(loadFa, { timeout: 2500 });
       else setTimeout(loadFa, 1200);
     })();
     </script>
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
+    <noscript><link rel="stylesheet" href="/uploads/fa-solid.min.css"></noscript>
 </head>
 <body class="bg-shopee-grayBg text-shopee-textDark font-sans selection:bg-shopee-orange selection:text-white min-h-screen flex flex-col">
 
@@ -1349,7 +1333,7 @@
             </div>
             <div class="p-4 grid md:grid-cols-2 gap-4 text-xs">
                 <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
-                    <h5 class="font-bold text-slate-800 flex items-center gap-1.5"><i class="fab fa-meta text-blue-600"></i> Como anunciar no Facebook / Meta</h5>
+                    <h5 class="font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-share-nodes text-blue-600"></i> Como anunciar no Facebook / Meta</h5>
                     <ol class="list-decimal pl-4 text-slate-600 space-y-1.5 leading-relaxed">
                         <li>Crie a campanha aqui, escolha canal <strong>Facebook</strong> e os produtos.</li>
                         <li>Clique em <strong>Salvar campanha</strong> e copie o link.</li>
@@ -1762,7 +1746,7 @@
     </footer>
 
     <!-- JAVASCRIPT APP ARCHITECTURE -->
-    <script src="/uploads/storefront.js" defer></script>
+    <script src="/uploads/storefront.min.js" defer></script>
 
 </body>
 </html>
