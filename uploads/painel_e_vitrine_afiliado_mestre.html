@@ -23,9 +23,6 @@
     <!-- Fonte não bloqueia o 1º paint -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap"></noscript>
-    <!-- FA só depois do 1º paint -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
     <style>
         /* Smooth Custom scrollbars */
         ::-webkit-scrollbar {
@@ -50,18 +47,27 @@
         .animate-subtle-pulse {
             animation: subtle-pulse 2s infinite;
         }
-        /* Esqueleto animado atrás da foto: a imagem em object-cover cobre ao carregar */
+        /* Shimmer composto (transform) — evita CLS do background-position */
         @keyframes img-shimmer {
-            0% { background-position: 100% 0; }
-            100% { background-position: -100% 0; }
+            0% { transform: translateX(-60%); }
+            100% { transform: translateX(60%); }
         }
         .img-skeleton {
-            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-            background-size: 200% 100%;
-            animation: img-shimmer 1.4s linear infinite;
+            background: #f1f5f9;
+            position: relative;
+            overflow: hidden;
+        }
+        .img-skeleton::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+            animation: img-shimmer 1.2s ease-in-out infinite;
+            will-change: transform;
+            pointer-events: none;
         }
         @media (prefers-reduced-motion: reduce) {
-            .img-skeleton { animation: none; }
+            .img-skeleton::after { animation: none; }
         }
         /* Custom UI highlights */
         .api-glow {
@@ -200,12 +206,30 @@
         @media (max-height: 640px) {
             #product-modal .aspect-square { max-height: 34dvh; }
         }
-        /* Reserva espaço pra produtos — corta o CLS ~0.8 do PageSpeed */
-        #hero-products-track { min-height: 220px; }
-        #store-products-grid { min-height: 320px; }
-        #flash-products-container { min-height: 160px; }
+        /* Reserva espaço — corta CLS do PageSpeed (produtos + categorias) */
+        #hero-products-track { min-height: 280px; }
+        #store-products-grid { min-height: 360px; }
+        #flash-products-container { min-height: 180px; }
+        #store-categories-card { min-height: 210px; }
+        #mobile-category-strip { min-height: 168px; }
         img[src*="logo"] { height: auto; }
     </style>
+    <!-- Font Awesome só depois do idle: não baixa woff2 no caminho crítico -->
+    <script>
+    (function () {
+      function loadFa() {
+        if (document.getElementById('fa-css')) return;
+        var l = document.createElement('link');
+        l.id = 'fa-css';
+        l.rel = 'stylesheet';
+        l.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css';
+        document.head.appendChild(l);
+      }
+      if ('requestIdleCallback' in window) requestIdleCallback(loadFa, { timeout: 2500 });
+      else setTimeout(loadFa, 1200);
+    })();
+    </script>
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
 </head>
 <body class="bg-shopee-grayBg text-shopee-textDark font-sans selection:bg-shopee-orange selection:text-white min-h-screen flex flex-col">
 
