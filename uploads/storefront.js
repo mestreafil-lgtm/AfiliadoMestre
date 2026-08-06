@@ -1780,7 +1780,7 @@ async function loadOffersFromSupabase(opts = {}) {
                     </div>
                     <button type="button" onclick="event.stopPropagation(); buyFromCard(${p.id}, '${section}')"
                         class="mx-2 mb-2 sm:mx-2.5 sm:mb-2.5 mt-auto w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)] min-h-[40px] bg-shopee-orange hover:bg-shopee-orangeHover text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
-                        Comprar <i class="fas fa-arrow-up-right-from-square text-[9px]"></i>
+                        Comprar <span aria-hidden="true">→</span>
                     </button>
                 </div>`;
         }
