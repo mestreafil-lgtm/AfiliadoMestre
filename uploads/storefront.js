@@ -1739,8 +1739,8 @@ async function loadOffersFromSupabase(opts = {}) {
             }
         }
 
-        // Inicializa o estado. Só usa cache do localStorage OU mock enquanto a API não responde;
-        // bootStorefront em seguida sobrescreve com dados reais do Supabase.
+        // Inicializa o estado. Prefere cache local; sem cache fica vazio (esqueleto)
+        // até a API responder — evita baixar Unsplash no 1º paint do PageSpeed.
         function initDatabase() {
             try {
                 const cache = localStorage.getItem('afiliado_mestre_db_v1');
@@ -1748,22 +1748,18 @@ async function loadOffersFromSupabase(opts = {}) {
                     const parsed = JSON.parse(cache);
                     if (Array.isArray(parsed) && parsed.length) {
                         productsDatabase = parsed;
-                    } else {
-                        productsDatabase = [...defaultProducts];
+                        return;
                     }
-                } else {
-                    productsDatabase = [...defaultProducts];
                 }
-            } catch (_) {
-                productsDatabase = [...defaultProducts];
-            }
+            } catch (_) {}
+            productsDatabase = [];
         }
 
         // Restore default mocked data
         function restoreDefaultDatabase() {
             if (confirm("Deseja apagar os produtos adicionados e redefinir o banco de dados padrão?")) {
                 localStorage.removeItem('afiliado_mestre_db_v1');
-                initDatabase();
+                productsDatabase = [...defaultProducts];
                 renderStoreProducts();
                 renderConsoleProducts();
                 if (isAdminMode()) loadAdminStats();

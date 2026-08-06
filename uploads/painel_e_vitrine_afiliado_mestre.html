@@ -9,50 +9,23 @@
     <meta property="og:title" content="Afiliada Mestre — Ofertas selecionadas na Shopee">
     <meta property="og:description" content="Ofertas selecionadas facilitando sua vida. Achadinhos e promoções da Shopee todos os dias.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://afiliada-mestre.vercel.app/">
-    <meta property="og:image" content="https://afiliada-mestre.vercel.app/uploads/logo-bg.png">
+    <meta property="og:url" content="https://afiliadomestre-production.up.railway.app/">
+    <meta property="og:image" content="https://afiliadomestre-production.up.railway.app/uploads/logo-bg.png">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://afiliada-mestre.vercel.app/uploads/logo-bg.png">
-    <!-- As fotos vêm do CDN da Shopee: abrir DNS+TLS antes economiza ~300ms no 4G. -->
+    <meta name="twitter:image" content="https://afiliadomestre-production.up.railway.app/uploads/logo-bg.png">
+    <!-- Só as origens críticas do 1º paint (máx. ~4 preconnects). -->
     <link rel="preconnect" href="https://cf.shopee.com.br" crossorigin>
-    <link rel="dns-prefetch" href="https://cf.shopee.com.br">
-    <link rel="preconnect" href="https://down-br.img.susercontent.com" crossorigin>
-    <link rel="dns-prefetch" href="https://down-br.img.susercontent.com">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <!-- FA não bloqueia o 1º paint: carrega como print e troca pra all -->
+    <link rel="dns-prefetch" href="https://down-br.img.susercontent.com">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <!-- CSS próprio (Tailwind gerado) — sem CDN que bloqueia 700ms+ no 4G -->
+    <link rel="stylesheet" href="/uploads/tailwind.css">
+    <!-- Fonte não bloqueia o 1º paint -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap"></noscript>
+    <!-- FA só depois do 1º paint -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"></noscript>
-    <!-- Menos pesos de fonte = menos arquivos no 4G -->
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        shopee: {
-                            orange: '#ee4d2d',
-                            orangeHover: '#d33b1c',
-                            orangeLight: '#ffebd7',
-                            yellow: '#f8d135',
-                            darkYellow: '#f5a623',
-                            grayBg: '#f5f5f5',
-                            textDark: '#222222',
-                            textMuted: '#757575',
-                            greenFree: '#26aa99',
-                            greenLight: '#e8f7f5'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Nunito', 'sans-serif'],
-                        shopee: ['Nunito', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         /* Smooth Custom scrollbars */
         ::-webkit-scrollbar {
@@ -227,6 +200,11 @@
         @media (max-height: 640px) {
             #product-modal .aspect-square { max-height: 34dvh; }
         }
+        /* Reserva espaço pra produtos — corta o CLS ~0.8 do PageSpeed */
+        #hero-products-track { min-height: 220px; }
+        #store-products-grid { min-height: 320px; }
+        #flash-products-container { min-height: 160px; }
+        img[src*="logo"] { height: auto; }
     </style>
 </head>
 <body class="bg-shopee-grayBg text-shopee-textDark font-sans selection:bg-shopee-orange selection:text-white min-h-screen flex flex-col">
@@ -248,7 +226,7 @@
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex flex-col md:flex-row items-center justify-between gap-4">
                     <a href="/" class="flex items-center gap-3 shrink-0">
-                        <img src="/uploads/logo.png" alt="Afiliada Mestre" class="h-12 md:h-14 w-auto drop-shadow-sm">
+                        <img src="/uploads/logo.png" alt="Afiliada Mestre" width="176" height="84" class="h-12 md:h-14 w-auto drop-shadow-sm" decoding="async" fetchpriority="high">
                     </a>
 
                     <div class="w-full md:max-w-2xl">
@@ -435,7 +413,7 @@
         <form id="admin-login-form" onsubmit="return submitAdminLogin(event)"
               class="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4">
             <div class="text-center space-y-2">
-                <img src="/uploads/logo.png" alt="Afiliada Mestre" class="h-12 w-auto mx-auto">
+                <img src="/uploads/logo.png" alt="Afiliada Mestre" width="176" height="84" class="h-12 w-auto mx-auto" decoding="async">
                 <h2 class="text-lg font-black text-slate-800">Entrar no painel</h2>
                 <p class="text-xs text-slate-500">Acesso restrito da Afiliada Mestre</p>
             </div>
@@ -466,7 +444,7 @@
         <aside id="admin-sidebar" class="bg-slate-900 text-white flex flex-col shrink-0 w-[260px] shadow-xl">
             <div class="p-5 border-b border-slate-800">
                 <div class="flex items-center gap-3">
-                    <img src="/uploads/logo.png" alt="Afiliada Mestre" class="h-10 w-auto">
+                    <img src="/uploads/logo.png" alt="Afiliada Mestre" width="160" height="76" class="h-10 w-auto" decoding="async">
                     <div>
                         <p class="font-black text-sm leading-tight">Afiliada Mestre</p>
                         <p class="text-[10px] text-slate-400">Painel administrativo</p>
@@ -1623,7 +1601,7 @@
     <footer class="bg-white border-t border-slate-200 mt-12 py-8">
         <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div class="space-y-3">
-                <img src="/uploads/logo-bg.png" alt="Afiliada Mestre" class="h-14 w-auto rounded-lg">
+                <img src="/uploads/logo-bg.png" alt="Afiliada Mestre" width="186" height="98" class="h-14 w-auto rounded-lg" decoding="async" loading="lazy">
                 <p class="text-xs text-slate-500 leading-relaxed">
                     Seleção diária de ofertas da Shopee. Ao clicar, você é direcionado para a página oficial do produto.
                 </p>
