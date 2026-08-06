@@ -2248,7 +2248,7 @@ async function loadOffersFromSupabase(opts = {}) {
             }
         }
 
-        function categoryTileHTML(cat, { size = 'md', used, openSheet = false } = {}) {
+        function categoryTileHTML(cat, { size = 'md', used, openSheet = false, eagerImg = false } = {}) {
             const isActive = cat.id === currentStoreCategory;
             const borderClass = isActive ? 'border-shopee-orange shadow-sm bg-orange-50/40' : 'border-transparent';
             const bgIconClass = isActive || cat.id === 'todos' ? 'bg-orange-100 text-shopee-orange' : 'bg-slate-100 text-slate-600';
@@ -2265,7 +2265,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 : getCategoryImage(cat.id);
             const icon = categoryIconClass(cat);
             const inner = img
-                ? tileImgHTML(img, `fas ${icon} ${iconSize} text-shopee-orange`, true)
+                ? tileImgHTML(img, `fas ${icon} ${iconSize} text-shopee-orange`, !!eagerImg)
                 : `<i class="fas ${icon} ${iconSize}"></i>`;
             const circleBg = img ? 'bg-slate-100' : bgIconClass;
             const clickAction = openSheet
@@ -2290,11 +2290,11 @@ async function loadOffersFromSupabase(opts = {}) {
             const visible = categories.filter(cat => cat.id !== 'todos');
             if (desktop) {
                 const used = new Set();
-                desktop.innerHTML = visible.map(cat => categoryTileHTML(cat, { size: 'md', used })).join('');
+                desktop.innerHTML = visible.map((cat, i) => categoryTileHTML(cat, { size: 'md', used, eagerImg: i < 2 })).join('');
             }
             if (strip) {
                 const used = new Set();
-                const tiles = visible.map(cat => categoryTileHTML(cat, { size: 'lg', used, openSheet: true })).join('');
+                const tiles = visible.map((cat, i) => categoryTileHTML(cat, { size: 'lg', used, openSheet: true, eagerImg: i < 2 })).join('');
                 const verMais = `
                     <button onclick="openMobileCategorySheet()" class="flex flex-col items-center p-2 rounded-xl hover:bg-slate-50 transition border border-transparent group w-full snap-start">
                         <div class="h-16 w-16 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-1.5">

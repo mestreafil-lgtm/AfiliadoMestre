@@ -2263,8 +2263,8 @@ app.use("/uploads", express.static(path.join(ROOT, "uploads"), {
     if (filePath.endsWith(".html")) {
       res.setHeader("Cache-Control", "public, max-age=30, s-maxage=120, stale-while-revalidate=600");
     } else if (/\.(js|css)$/i.test(filePath)) {
-      // storefront.js muda em todo deploy — 1h + SWR basta sem hash no nome.
-      res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800");
+      // Assets versionados por deploy — cache longo acelera revisitas no PageSpeed.
+      res.setHeader("Cache-Control", "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000");
     }
   },
 }));
