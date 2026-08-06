@@ -305,10 +305,10 @@
         #store-main { min-height: 720px; contain: layout; }
         /* Header search input com altura fixa evita realinhamento vertical no mobile */
         #store-search-input { min-height: 40px; }
-        img[src*="logo"] { height: auto; }
         /* Aspect-ratio real do arquivo (medido: logo.png=240x114, logo-bg.png=240x126).
-           Antes a regra aplicava 176/84 aos dois → box reservado ≠ tamanho real do PNG.
-           Com essa correção o browser reserva exatamente o espaço final desde o 1º frame. */
+           Cada logo recebe o AR do seu próprio PNG — o browser reserva a caixa exata
+           desde o 1º frame. Não fixamos height/width aqui pra deixar as classes Tailwind
+           (h-10 no admin, h-12/h-14 no header/login, h-14 no footer) controlarem o tamanho. */
         img[src*="logo.png"] { aspect-ratio: 240 / 114; background: transparent; }
         img[src*="logo-bg.png"] { aspect-ratio: 240 / 126; background: transparent; }
 
@@ -601,8 +601,11 @@
         <aside id="admin-sidebar" class="bg-slate-900 text-white flex flex-col shrink-0 w-[260px] shadow-xl">
             <div class="p-5 border-b border-slate-800">
                 <div class="flex items-center gap-3">
-                    <img src="/uploads/logo.png" alt="Afiliada Mestre" width="160" height="76" class="h-10 w-auto" decoding="async">
-                    <div>
+                    <picture>
+                        <source srcset="/uploads/logo.webp" type="image/webp">
+                        <img src="/uploads/logo.png" alt="Afiliada Mestre" width="240" height="114" class="h-10 w-auto shrink-0" decoding="async">
+                    </picture>
+                    <div class="min-w-0">
                         <p class="font-black text-sm leading-tight">Afiliada Mestre</p>
                         <p class="text-[10px] text-slate-400">Painel administrativo</p>
                     </div>
