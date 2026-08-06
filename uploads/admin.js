@@ -20,6 +20,49 @@
     const moneyScoreOf = (...a) => AM.moneyScoreOf(...a);
     const femaleOnly = (...a) => AM.femaleOnly(...a);
     const sortByMoney = (...a) => AM.sortByMoney(...a);
+
+    const EXPLORER_PRESETS = {
+        female_money: {
+            listType: 1, sortType: 5, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 5,
+            keywords: "vestido longo feminino, kit skincare, bolsa transversal feminina, conjunto fitness feminino, perfume feminino, sandalia feminina, lingerie feminina, colageno hidrolisado",
+        },
+        bestsellers: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 50, requireCommission: true, minCommissionPct: 0,
+            keywords: "vestido longo feminino, blusa feminina, tênis feminino, kit skincare, maquiagem",
+        },
+        topperf: {
+            listType: 2, sortType: 2, minRating: 4.2, minSales: 20, requireCommission: true, minCommissionPct: 3,
+            keywords: "vestido midi feminino, skincare coreano, bolsa feminina, conjunto fitness, perfume feminino",
+        },
+        commission: {
+            listType: 1, sortType: 5, minRating: 4.0, minSales: 10, requireCommission: true, minCommissionPct: 8,
+            keywords: "perfume feminino, smartwatch feminino, maquiagem, colageno hidrolisado, serum vitamina c",
+        },
+        collection: {
+            listType: 6, sortType: 5, minRating: 4.0, minSales: 0, requireCommission: true, minCommissionPct: 0,
+            keywords: "", matchIdHint: true,
+        },
+        shop: {
+            listType: 5, sortType: 5, minRating: 4.0, minSales: 0, requireCommission: true, minCommissionPct: 0,
+            keywords: "", shopIdHint: true,
+        },
+        rated: {
+            listType: 0, sortType: 1, minRating: 4.7, minSales: 30, requireCommission: true, minCommissionPct: 0,
+            keywords: "creme facial, escova secadora, serum vitamina c, batom liquido matte",
+        },
+        budget: {
+            listType: 0, sortType: 4, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 0,
+            keywords: "organizador maquiagem, kit maquiagem, scrunchie, necessaire feminina, caderno aesthetic",
+        },
+    };
+    const LIST_TYPE_LABELS_UI = {
+        0: "Recomendados", 1: "Maior comissão", 2: "Top performance",
+        3: "Landing categoria", 4: "Detalhe categoria", 5: "Detalhe loja", 6: "Detalhe coleção",
+    };
+    const SORT_TYPE_LABELS_UI = {
+        1: "Relevância", 2: "Mais vendidos", 3: "Maior preço", 4: "Menor preço", 5: "Maior comissão",
+    };
+
     const ADMIN_TOKEN_KEY = "afiliada_mestre_admin_token";
     const ADMIN_REFRESH_KEY = "afiliada_mestre_admin_refresh";
     const ADMIN_USER_KEY = "afiliada_mestre_admin_user";
@@ -2438,12 +2481,12 @@
 
         async function loadAdminStats() {
             const prodEl = document.getElementById('stat-db-products');
-            const catEl = document.getElementById('stat-db-AM.categories');
+            const catEl = document.getElementById('stat-db-categories');
             try {
                 const res = await fetch(`${API_BASE}/api/categorias`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-                const cats = data.AM.categories || [];
+                const cats = data.categories || [];
                 const total = (cats.find(c => c.id === 'todos') || {}).count || 0;
                 const active = cats.filter(c => c.id !== 'todos' && Number(c.count) > 0).length;
                 if (prodEl) prodEl.innerText = total.toLocaleString('pt-BR');
@@ -2790,7 +2833,7 @@
                 if (!res.ok) throw new Error((data && data.error) || `HTTP ${res.status}`);
                 window.__coverageReport = data;
                 line.innerHTML = `Alvo feed <strong>${data.femalePercentTarget || 95}%</strong> feminino · <strong>${data.femaleGaps || 0}</strong> buracos femininos · <strong>${data.generalGaps || 0}</strong> gerais · ${data.totalProducts || 0} produtos`;
-                const cats = data.AM.categories || [];
+                const cats = data.categories || [];
                 table.innerHTML = cats.map((c) => {
                     const pct = c.target ? Math.min(100, Math.round((c.count / c.target) * 100)) : 100;
                     const subs = (c.subcategories || [])
@@ -3180,7 +3223,7 @@
                 }
             }
             // Cobertura (se já carregou) complementa com keywords femininas
-            const cov = (window.__coverageReport?.AM.categories || []).find((c) => c.id === catId);
+            const cov = (window.__coverageReport?.categories || []).find((c) => c.id === catId);
             if (cov) {
                 const covSubs = subId
                     ? (cov.subcategories || []).filter((s) => s.id === subId)
@@ -3216,7 +3259,7 @@
 
 
         async function renderAdminCategoriesPanel() {
-            const box = document.getElementById('admin-AM.categories-panel');
+            const box = document.getElementById('admin-categories-panel');
             if (!box) return;
             try {
                 await loadCategoriesFromApi({ silent: true });
