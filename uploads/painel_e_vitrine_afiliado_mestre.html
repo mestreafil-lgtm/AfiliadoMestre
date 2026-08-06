@@ -47,27 +47,12 @@
         .animate-subtle-pulse {
             animation: subtle-pulse 2s infinite;
         }
-        /* Shimmer composto (transform) — evita CLS do background-position */
-        @keyframes img-shimmer {
-            0% { transform: translateX(-60%); }
-            100% { transform: translateX(60%); }
-        }
+        /* Placeholder estático atrás da foto — sem luz branca passando */
         .img-skeleton {
             background: #f1f5f9;
-            position: relative;
-            overflow: hidden;
-        }
-        .img-skeleton::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
-            animation: img-shimmer 1.2s ease-in-out infinite;
-            will-change: transform;
-            pointer-events: none;
         }
         @media (prefers-reduced-motion: reduce) {
-            .img-skeleton::after { animation: none; }
+            .img-skeleton { animation: none; }
         }
         /* Custom UI highlights */
         .api-glow {
@@ -199,24 +184,32 @@
             #store-header button.bg-shopee-orange { padding-left: 0.85rem; padding-right: 0.85rem; }
         }
         @media (max-width: 639px) {
-            /* No mobile o modal ocupa 100% da tela — sem padding do backdrop e sem borda arredondada. */
+            /* No mobile o modal ocupa 100% da tela */
             #product-modal { padding: 0 !important; align-items: stretch !important; }
             #product-modal #modal-card {
                 border-radius: 0;
                 height: 100dvh;
                 max-height: 100dvh;
-                /* Sem transform de translate: só opacidade anima, o card fica sempre em top:0 */
                 transform: none !important;
             }
         }
         @media (max-height: 640px) {
             #product-modal .aspect-square { max-height: 34dvh; }
         }
-        /* ——— Modal do produto: fixa regras críticas que o tailwind local
-             pode ter purgado (h-[40dvh], object-contain, aspect-square etc). ——— */
-        #modal-card { display: flex; flex-direction: column; overflow: hidden; }
-        /* flex-basis:0 força o scroll a caber no espaço restante do card em vez de esticar */
-        #modal-card #product-modal-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+        /* Modal: layout estável (sem colapsar altura no desktop) */
+        #modal-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #modal-card #product-modal-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
         #modal-card #modal-img-box {
             position: relative;
             width: 100%;
@@ -234,8 +227,16 @@
             height: 100%;
             object-fit: contain;
             display: block;
+            position: relative;
+            z-index: 1;
         }
-        #modal-card #modal-info { padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+        #modal-card #modal-info {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-width: 0;
+        }
         #modal-card #modal-cta-bar {
             flex-shrink: 0;
             border-top: 1px solid #f1f5f9;
@@ -245,18 +246,33 @@
         @media (min-width: 640px) {
             #modal-card #modal-info { padding: 1.25rem; }
             #modal-card #modal-cta-bar { padding: 0.875rem 1.25rem calc(0.875rem + env(safe-area-inset-bottom)); }
+            #modal-card #product-modal-scroll {
+                max-height: calc(92vh - 88px);
+            }
         }
         @media (min-width: 768px) {
-            /* Desktop: coluna lado a lado, imagem preenche a coluna esquerda */
-            #modal-card #product-modal-scroll { display: grid; grid-template-columns: 1fr 1fr; }
-            #modal-card #modal-img-box { height: auto; max-height: none; aspect-ratio: 1 / 1; }
+            #modal-card #product-modal-scroll {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                max-height: calc(92vh - 88px);
+            }
+            #modal-card #modal-img-box {
+                height: auto;
+                max-height: none;
+                aspect-ratio: 1 / 1;
+                align-self: stretch;
+            }
             #modal-card #modal-img { object-fit: cover; }
         }
         #modal-card #modal-title {
             font-size: 15px;
             font-weight: 800;
             line-height: 1.35;
-            color: #1e293b;
+            color: #0f172a;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            overflow: hidden;
             word-break: break-word;
             overflow-wrap: anywhere;
         }
