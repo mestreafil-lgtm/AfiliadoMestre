@@ -1,6 +1,7 @@
 "use strict";
 
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const compression = require("compression");
@@ -217,13 +218,54 @@ app.post("/api/admin/logout", async (req, res) => {
   res.json({ ok: true });
 });
 
+// Cache do HTML transformado em memória. O HTML é carregado uma vez, e as
+// referências a JS/CSS versionadas ganham ?v=<mtime> — assim podemos servir
+// esses assets como public,max-age=1y,immutable sem quebrar deploys (uma nova
+// versão gera uma URL nova). Se o HTML muda no disco (dev), recarregamos.
+const VITRINE_ASSET_FILES = [
+  { rel: "/uploads/tailwind.css", abs: path.join(ROOT, "uploads", "tailwind.css") },
+  { rel: "/uploads/fa-solid.min.css", abs: path.join(ROOT, "uploads", "fa-solid.min.css") },
+  { rel: "/uploads/storefront.min.js", abs: path.join(ROOT, "uploads", "storefront.min.js") },
+];
+let vitrineHtmlCache = null;
+let vitrineHtmlMtimeMs = 0;
+
+function assetVersion(absPath) {
+  try {
+    return Math.floor(fs.statSync(absPath).mtimeMs).toString(36);
+  } catch (_) {
+    return "0";
+  }
+}
+
+function buildVitrineHtml() {
+  const stat = fs.statSync(VITRINE_HTML);
+  if (vitrineHtmlCache && stat.mtimeMs === vitrineHtmlMtimeMs) return vitrineHtmlCache;
+  let html = fs.readFileSync(VITRINE_HTML, "utf8");
+  for (const { rel, abs } of VITRINE_ASSET_FILES) {
+    const v = assetVersion(abs);
+    // Anexa ?v= a qualquer referência sem query-string (não toca as que já tenham).
+    const escaped = rel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(["'])(${escaped})(?!\\?)([\\s"'#])`, "g");
+    html = html.replace(re, `$1$2?v=${v}$3`);
+  }
+  vitrineHtmlCache = html;
+  vitrineHtmlMtimeMs = stat.mtimeMs;
+  return html;
+}
+
 function sendVitrine(_req, res) {
   // HTML muda com deploys: cache curto no browser, um pouco maior na CDN/edge.
   res.set(
     "Cache-Control",
     "public, max-age=30, s-maxage=120, stale-while-revalidate=600"
   );
-  res.sendFile(VITRINE_HTML);
+  try {
+    res.type("html").send(buildVitrineHtml());
+  } catch (err) {
+    // Fallback ao envio direto do arquivo se algo der errado (nunca deve acontecer).
+    res.sendFile(VITRINE_HTML);
+  }
 }
 
 // Cache leve em memória para campanhas (reduz hits Shopee/Vercel)
@@ -2263,8 +2305,13 @@ app.use("/uploads", express.static(path.join(ROOT, "uploads"), {
     if (filePath.endsWith(".html")) {
       res.setHeader("Cache-Control", "public, max-age=30, s-maxage=120, stale-while-revalidate=600");
     } else if (/\.(js|css)$/i.test(filePath)) {
-      // Assets versionados por deploy — cache longo acelera revisitas no PageSpeed.
-      res.setHeader("Cache-Control", "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000");
+      // Referências no HTML têm ?v=<mtime>, então uma nova versão do arquivo
+      // gera uma URL diferente — podemos marcar immutable com segurança.
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (/\.(png|jpe?g|gif|webp|avif|svg|ico|woff2?)$/i.test(filePath)) {
+      // Bytes com baixa taxa de mudança (logos, fonte de ícones). 30 dias com
+      // stale-while-revalidate deixa revisitas praticamente instantâneas.
+      res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=2592000");
     }
   },
 }));
