@@ -20,9 +20,9 @@
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <!-- CSS próprio (Tailwind gerado) — sem CDN que bloqueia 700ms+ no 4G -->
     <link rel="stylesheet" href="/uploads/tailwind.css">
-    <!-- Fonte não bloqueia o 1º paint -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap"></noscript>
+    <!-- Fonte não bloqueia o 1º paint; display=optional evita CLS quando a fonte chega tarde -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=optional" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=optional"></noscript>
     <style>
         /* Smooth Custom scrollbars */
         ::-webkit-scrollbar {
@@ -199,20 +199,110 @@
             #store-header button.bg-shopee-orange { padding-left: 0.85rem; padding-right: 0.85rem; }
         }
         @media (max-width: 639px) {
-            #product-modal #modal-card { border-radius: 0; }
-            #product-modal.opacity-0 #modal-card { transform: translateY(10px); }
-            #product-modal:not(.opacity-0) #modal-card { transform: none; }
+            /* No mobile o modal ocupa 100% da tela — sem padding do backdrop e sem borda arredondada. */
+            #product-modal { padding: 0 !important; align-items: stretch !important; }
+            #product-modal #modal-card {
+                border-radius: 0;
+                height: 100dvh;
+                max-height: 100dvh;
+                /* Sem transform de translate: só opacidade anima, o card fica sempre em top:0 */
+                transform: none !important;
+            }
         }
         @media (max-height: 640px) {
             #product-modal .aspect-square { max-height: 34dvh; }
         }
+        /* ——— Modal do produto: fixa regras críticas que o tailwind local
+             pode ter purgado (h-[40dvh], object-contain, aspect-square etc). ——— */
+        #modal-card { display: flex; flex-direction: column; overflow: hidden; }
+        /* flex-basis:0 força o scroll a caber no espaço restante do card em vez de esticar */
+        #modal-card #product-modal-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+        #modal-card #modal-img-box {
+            position: relative;
+            width: 100%;
+            height: 40dvh;
+            max-height: 380px;
+            background: #f8fafc;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #modal-card #modal-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        #modal-card #modal-info { padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+        #modal-card #modal-cta-bar {
+            flex-shrink: 0;
+            border-top: 1px solid #f1f5f9;
+            background: #fff;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+        }
+        @media (min-width: 640px) {
+            #modal-card #modal-info { padding: 1.25rem; }
+            #modal-card #modal-cta-bar { padding: 0.875rem 1.25rem calc(0.875rem + env(safe-area-inset-bottom)); }
+        }
+        @media (min-width: 768px) {
+            /* Desktop: coluna lado a lado, imagem preenche a coluna esquerda */
+            #modal-card #product-modal-scroll { display: grid; grid-template-columns: 1fr 1fr; }
+            #modal-card #modal-img-box { height: auto; max-height: none; aspect-ratio: 1 / 1; }
+            #modal-card #modal-img { object-fit: cover; }
+        }
+        #modal-card #modal-title {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.35;
+            color: #1e293b;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
         /* Reserva espaço — corta CLS do PageSpeed (produtos + categorias) */
-        #hero-products-track { min-height: 280px; }
-        #store-products-grid { min-height: 360px; }
-        #flash-products-container { min-height: 180px; }
-        #store-categories-card { min-height: 210px; }
-        #mobile-category-strip { min-height: 168px; }
+        #hero-products-track { min-height: 320px; }
+        #store-products-grid { min-height: 480px; }
+        #flash-products-container { min-height: 220px; }
+        /* Mobile: 4 linhas x ~70px + header do card + gap = ~340px */
+        #store-categories-card { min-height: 340px; contain: layout; }
+        #mobile-category-strip { min-height: 172px; contain: layout; }
+        /* Reserva pro shell inteiro do main enquanto Nunito/produtos chegam */
+        #main-storefront-section { min-height: calc(100dvh - 60px); }
+        #store-main { min-height: 720px; contain: layout; }
+        /* Header search input com altura fixa evita realinhamento vertical no mobile */
+        #store-search-input { min-height: 40px; }
         img[src*="logo"] { height: auto; }
+        /* Placeholder do logo antes do PNG carregar — reserva a caixa exata */
+        img[src*="logo-bg.png"], img[src*="logo.png"] { aspect-ratio: 176 / 84; background: transparent; }
+
+        /*
+         * Font Awesome — override font-display pra "optional".
+         * Como o CSS remoto do FA declara @font-face próprio, tem que redeclarar aqui
+         * (com mesmo font-family) para o browser adotar o font-display antes/junto
+         * da folha remota chegar. Evita o pequeno CLS do "flash de ícones".
+         */
+        @font-face {
+            font-family: "Font Awesome 6 Free";
+            font-style: normal;
+            font-weight: 900;
+            font-display: optional;
+            src: local("Font Awesome 6 Free");
+        }
+        @font-face {
+            font-family: "Font Awesome 6 Free";
+            font-style: normal;
+            font-weight: 400;
+            font-display: optional;
+            src: local("Font Awesome 6 Free");
+        }
+        @font-face {
+            font-family: "Font Awesome 6 Brands";
+            font-style: normal;
+            font-weight: 400;
+            font-display: optional;
+            src: local("Font Awesome 6 Brands");
+        }
     </style>
     <!-- Font Awesome só depois do idle: não baixa woff2 no caminho crítico -->
     <script>
@@ -1566,53 +1656,54 @@
     <!-- POPUP DE DETALHES DO PRODUTO (cliente) -->
     <div id="product-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-stretch sm:items-center justify-center z-50 p-0 sm:p-4 opacity-0 transition-opacity duration-200" onclick="if(event.target===this) closeProductModal()">
         <div class="bg-white sm:rounded-2xl shadow-2xl overflow-hidden w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] flex flex-col transform scale-95 transition-transform duration-200" id="modal-card">
-            <div class="relative flex flex-col min-h-0 flex-1">
-                <button type="button" onclick="closeProductModal()" class="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-10 h-10 w-10 rounded-full bg-black/45 hover:bg-black/60 text-white flex items-center justify-center transition" aria-label="Fechar">
-                    <i class="fas fa-times"></i>
-                </button>
-                <div class="grid grid-cols-1 md:grid-cols-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                    <div class="aspect-square max-h-[42dvh] md:max-h-none img-skeleton relative overflow-hidden flex items-center justify-center bg-slate-50">
-                        <img id="modal-img" src="" alt="" decoding="async" fetchpriority="high" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/500x500/ffebd7/ee4d2d?text=Shopee'">
-                        <span id="modal-discount" class="absolute top-3 left-3 bg-shopee-orange text-white font-black text-xs px-2.5 py-1 rounded-lg shadow"></span>
-                    </div>
+            <button type="button" onclick="closeProductModal()" class="absolute top-3 right-3 z-20 h-10 w-10 rounded-full bg-black/55 hover:bg-black/70 text-white flex items-center justify-center transition" style="top: max(0.75rem, env(safe-area-inset-top));" aria-label="Fechar">
+                <i class="fas fa-times"></i>
+            </button>
 
-                    <div class="p-4 sm:p-5 flex flex-col pb-[max(1rem,env(safe-area-inset-bottom))]">
-                        <span id="modal-category" class="self-start bg-orange-50 text-shopee-orange text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wide mb-2"></span>
-                        <h3 id="modal-title" class="text-[15px] sm:text-base font-extrabold text-slate-800 leading-snug line-clamp-3 break-words"></h3>
+            <!-- Área rolável (imagem + info). CTA fica fixo abaixo, fora do scroll. -->
+            <div id="product-modal-scroll" class="relative">
+                <div id="modal-img-box" class="img-skeleton">
+                    <img id="modal-img" src="" alt="" decoding="async" fetchpriority="high" onerror="this.onerror=null; this.src='https://placehold.co/500x500/ffebd7/ee4d2d?text=Shopee'">
+                    <span id="modal-discount" class="absolute top-3 left-3 bg-shopee-orange text-white font-black text-xs px-2.5 py-1 rounded-lg shadow"></span>
+                </div>
 
-                        <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <div id="modal-info">
+                    <div class="flex flex-col gap-1.5 min-w-0">
+                        <span id="modal-category" class="self-start bg-orange-50 text-shopee-orange text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wide"></span>
+                        <h3 id="modal-title"></h3>
+                        <div class="flex items-center gap-2 flex-wrap">
                             <div id="modal-stars" class="text-amber-400 text-xs flex"></div>
                             <span id="modal-sales" class="text-[11px] text-slate-500"></span>
                         </div>
-
-                        <div class="mt-3 rounded-xl bg-[#fff7f5] border border-[#ffe0d2] px-3.5 py-3">
-                            <p id="modal-old-price" class="text-xs text-slate-400 line-through"></p>
-                            <p id="modal-new-price" class="text-shopee-orange text-[1.75rem] sm:text-3xl font-black leading-none tracking-tight"></p>
-                        </div>
-
-                        <div id="modal-options" class="hidden mt-3 flex flex-wrap gap-1.5"></div>
-                        <p id="modal-options-hint" class="hidden text-[11px] text-slate-500 mt-2 leading-relaxed"></p>
-
-                        <div class="flex flex-wrap gap-2 mt-3">
-                            <span id="modal-shop" class="hidden bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded items-center gap-1">
-                                <i class="fas fa-store"></i> <span id="modal-shop-name"></span>
-                            </span>
-                        </div>
-
-                        <ul id="modal-benefits" class="mt-3 space-y-2 text-[12.5px] text-slate-600"></ul>
-                        <p id="modal-deadline" class="hidden text-[11px] text-red-600 font-bold mt-2 flex items-center justify-center gap-1"></p>
-
-                        <div class="mt-auto pt-4 sticky bottom-0 bg-white/95 backdrop-blur-sm -mx-4 sm:-mx-5 px-4 sm:px-5 pb-1 border-t border-slate-100 sm:border-0 sm:static sm:bg-transparent sm:backdrop-blur-none sm:px-0 sm:mx-0">
-                            <a id="modal-buy-btn" href="#" target="_blank" rel="nofollow sponsored noopener"
-                               class="block" onclick="return handleBuyClick(event)">
-                                <span class="w-full min-h-[48px] bg-shopee-orange hover:bg-shopee-orangeHover text-white py-3 px-4 rounded-xl font-extrabold text-sm shadow flex items-center justify-center gap-2 transition tracking-wide">
-                                    <i class="fas fa-bag-shopping"></i> <span id="modal-buy-label">Comprar na Shopee</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
-                                </span>
-                            </a>
-                            <p class="text-[10px] text-slate-400 text-center mt-2 mb-1">Você será direcionado de forma segura para o app/site oficial da Shopee.</p>
-                        </div>
                     </div>
+
+                    <div class="rounded-xl px-3.5 py-3" style="background:#fff7f5; border:1px solid #ffe0d2;">
+                        <p id="modal-old-price" class="text-xs text-slate-400 line-through"></p>
+                        <p id="modal-new-price" class="text-shopee-orange font-black leading-none tracking-tight" style="font-size:1.75rem;"></p>
+                    </div>
+
+                    <div id="modal-options" class="hidden flex flex-wrap gap-1.5"></div>
+                    <p id="modal-options-hint" class="hidden text-[11px] text-slate-500 leading-relaxed"></p>
+
+                    <div class="flex flex-wrap gap-2">
+                        <span id="modal-shop" class="hidden bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded items-center gap-1">
+                            <i class="fas fa-store"></i> <span id="modal-shop-name"></span>
+                        </span>
+                    </div>
+
+                    <ul id="modal-benefits" class="space-y-2 text-[12.5px] text-slate-600"></ul>
+                    <p id="modal-deadline" class="hidden text-[11px] text-red-600 font-bold flex items-center justify-center gap-1"></p>
                 </div>
+            </div>
+
+            <!-- CTA fixo na base — sempre visível (fora do scroll) -->
+            <div id="modal-cta-bar">
+                <a id="modal-buy-btn" href="#" target="_blank" rel="nofollow sponsored noopener" class="block" onclick="return handleBuyClick(event)">
+                    <span class="w-full bg-shopee-orange hover:bg-shopee-orangeHover text-white py-3 px-4 rounded-xl font-extrabold text-sm shadow flex items-center justify-center gap-2 transition tracking-wide" style="min-height:48px;">
+                        <i class="fas fa-bag-shopping"></i> <span id="modal-buy-label">Comprar na Shopee</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
+                    </span>
+                </a>
+                <p class="text-[10px] text-slate-400 text-center mt-2">Você será direcionado de forma segura para o app/site oficial da Shopee.</p>
             </div>
         </div>
     </div>
