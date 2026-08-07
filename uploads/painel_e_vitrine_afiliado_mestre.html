@@ -14,14 +14,12 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://afiliadomestre-production.up.railway.app/uploads/logo-bg.png">
     <meta name="facebook-domain-verification" content="khq9v56un5mix3s25zcba2u6r4nbtw" />
-    <!-- Só as origens críticas do 1º paint (máx. ~4 preconnects). -->
-    <!-- cf.shopee.com.br sem crossorigin: as <img> de produto são anônimas — o Lighthouse
-         reportava "Preconexão não usada" porque a conexão CORS não casava com a real. -->
+    <!-- Só as origens críticas do 1º paint (máx. ~4). Pixel fica em dns-prefetch
+         (não adiamos nem alteramos o snippet Meta). placehold.co saiu — quase não entra no 1º paint. -->
+    <!-- cf.shopee sem crossorigin: <img> anônimas usam conexão sem CORS. -->
     <link rel="preconnect" href="https://cf.shopee.com.br">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://placehold.co">
     <link rel="dns-prefetch" href="https://down-br.img.susercontent.com">
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="dns-prefetch" href="https://connect.facebook.net">
     <link rel="dns-prefetch" href="https://www.facebook.com">
     <!-- Meta Pixel Code -->
@@ -332,49 +330,48 @@
             word-break: break-word;
             overflow-wrap: anywhere;
         }
-        /* Reserva espaço — corta CLS do PageSpeed (produtos + categorias).
-           Alturas medidas em produção pra bater com o render real e evitar
-           layout shift quando a API responde. */
-        #hero-products-track { min-height: 900px; }
-        #store-products-grid { min-height: 1400px; }
-        #flash-products-container { min-height: 220px; }
-        #store-categories-card { min-height: 480px; contain: layout; }
-        #mobile-category-strip { min-height: 280px; contain: layout; }
+        /* Reserva espaço — CLS. Skeletons no HTML cobrem o hero/grid; min-heights
+           evitam colapso das seções vazias (flash / home-sections) até o JS pintar.
+           Não mudar visual: só segurar a altura. */
+        #hero-products-track { min-height: 720px; contain: layout; }
+        #store-products-grid { min-height: 1100px; contain: layout; }
+        #flash-products-container { min-height: 280px; contain: layout; }
+        #store-categories-card { min-height: 260px; contain: layout; }
+        #mobile-category-strip { min-height: 200px; contain: layout; }
         @media (min-width: 640px) {
             #hero-products-track { min-height: 380px; }
             #store-products-grid { min-height: 700px; }
+            #store-categories-card { min-height: 200px; }
         }
-        /* Home sections (home-sections) e ofertas em destaque também são pintados
-           depois do fetch — sem essa reserva o main "salta" no primeiro frame.
-           Valores calibrados pelo render real medido em produção. */
-        #home-sections { min-height: 1600px; contain: layout; }
-        #store-grid-section { min-height: 2400px; contain: layout; }
+        #home-sections { min-height: 900px; contain: layout; }
+        #store-grid-section { min-height: 1400px; contain: layout; }
         @media (min-width: 640px) {
-            #home-sections { min-height: 900px; }
-            #store-grid-section { min-height: 1200px; }
+            #home-sections { min-height: 700px; }
+            #store-grid-section { min-height: 1000px; }
         }
-        /* Reserva pro shell inteiro do main enquanto Nunito/produtos chegam */
+        /* Abaixo da dobra: browser pode adiar trabalho de layout/paint (SI/TBT).
+           contain-intrinsic-size evita “pulo” quando a seção entra na viewport. */
+        #flash-sale-section,
+        #home-sections,
+        #store-grid-section {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 800px;
+        }
         #main-storefront-section { min-height: calc(100dvh - 60px); }
         #store-main { min-height: 720px; contain: layout; }
-        /* Header search input com altura fixa evita realinhamento vertical no mobile */
         #store-search-input { min-height: 40px; }
-        /* Aspect-ratio real do arquivo (medido: logo.png=240x114, logo-bg.png=240x126).
-           Cada logo recebe o AR do seu próprio PNG — o browser reserva a caixa exata
-           desde o 1º frame. Não fixamos height/width aqui pra deixar as classes Tailwind
-           (h-10 no admin, h-12/h-14 no header/login, h-14 no footer) controlarem o tamanho. */
         img[src*="logo.png"] { aspect-ratio: 240 / 114; background: transparent; }
         img[src*="logo-bg.png"] { aspect-ratio: 240 / 126; background: transparent; }
 
-        /*
-         * Font Awesome solid (self-host) — font-display: optional de verdade.
-         * Só o peso 900; a vitrine usa quase só `fas`.
-         */
-        @font-face {
-            font-family: "Font Awesome 6 Free";
-            font-style: normal;
-            font-weight: 900;
-            font-display: optional;
-            src: url("/uploads/webfonts/fa-solid-900.woff2") format("woff2");
+        /* Reserva caixa do ícone antes do FA CSS chegar — corta CLS do woff2.
+           @font-face NÃO fica no critical path (só no fa-solid.min.css idle). */
+        .fas, .fa-solid {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            line-height: 1;
+            vertical-align: -0.125em;
+            flex-shrink: 0;
         }
     </style>
     <!-- CSS solid (sem regular/brands) — idle, fora do caminho crítico -->
@@ -415,7 +412,7 @@
                     <a href="/" class="flex items-center gap-3 shrink-0">
                         <picture>
                             <source srcset="/uploads/logo.webp" type="image/webp">
-                            <img src="/uploads/logo.png" alt="Afiliada Mestre" width="240" height="114" class="h-12 md:h-14 w-auto drop-shadow-sm" decoding="async" fetchpriority="high">
+                            <img src="/uploads/logo.png" alt="Afiliada Mestre" width="240" height="114" class="h-12 md:h-14 w-auto drop-shadow-sm" decoding="async" fetchpriority="auto">
                         </picture>
                     </a>
 
@@ -561,7 +558,13 @@
                     </div>
                     <span class="text-xs text-slate-500 font-semibold">Baseado no prazo real da oferta</span>
                 </div>
-                <div class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3 pb-6" id="flash-products-container"></div>
+                <div class="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3 pb-6" id="flash-products-container">
+                    <!-- Skeletons: container começava vazio e crescia no fetch → CLS. -->
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                </div>
             </div>
 
             <!-- PRODUCTS SHOWCASE GRID -->
