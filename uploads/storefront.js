@@ -345,6 +345,38 @@
             return params.has("admin") || params.get("mode") === "admin";
         }
 
+        // Meta Pixel — eventos da vitrine (nunca no /admin)
+        let lastPixelPagePath = null;
+        function amPixelTrack(eventName, params) {
+            if (isAdminMode()) return;
+            if (typeof fbq !== "function") return;
+            try { fbq("track", eventName, params || {}); } catch (_) {}
+        }
+        function amPixelPageView() {
+            if (isAdminMode()) return;
+            const path = pathClean() + (window.location.search || "");
+            // 1ª chamada: o snippet do HTML já enviou PageView — só memoriza o path.
+            if (lastPixelPagePath === null) {
+                lastPixelPagePath = path;
+                return;
+            }
+            if (path === lastPixelPagePath) return;
+            lastPixelPagePath = path;
+            amPixelTrack("PageView");
+        }
+        function amPixelProductPayload(p) {
+            if (!p) return {};
+            const value = Number(p.newPrice);
+            return {
+                content_ids: [String(p.id)],
+                content_name: String(p.title || "").slice(0, 150),
+                content_type: "product",
+                content_category: String(p.category || ""),
+                currency: "BRL",
+                ...(Number.isFinite(value) && value > 0 ? { value } : {}),
+            };
+        }
+
         function navigateTo(path, { replace = false } = {}) {
             const next = path.startsWith("/") ? path : `/${path}`;
             if (replace) history.replaceState({ path: next }, "", next);
@@ -370,6 +402,7 @@
                 return;
             }
 
+            try {
             document.body.classList.remove("admin-mode");
             const panel = document.getElementById("admin-panel-root");
             if (panel) {
@@ -425,6 +458,9 @@
                 renderSubcategories();
                 renderStoreProducts();
                 renderHomeSections();
+            }
+            } finally {
+                amPixelPageView();
             }
         }
 
@@ -2073,15 +2109,19 @@ async function loadOffersFromSupabase(opts = {}) {
         }
 
         let searchDebounce = null;
+        let lastPixelSearch = "";
         async function searchStoreProducts() {
             const term = (document.getElementById('store-search-input')?.value || "").trim();
             document.getElementById('store-search-clear')?.classList.toggle('hidden', !term);
             // Filtra o que já está carregado imediatamente (sem custo)
             renderStoreProducts();
-            if (!apiLive || term.length < 2) return;
-            // Busca no cache do Supabase (não grava nada) com debounce
             clearTimeout(searchDebounce);
             searchDebounce = setTimeout(() => {
+                if (term.length >= 2 && term !== lastPixelSearch) {
+                    lastPixelSearch = term;
+                    amPixelTrack("Search", { search_string: term.slice(0, 100) });
+                }
+                if (!apiLive || term.length < 2) return;
                 loadOffersFromSupabase({ silent: true, reset: true, keyword: term });
             }, 400);
         }
@@ -2235,6 +2275,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 modal.classList.remove('opacity-0');
                 card.classList.remove('scale-95');
             });
+            amPixelTrack("ViewContent", amPixelProductPayload(p));
             // Prefetch shortlink com Sub IDs do canal — CTA pronto no clique
             if (!hasMatchingTrackedLink(p)) {
                 resolveAffiliateUrl(p).then((url) => {
@@ -2313,12 +2354,17 @@ async function loadOffersFromSupabase(opts = {}) {
                 || params.get('campaign')
                 || '';
             const mediumRaw = params.get('utm_medium') || params.get('medium') || '';
+            const fbclid = (params.get('fbclid') || '').trim();
+            const utmContent = (params.get('utm_content') || '').trim();
 
-            if (channelRaw || campaignRaw) {
+            if (channelRaw || campaignRaw || fbclid) {
+                const existing = readStoredAttribution() || {};
                 const attr = {
-                    channel: normalizeChannel(channelRaw || 'organico'),
-                    campaign: sanitizeSubId(campaignRaw || 'vitrine', 'vitrine'),
-                    medium: sanitizeSubId(mediumRaw, ''),
+                    channel: normalizeChannel(channelRaw || existing.channel || 'organico'),
+                    campaign: sanitizeSubId(campaignRaw || existing.campaign || 'vitrine', 'vitrine'),
+                    medium: sanitizeSubId(mediumRaw || existing.medium || '', ''),
+                    fbclid: fbclid || existing.fbclid || '',
+                    utmContent: utmContent || existing.utmContent || '',
                     capturedAt: Date.now(),
                 };
                 persistAttribution(attr);
@@ -2332,6 +2378,8 @@ async function loadOffersFromSupabase(opts = {}) {
                 channel: 'organico',
                 campaign: 'vitrine',
                 medium: '',
+                fbclid: '',
+                utmContent: '',
                 capturedAt: Date.now(),
             };
             persistAttribution(fallback);
@@ -2529,6 +2577,7 @@ async function loadOffersFromSupabase(opts = {}) {
         /** Abre aba em sync (anti popup-blocker) e navega quando o shortlink chegar. */
         async function openAffiliateInNewTab(p, { labelEl = null } = {}) {
             if (!p) return;
+            amPixelTrack("InitiateCheckout", amPixelProductPayload(p));
             const immediate = (hasMatchingTrackedLink(p) && p.shortLink)
                 || p.shortLink
                 || p.affiliateLink
@@ -2561,6 +2610,7 @@ async function loadOffersFromSupabase(opts = {}) {
             const label = document.getElementById('modal-buy-label');
             const btn = document.getElementById('modal-buy-btn');
             if (hasMatchingTrackedLink(p) && p.shortLink) {
+                amPixelTrack("InitiateCheckout", amPixelProductPayload(p));
                 if (btn) btn.href = p.shortLink;
                 return true;
             }
