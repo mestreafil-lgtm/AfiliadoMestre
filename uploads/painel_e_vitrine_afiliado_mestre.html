@@ -190,21 +190,27 @@
             #store-header button.bg-shopee-orange { padding-left: 0.85rem; padding-right: 0.85rem; }
         }
         @media (max-width: 639px) {
-            /* No mobile o modal ocupa 100% da tela */
-            #product-modal { padding: 0 !important; align-items: stretch !important; }
+            /* Sheet menor: deixa a vitrine visível nas bordas (também em /p/:id e campanha). */
+            #product-modal {
+                padding: 0.65rem 0.65rem max(0.65rem, env(safe-area-inset-bottom)) !important;
+                align-items: flex-end !important;
+            }
             #product-modal #modal-card {
-                border-radius: 0;
-                height: 100dvh;
-                max-height: 100dvh;
+                border-radius: 1.25rem;
+                height: auto;
+                max-height: 86dvh;
                 transform: none !important;
-                /* Reserva a área da Dynamic Island / notch: a foto do produto não
-                   grudava no topo em telas com safe-area, e o botão de fechar ficava
-                   colado no relógio do iPhone. */
+                /* Safe-area só no topo do sheet (notch); a base já tem padding do CTA. */
                 padding-top: env(safe-area-inset-top);
+            }
+            #product-modal #modal-img-box {
+                height: 30dvh;
+                max-height: 240px;
             }
         }
         @media (max-height: 640px) {
-            #product-modal .aspect-square { max-height: 34dvh; }
+            #product-modal .aspect-square { max-height: 28dvh; }
+            #product-modal #modal-img-box { height: 26dvh; max-height: 200px; }
         }
         /* Modal: layout estável (sem colapsar altura no desktop) */
         #modal-card {
@@ -223,8 +229,8 @@
         #modal-card #modal-img-box {
             position: relative;
             width: 100%;
-            height: 40dvh;
-            max-height: 380px;
+            height: 36dvh;
+            max-height: 320px;
             background: #f8fafc;
             flex-shrink: 0;
             display: flex;
@@ -260,14 +266,14 @@
             #modal-card #modal-info { padding: 1.25rem; }
             #modal-card #modal-cta-bar { padding: 0.875rem 1.25rem calc(0.875rem + env(safe-area-inset-bottom)); }
             #modal-card #product-modal-scroll {
-                max-height: calc(92vh - 88px);
+                max-height: calc(84vh - 88px);
             }
         }
         @media (min-width: 768px) {
             #modal-card #product-modal-scroll {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                max-height: calc(92vh - 88px);
+                max-height: calc(84vh - 88px);
             }
             #modal-card #modal-img-box {
                 height: auto;
@@ -1700,8 +1706,8 @@
     </div>
 
     <!-- POPUP DE DETALHES DO PRODUTO (cliente) -->
-    <div id="product-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-stretch sm:items-center justify-center z-50 p-0 sm:p-4 opacity-0 transition-opacity duration-200" onclick="if(event.target===this) closeProductModal()">
-        <div class="bg-white sm:rounded-2xl shadow-2xl overflow-hidden w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] flex flex-col transform scale-95 transition-transform duration-200" id="modal-card">
+    <div id="product-modal" class="fixed inset-0 bg-black/45 backdrop-blur-[2px] hidden items-stretch sm:items-center justify-center z-50 p-0 sm:p-5 opacity-0 transition-opacity duration-200" onclick="if(event.target===this) closeProductModal()">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full sm:max-w-xl h-auto max-h-[86dvh] sm:max-h-[84vh] flex flex-col transform scale-95 transition-transform duration-200" id="modal-card">
             <!-- Botão de fechar: branco sólido + × em SVG inline (não depende do Font Awesome, que é deferido).
                  44x44 é o mínimo Apple HIG pra área de toque. Sombra forte garante contraste em foto clara OU escura. -->
             <button type="button" onclick="closeProductModal()" class="absolute right-3 z-30 h-11 w-11 rounded-full bg-white text-slate-900 flex items-center justify-center transition hover:bg-slate-100 active:scale-95" style="top: calc(env(safe-area-inset-top, 0px) + 0.75rem); box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.08);" aria-label="Fechar">
