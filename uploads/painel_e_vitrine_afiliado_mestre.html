@@ -332,17 +332,27 @@
             word-break: break-word;
             overflow-wrap: anywhere;
         }
-        /* Reserva espaço — corta CLS do PageSpeed (produtos + categorias) */
-        #hero-products-track { min-height: 320px; }
-        #store-products-grid { min-height: 480px; }
+        /* Reserva espaço — corta CLS do PageSpeed (produtos + categorias).
+           Alturas medidas em produção pra bater com o render real e evitar
+           layout shift quando a API responde. */
+        #hero-products-track { min-height: 900px; }
+        #store-products-grid { min-height: 1400px; }
         #flash-products-container { min-height: 220px; }
-        /* Mobile Moto G: 4 linhas x ~70px + header + gap + padding real ≈ 400px */
-        #store-categories-card { min-height: 420px; contain: layout; }
-        #mobile-category-strip { min-height: 172px; contain: layout; }
+        #store-categories-card { min-height: 480px; contain: layout; }
+        #mobile-category-strip { min-height: 280px; contain: layout; }
+        @media (min-width: 640px) {
+            #hero-products-track { min-height: 380px; }
+            #store-products-grid { min-height: 700px; }
+        }
         /* Home sections (home-sections) e ofertas em destaque também são pintados
-           depois do fetch — sem essa reserva o main "salta" no primeiro frame. */
-        #home-sections { min-height: 620px; contain: layout; }
-        #store-grid-section { min-height: 900px; contain: layout; }
+           depois do fetch — sem essa reserva o main "salta" no primeiro frame.
+           Valores calibrados pelo render real medido em produção. */
+        #home-sections { min-height: 1600px; contain: layout; }
+        #store-grid-section { min-height: 2400px; contain: layout; }
+        @media (min-width: 640px) {
+            #home-sections { min-height: 900px; }
+            #store-grid-section { min-height: 1200px; }
+        }
         /* Reserva pro shell inteiro do main enquanto Nunito/produtos chegam */
         #main-storefront-section { min-height: calc(100dvh - 60px); }
         #store-main { min-height: 720px; contain: layout; }
@@ -363,7 +373,7 @@
             font-family: "Font Awesome 6 Free";
             font-style: normal;
             font-weight: 900;
-            font-display: swap;
+            font-display: optional;
             src: url("/uploads/webfonts/fa-solid-900.woff2") format("woff2");
         }
     </style>
@@ -468,9 +478,13 @@
                     </button>
                 </div>
                 <div id="hero-products-track" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
-                    <div class="col-span-full py-8 text-center text-slate-400 text-xs">
-                        <i class="fas fa-spinner fa-spin mr-2"></i> Carregando produtos…
-                    </div>
+                    <!-- Skeletons reservam altura real até a API responder (evita CLS). -->
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
                 </div>
             </section>
 
@@ -572,7 +586,17 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-3.5" id="store-products-grid"></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-3.5" id="store-products-grid">
+                    <!-- Skeletons reservam altura real até a API responder (evita CLS). -->
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                </div>
             </div>
         </main>
 
