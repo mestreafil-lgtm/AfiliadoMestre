@@ -2371,7 +2371,12 @@
                 const res = await adminFetch(`${API_BASE}/api/admin/link/decode?url=${encodeURIComponent(url)}`);
                 const d = await res.json();
                 if (!res.ok) throw new Error(d?.error || `HTTP ${res.status}`);
-                const subLabels = ["site (slot 1)", "canal (slot 2)", "campanha (slot 3)", "categoria (slot 4)", "pid (slot 5)"];
+                if (d.shortener) {
+                    out.innerHTML = `<div class="p-3 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">${escapeHtml(d.note || "")}</div>`;
+                    return;
+                }
+                // Slot 3 é campanha no tráfego pago e código da seção da vitrine no orgânico.
+                const subLabels = ["site (slot 1)", "canal (slot 2)", "campanha / seção (slot 3)", "categoria (slot 4)", "pid (slot 5)"];
                 const subIds = Array.isArray(d.subIds) ? d.subIds : [];
                 out.innerHTML = `
                     <div class="p-3 bg-slate-50 rounded space-y-1 text-[11px]">
@@ -2380,6 +2385,7 @@
                         <p><b>Canal:</b> ${escapeHtml(String(d.channel || "—"))} · <b>Campanha:</b> ${escapeHtml(String(d.campaign || "—"))}</p>
                         <div><b>Sub IDs:</b><ul class="ml-3 mt-1 space-y-0.5">${subLabels.map((lbl, i) => `<li><span class="text-slate-500">${lbl}:</span> <span class="font-mono">${escapeHtml(String(subIds[i] || "—"))}</span></li>`).join("")}</ul></div>
                         ${d.destination ? `<p class="break-all"><b>Destino:</b> <span class="font-mono text-[10px] text-slate-600">${escapeHtml(d.destination)}</span></p>` : ""}
+                        ${d.note ? `<p class="text-slate-600 pt-1 border-t border-slate-200">${escapeHtml(d.note)}</p>` : ""}
                     </div>`;
             } catch (err) {
                 out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
