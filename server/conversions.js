@@ -120,11 +120,18 @@ async function upsertConversions(rows = []) {
   if (!rows?.length) return 0;
   const clean = rows.filter((r) => r && Number.isSafeInteger(r.conversion_id));
   if (!clean.length) return 0;
+  // O relatório repete o mesmo conversion_id dentro da página (uma linha por
+  // item do pedido). Mandar as duas no mesmo POST faz o Postgres recusar o
+  // lote inteiro com 21000 ("cannot affect row a second time") e nada é salvo.
+  // Fica a última ocorrência, que é a leitura mais recente daquele id.
+  const byId = new Map();
+  for (const row of clean) byId.set(row.conversion_id, row);
+  const unique = [...byId.values()];
   // Chunks pra não estourar payload
   const CHUNK = 200;
   let saved = 0;
-  for (let i = 0; i < clean.length; i += CHUNK) {
-    const slice = clean.slice(i, i + CHUNK);
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const slice = unique.slice(i, i + CHUNK);
     try {
       const out = await supabaseRequest("/conversions", {
         method: "POST",
