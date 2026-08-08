@@ -102,15 +102,50 @@ function isRateLimitError(status, message) {
   return /rate.?limit|too many|quota|throttl/i.test(msg);
 }
 
+/**
+ * Ring buffer com as últimas 50 chamadas GraphQL — usado pela UI de saúde
+ * (aba Ferramentas → Diagnóstico). Guarda só metadados; nunca o body.
+ */
+const HEALTH_BUFFER_MAX = 50;
+const healthBuffer = [];
+function pushHealth(entry) {
+  healthBuffer.push(entry);
+  if (healthBuffer.length > HEALTH_BUFFER_MAX) {
+    healthBuffer.splice(0, healthBuffer.length - HEALTH_BUFFER_MAX);
+  }
+}
+function getHealth() {
+  return healthBuffer.slice().reverse();
+}
+
+/** Extrai o nome do primeiro campo do payload GraphQL (produtoOfferV2, ...). */
+function extractOpName(query) {
+  if (typeof query !== "string") return null;
+  const m = query.match(/^\s*(?:mutation|query)?\s*\w*\s*(?:\([^)]*\))?\s*\{\s*([a-zA-Z_][a-zA-Z0-9_]*)/);
+  return m ? m[1] : null;
+}
+
+function parseRetryAfter(headerVal) {
+  if (!headerVal) return 0;
+  const s = String(headerVal).trim();
+  const asInt = Number(s);
+  if (Number.isFinite(asInt) && asInt > 0) return Math.min(asInt * 1000, 30000);
+  const date = Date.parse(s);
+  if (Number.isFinite(date)) return Math.max(0, Math.min(date - Date.now(), 30000));
+  return 0;
+}
+
 async function shopeeGraphql(query, variables, { retries = 3 } = {}) {
   const { appId, secret } = getCreds();
   const bodyObj = variables ? { query, variables } : { query };
   const body = JSON.stringify(bodyObj);
+  const opName = extractOpName(query);
 
   let lastErr = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const signature = sign(appId, timestamp, body, secret);
+    const startedAt = Date.now();
 
     let res;
     let json = {};
@@ -126,6 +161,7 @@ async function shopeeGraphql(query, variables, { retries = 3 } = {}) {
       json = await res.json().catch(() => ({}));
     } catch (netErr) {
       lastErr = netErr;
+      pushHealth({ at: Date.now(), op: opName, status: 0, ms: Date.now() - startedAt, ok: false, error: netErr.message, rateLimited: false });
       if (attempt < retries) {
         await sleep(1000 * 2 ** attempt + Math.floor(Math.random() * 250));
         continue;
@@ -133,14 +169,21 @@ async function shopeeGraphql(query, variables, { retries = 3 } = {}) {
       throw netErr;
     }
 
+    const ms = Date.now() - startedAt;
+
     if (!res.ok) {
       const err = new Error(`Shopee HTTP ${res.status}`);
       err.status = res.status;
       err.payload = json;
       err.rateLimited = isRateLimitError(res.status, json?.message || json?.error);
+      err.retryAfterMs = parseRetryAfter(res.headers?.get?.("retry-after"));
+      pushHealth({ at: Date.now(), op: opName, status: res.status, ms, ok: false, error: err.message, rateLimited: err.rateLimited });
       if (err.rateLimited && attempt < retries) {
         lastErr = err;
-        await sleep(1000 * 2 ** attempt + Math.floor(Math.random() * 250));
+        const backoff = err.retryAfterMs > 0
+          ? err.retryAfterMs
+          : 1000 * 2 ** attempt + Math.floor(Math.random() * 250);
+        await sleep(backoff);
         continue;
       }
       throw err;
@@ -151,6 +194,7 @@ async function shopeeGraphql(query, variables, { retries = 3 } = {}) {
       err.code = json.errors[0]?.extensions?.code;
       err.payload = json;
       err.rateLimited = isRateLimitError(null, msg);
+      pushHealth({ at: Date.now(), op: opName, status: 200, ms, ok: false, error: msg, rateLimited: err.rateLimited });
       if (err.rateLimited && attempt < retries) {
         lastErr = err;
         await sleep(1000 * 2 ** attempt + Math.floor(Math.random() * 250));
@@ -158,6 +202,7 @@ async function shopeeGraphql(query, variables, { retries = 3 } = {}) {
       }
       throw err;
     }
+    pushHealth({ at: Date.now(), op: opName, status: res.status, ms, ok: true, error: null, rateLimited: false });
     return json.data;
   }
   throw lastErr || new Error("Shopee GraphQL falhou após retries");
@@ -478,38 +523,120 @@ async function fetchProductOffersBatch({
   };
 }
 
-async function fetchProductDetailsByIds(itemIds = []) {
-  const ids = [...new Set(
-    itemIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0)
-  )].slice(0, 20);
-  if (!ids.length) return [];
+async function fetchProductDetailsByIds(itemIds = [], { chunkSize = 20, gapMs = DEFAULT_BATCH_GAP_MS } = {}) {
+  const uniq = [...new Set(
+    (itemIds || []).map(Number).filter((id) => Number.isSafeInteger(id) && id > 0)
+  )];
+  if (!uniq.length) return [];
 
-  const selections = ids.map((itemId, index) => `
-    item${index}: productOfferV2(itemId: ${itemId}, page: 1, limit: 1) {
+  const size = Math.min(Math.max(Number(chunkSize) || 20, 1), 20);
+  const chunks = [];
+  for (let i = 0; i < uniq.length; i += size) chunks.push(uniq.slice(i, i + size));
+
+  const all = [];
+  for (let c = 0; c < chunks.length; c++) {
+    const ids = chunks[c];
+    const selections = ids.map((itemId, index) => `
+      item${index}: productOfferV2(itemId: ${itemId}, page: 1, limit: 1) {
+        nodes {
+          itemId
+          productName
+          imageUrl
+          priceMin
+          priceMax
+          priceDiscountRate
+          sales
+          ratingStar
+          commissionRate
+          sellerCommissionRate
+          shopeeCommissionRate
+          commission
+          offerLink
+          productLink
+          shopId
+          shopName
+          shopType
+          periodStartTime
+          periodEndTime
+        }
+      }`).join("\n");
+    const data = await shopeeGraphql(`{ ${selections} }`);
+    for (let i = 0; i < ids.length; i++) {
+      const nodes = data?.[`item${i}`]?.nodes || [];
+      for (const n of nodes) all.push(n);
+    }
+    if (c < chunks.length - 1 && gapMs > 0) await sleep(gapMs);
+  }
+  return all;
+}
+
+/**
+ * Lojas ofertando comissão (shopOfferV2). Filtros e sort seguem a doc.
+ * shopType: [1]=Mall, [2]=Preferred (Star), [3]=Cross-border.
+ * sortType: 1=último update, 2=maior comissão, 3=popularidade.
+ */
+async function fetchShopOffers({
+  keyword = "",
+  shopType = null,
+  sortType = 1,
+  page = 1,
+  limit = 20,
+  shopId = null,
+  sellerCommCoveRatio = null,
+  isKeySeller = null,
+} = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const safePage = Math.max(Number(page) || 1, 1);
+  const safeSort = [1, 2, 3].includes(Number(sortType)) ? Number(sortType) : 1;
+  const kw = String(keyword || "").trim();
+
+  const args = [
+    `sortType: ${safeSort}`,
+    `page: ${safePage}`,
+    `limit: ${safeLimit}`,
+  ];
+  if (kw) args.unshift(`keyword: ${JSON.stringify(kw)}`);
+  if (Array.isArray(shopType) && shopType.length) {
+    const filtered = shopType
+      .map((n) => Number(n))
+      .filter((n) => [0, 1, 2, 3].includes(n));
+    if (filtered.length) args.push(`shopType: [${filtered.join(", ")}]`);
+  } else if (Number.isFinite(Number(shopType))) {
+    const n = Number(shopType);
+    if ([0, 1, 2, 3].includes(n)) args.push(`shopType: [${n}]`);
+  }
+  if (shopId != null && Number(shopId) > 0) args.push(`shopId: ${Number(shopId)}`);
+  if (sellerCommCoveRatio) args.push(`sellerCommCoveRatio: ${JSON.stringify(String(sellerCommCoveRatio))}`);
+  if (isKeySeller === true || isKeySeller === false) args.push(`isKeySeller: ${isKeySeller}`);
+
+  const query = `{
+    shopOfferV2(${args.join(", ")}) {
       nodes {
-        itemId
-        productName
-        imageUrl
-        priceMin
-        priceMax
-        priceDiscountRate
-        sales
-        ratingStar
         commissionRate
-        sellerCommissionRate
-        shopeeCommissionRate
-        commission
+        imageUrl
         offerLink
-        productLink
+        originalLink
         shopId
         shopName
-        shopType
         periodStartTime
         periodEndTime
+        ratingStar
+        shopType
+        remainingBudget
+        sellerCommCoveRatio
       }
-    }`).join("\n");
-  const data = await shopeeGraphql(`{ ${selections} }`);
-  return ids.flatMap((_itemId, index) => data?.[`item${index}`]?.nodes || []);
+      pageInfo { page limit hasNextPage }
+    }
+  }`;
+
+  const data = await shopeeGraphql(query);
+  const raw = data?.shopOfferV2 || { nodes: [], pageInfo: {} };
+  const nodes = Array.isArray(raw.nodes) ? raw.nodes : [];
+  return {
+    nodes,
+    pageInfo: raw.pageInfo || {},
+    hasNextPage: !!raw.pageInfo?.hasNextPage,
+  };
 }
 
 /** Campanhas / coleções oficiais (shopeeOfferV2). */
@@ -670,8 +797,32 @@ async function fetchConversionReport({
     }
   }`;
 
-  const data = await shopeeGraphql(query);
-  return data?.conversionReport || { nodes: [], pageInfo: {} };
+  try {
+    const data = await shopeeGraphql(query);
+    return data?.conversionReport || { nodes: [], pageInfo: {} };
+  } catch (err) {
+    if (scrollId && isScrollExpiredError(err)) {
+      // Cursor de 30 s expirou — refaz sem scrollId (do começo) e avisa o
+      // caller pra resetar paginação.
+      const fresh = await fetchConversionReport({
+        purchaseTimeStart,
+        purchaseTimeEnd,
+        orderStatus,
+        limit,
+        scrollId: "",
+      });
+      fresh.resetScroll = true;
+      return fresh;
+    }
+    throw err;
+  }
+}
+
+function isScrollExpiredError(err) {
+  const msg = String(err?.message || "").toLowerCase();
+  if (/scroll|cursor/i.test(msg) && /expir|invalid|not\s*found/i.test(msg)) return true;
+  const code = String(err?.code || "").toUpperCase();
+  return code === "SCROLL_ID_EXPIRED" || code === "INVALID_SCROLL_ID";
 }
 
 /**
@@ -751,24 +902,37 @@ async function fetchValidatedReport({
     }
   }`;
 
-  const data = await shopeeGraphql(query);
-  return data?.validatedReport || { nodes: [], pageInfo: {} };
+  try {
+    const data = await shopeeGraphql(query);
+    return data?.validatedReport || { nodes: [], pageInfo: {} };
+  } catch (err) {
+    if (scrollId && isScrollExpiredError(err)) {
+      const fresh = await fetchValidatedReport({ validationId, limit, scrollId: "" });
+      fresh.resetScroll = true;
+      return fresh;
+    }
+    throw err;
+  }
 }
 
 function sanitizeSubIdsForShopee(subIds = null) {
-  const { SITE_SUBID, buildProductSubIds } = require("./tracking");
+  const { SITE_SUBID, buildProductSubIds, sanitizeSubId } = require("./tracking");
   const fallback = buildProductSubIds("geral", null);
-  const clean = (Array.isArray(subIds) && subIds.length ? subIds : fallback)
-    .map((s) => String(s).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40))
-    .filter(Boolean)
-    .slice(0, 5);
-  const finalArr = clean.length ? clean : [SITE_SUBID, "organico", "vitrine", "geral", "produto"];
-  // Invariante A: slot 1 SEMPRE = SITE_SUBID. Se não veio, empurra e trunca em 5.
-  if (finalArr[0] !== SITE_SUBID) {
-    finalArr.unshift(SITE_SUBID);
-    if (finalArr.length > 5) finalArr.length = 5;
-  }
-  return finalArr;
+  const rawInput = Array.isArray(subIds) && subIds.length ? subIds : fallback;
+  // Só alfanumérico: a API responde "invalid sub id" (11001) e não gera link
+  // nenhum se vier `_` ou `-`. Como a Shopee junta os slots com `-` no
+  // utm_content do relatório, um hífen aqui também quebraria a leitura.
+  // Reusa o sanitizador do tracking pra não divergir das duas regras.
+  const clean = rawInput
+    .map((s) => sanitizeSubId(s, ""))
+    .filter(Boolean);
+  // Invariante A: slot 0 SEMPRE = SITE_SUBID. Quem chama já monta os Sub IDs
+  // com ele na frente (buildProductSubIds/buildTrackedSubIds); este unshift é
+  // só a rede de segurança. Nesse caso a Shopee só aceita 5 slots, então o
+  // último (p<itemId>) cai — por isso não monte os Sub IDs sem o SITE_SUBID.
+  if (clean[0] !== SITE_SUBID) clean.unshift(SITE_SUBID);
+  const capped = clean.slice(0, 5);
+  return capped.length ? capped : [SITE_SUBID, "organico", "vitrine", "geral", "produto"];
 }
 
 /** URL cru da Shopee para generateShortLink (não usar s.shopee / shope.ee). */
@@ -845,25 +1009,47 @@ async function generateBatchShortLink(links = []) {
     });
     const result = data?.generateBatchShortLink || { total: 0, successCount: 0, links: [] };
     const outLinks = Array.isArray(result.links) ? result.links : [];
-    // Preserva itemId na ordem de envio
+    // Casa resposta pelo originUrl (o schema NÃO garante ordem). Se vier o
+    // mesmo originUrl duas vezes, consome em ordem de chegada.
+    const urlKey = (u) => String(u || "").trim().replace(/\/+$/, "");
+    const byUrl = new Map();
+    for (const r of outLinks) {
+      if (!r || !r.originUrl) continue;
+      const key = urlKey(r.originUrl);
+      const arr = byUrl.get(key) || [];
+      arr.push(r);
+      byUrl.set(key, arr);
+    }
+    // A Shopee pode devolver a URL reescrita (encoding, parâmetros reordenados).
+    // Se nada casou e a resposta tem o mesmo tamanho do envio, volta pro
+    // casamento por posição — reportar tudo como falha seria pior.
+    const anyUrlMatch = batch.some((b) => byUrl.has(urlKey(b.originUrl)));
+    const usePositional = !anyUrlMatch && outLinks.length === batch.length;
     return {
       total: Number(result.total) || batch.length,
       successCount: Number(result.successCount) || outLinks.filter((x) => x.success).length,
       links: batch.map((b, i) => {
-        const r = outLinks[i] || {};
+        let r = null;
+        if (usePositional) {
+          r = outLinks[i] || null;
+        } else {
+          const bucket = byUrl.get(urlKey(b.originUrl));
+          r = bucket && bucket.length ? bucket.shift() : null;
+        }
         return {
-          originUrl: r.originUrl || b.originUrl,
-          shortLink: r.shortLink || null,
-          longLink: r.longLink || null,
-          success: !!r.success && !!r.shortLink,
-          errorMessage: r.errorMessage || null,
+          originUrl: b.originUrl,
+          shortLink: r?.shortLink || null,
+          longLink: r?.longLink || null,
+          success: !!r?.success && !!r?.shortLink,
+          errorMessage: r?.errorMessage || (r ? null : "not-in-response"),
           itemId: b.itemId,
         };
       }),
     };
   } catch (err) {
-    // Fallback: gera um a um se a mutation batch não existir / falhar de schema
-    if (/GenerateShortLinkInput|Unknown type|Cannot query|generateBatchShortLink/i.test(String(err.message || ""))) {
+    // Fallback per-link SÓ pra erro de schema (mutation ausente). Rate-limit /
+    // timeout já é tratado pelo retry do shopeeGraphql — cair aqui pioraria.
+    if (/GenerateShortLinkInput|Unknown type|Cannot query/i.test(String(err.message || ""))) {
       const out = [];
       let successCount = 0;
       for (const b of batch) {
@@ -1016,6 +1202,7 @@ module.exports = {
   fetchProductOffers,
   fetchProductOffersBatch,
   fetchProductDetailsByIds,
+  fetchShopOffers,
   fetchShopeeOffers,
   fetchConversionReport,
   fetchValidatedReport,
@@ -1033,13 +1220,14 @@ module.exports = {
   isQualityOffer,
   isFlashActive,
   toUnixSec,
-  parseSalesCount,
   parseDiscountPct,
   displayDiscountPct,
-  parseCommissionPct,
   listTypeLabel,
   sortTypeLabel,
   getCreds,
+  shopeeGraphql,
+  getHealth,
+  sanitizeSubIdsForShopee,
   SYNC_ROTATION,
   LIST_TYPE_LABELS,
   SORT_TYPE_LABELS,

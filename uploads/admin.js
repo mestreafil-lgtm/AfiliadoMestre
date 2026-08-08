@@ -410,7 +410,9 @@
             } else if (view === "meu-site") {
                 loadMeuSiteSummary();
             } else if (view === "ferramentas") {
-                // Nada a carregar de imediato — todos os cards são acionados pelo usuário.
+                // Inventário de feeds é barato (1 request), útil na abertura.
+                loadFeedInventory();
+                loadShopeeHealth();
             }
         }
 
@@ -1239,6 +1241,12 @@
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+                // Se o admin trocou canal/campanha durante a request, o response é
+                // pra combinação antiga — descarta em vez de sobrescrever o estado.
+                if (signature !== currentCampaignSignature()) {
+                    if (!silent) showToast('Canal/campanha mudou — gere novamente', 'warning');
+                    return campaignShopeeLinks;
+                }
                 const map = {};
                 for (const link of data.links || []) {
                     if (link.shopeeUrl) map[String(link.productId)] = { url: link.shopeeUrl, subIds: link.subIds || [] };
@@ -2233,7 +2241,22 @@
             } catch (err) { showToast("Erro: " + err.message, "error"); }
         }
 
-        async function runReverify() {
+        // Anti-reentrada — um clique em cima do outro dispararia dois cron
+        // simultâneos (feed-full duplo estoura quota e budget da Vercel).
+        const toolBusy = { reverify: false, feed: false, metrics: false, backfill: false, prioritize: false,
+            batchShortlink: false, reverifyBatch: false, decode: false, shopExplorer: false,
+            campaignsExplorer: false, health: false, validated: false, feedInventory: false };
+
+        function withBusy(key, fn) {
+            return async function (...args) {
+                if (toolBusy[key]) { showToast("Já rodando, aguarde…", "warning"); return; }
+                toolBusy[key] = true;
+                try { return await fn.apply(this, args); }
+                finally { toolBusy[key] = false; }
+            };
+        }
+
+        const runReverify = withBusy("reverify", async function () {
             if (!isAdminMode()) return;
             const itemId = Number(document.getElementById("reverify-item-id")?.value);
             const out = document.getElementById("reverify-result");
@@ -2254,53 +2277,363 @@
                         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded">
                             <p class="font-bold text-emerald-700 mb-2">✅ Atualizado</p>
                             <ul class="text-[11px] space-y-1">
-                                ${p.sales != null ? `<li>Vendas: <b>${p.sales}</b></li>` : ""}
-                                ${p.rating_star != null ? `<li>Avaliação: <b>${p.rating_star}</b></li>` : ""}
-                                ${p.commission_rate != null ? `<li>Comissão: <b>${p.commission_rate}</b></li>` : ""}
-                                ${p.price_min != null ? `<li>Preço mín: <b>R$ ${p.price_min}</b></li>` : ""}
-                                ${p.price_max != null ? `<li>Preço máx: <b>R$ ${p.price_max}</b></li>` : ""}
+                                ${p.sales != null ? `<li>Vendas: <b>${escapeHtml(String(p.sales))}</b></li>` : ""}
+                                ${p.rating_star != null ? `<li>Avaliação: <b>${escapeHtml(String(p.rating_star))}</b></li>` : ""}
+                                ${p.commission_rate != null ? `<li>Comissão: <b>${escapeHtml(String(p.commission_rate))}</b></li>` : ""}
+                                ${p.price_min != null ? `<li>Preço mín: <b>R$ ${escapeHtml(String(p.price_min))}</b></li>` : ""}
+                                ${p.price_max != null ? `<li>Preço máx: <b>R$ ${escapeHtml(String(p.price_max))}</b></li>` : ""}
                             </ul>
                         </div>`;
                 }
                 showToast("Item reverificado", "success");
             } catch (err) {
-                out.innerHTML = `<p class="text-red-600">Erro: ${err.message}</p>`;
+                out.innerHTML = `<p class="text-red-600">Erro: ${escapeHtml(err.message || String(err))}</p>`;
             }
-        }
+        });
 
-        async function runFeed(kind) {
+        const runFeed = withBusy("feed", async function (kind) {
             if (!isAdminMode()) return;
             const out = document.getElementById("feed-result");
-            out.innerHTML = `<p class="text-slate-400">Rodando ${kind}… (pode levar 30-55s)</p>`;
+            out.innerHTML = `<p class="text-slate-400">Rodando ${escapeHtml(String(kind))}… (pode levar 30-55s)</p>`;
             try {
-                const res = await adminFetch(`${API_BASE}/api/cron/${kind}?force=1`);
+                const res = await adminFetch(`${API_BASE}/api/cron/${encodeURIComponent(kind)}?force=1`);
                 const d = await res.json();
                 if (!d?.ok) throw new Error(d?.error || "falhou");
                 const r = d.result || {};
                 out.innerHTML = `
                     <div class="p-3 bg-slate-50 rounded">
-                        <p class="font-bold mb-1">${r.feedMode || kind} · ${r.feed?.date || "—"}</p>
+                        <p class="font-bold mb-1">${escapeHtml(String(r.feedMode || kind))} · ${escapeHtml(String(r.feed?.date || "—"))}</p>
                         <ul class="text-[11px] space-y-1">
-                            <li>Páginas: <b>${r.pages || 0}</b></li>
-                            <li>Vistos: <b>${r.seen || 0}</b> · Qualidade OK: <b>${r.quality || 0}</b></li>
-                            <li>Salvos: <b>${r.saved || 0}</b> · Ocultados (DELETE): <b>${r.deleted || 0}</b></li>
-                            <li>Shortlinks gerados: <b>${r.linked || 0}</b> · Pendentes: <b>${r.pending || 0}</b></li>
-                            <li>Duração: <b>${((r.ms || 0) / 1000).toFixed(1)}s</b> ${r.rateLimited ? '· <span class="text-red-500">rate-limited</span>' : ""} ${r.timedOut ? '· <span class="text-amber-500">time-out</span>' : ""}</li>
+                            <li>Páginas: <b>${Number(r.pages) || 0}</b></li>
+                            <li>Vistos: <b>${Number(r.seen) || 0}</b> · Qualidade OK: <b>${Number(r.quality) || 0}</b></li>
+                            <li>Salvos: <b>${Number(r.saved) || 0}</b> · Ocultados (DELETE): <b>${Number(r.deleted) || 0}</b></li>
+                            <li>Shortlinks gerados: <b>${Number(r.linked) || 0}</b> · Pendentes: <b>${Number(r.pending) || 0}</b></li>
+                            <li>Duração: <b>${((Number(r.ms) || 0) / 1000).toFixed(1)}s</b> ${r.rateLimited ? '· <span class="text-red-500">rate-limited</span>' : ""} ${r.timedOut ? '· <span class="text-amber-500">time-out</span>' : ""}</li>
                         </ul>
-                        ${r.skipped ? `<p class="text-amber-600 mt-2">${r.note}</p>` : ""}
+                        ${r.skipped ? `<p class="text-amber-600 mt-2">${escapeHtml(String(r.note || ""))}</p>` : ""}
                     </div>`;
                 showToast(`Feed ${kind}: ${r.saved || 0} salvos`, "success");
             } catch (err) {
-                out.innerHTML = `<p class="text-red-600">Erro: ${err.message}</p>`;
+                out.innerHTML = `<p class="text-red-600">Erro: ${escapeHtml(err.message || String(err))}</p>`;
             }
+        });
+
+        function formatFerramentasTime(ms) {
+            if (!ms) return "—";
+            try { return new Date(Number(ms)).toLocaleTimeString('pt-BR'); }
+            catch (_) { return "—"; }
         }
 
-        async function runRefreshMetrics() {
+        const loadFeedInventory = withBusy("feedInventory", async function () {
+            const out = document.getElementById("feed-inventory-result");
+            if (!out) return;
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Consultando listItemFeeds…</p>';
+            try {
+                const modeSel = document.getElementById("feed-inventory-mode")?.value || "";
+                const q = modeSel ? `?feedMode=${encodeURIComponent(modeSel)}` : "";
+                const res = await adminFetch(`${API_BASE}/api/admin/feeds/list${q}`);
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const feeds = (d.feeds || []).slice(0, 40);
+                if (!feeds.length) {
+                    out.innerHTML = '<p class="text-slate-400 text-xs">Nenhum feed disponível agora.</p>';
+                    return;
+                }
+                out.innerHTML = `
+                    <div class="overflow-x-auto"><table class="w-full text-[11px] border-collapse">
+                        <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                            <th class="p-1">Data</th><th class="p-1">Modo</th><th class="p-1">Ref</th>
+                            <th class="p-1 text-right">Registros</th><th class="p-1">Nome</th>
+                        </tr></thead>
+                        <tbody>${feeds.map(f => `
+                            <tr class="border-b border-slate-100">
+                                <td class="p-1 font-mono">${escapeHtml(String(f.date || "—"))}</td>
+                                <td class="p-1"><span class="px-1.5 py-0.5 rounded ${String(f.feedMode).toUpperCase() === 'FULL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} text-[10px] font-bold">${escapeHtml(String(f.feedMode || ""))}</span></td>
+                                <td class="p-1 font-mono text-slate-500">${escapeHtml(String(f.referenceId || "—"))}</td>
+                                <td class="p-1 text-right font-mono">${Number(f.totalCount || 0).toLocaleString('pt-BR')}</td>
+                                <td class="p-1 text-slate-600 truncate max-w-[220px]">${escapeHtml(String(f.datafeedName || f.description || ""))}</td>
+                            </tr>`).join("")}</tbody>
+                    </table></div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const decodeLink = withBusy("decode", async function () {
+            const inp = document.getElementById("decode-link-input");
+            const out = document.getElementById("decode-link-result");
+            if (!inp || !out) return;
+            const url = String(inp.value || "").trim();
+            if (!url) { showToast("Cole um shortlink/URL Shopee", "warning"); return; }
+            if (url.length > 4096) { showToast("URL muito longa", "error"); return; }
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Decodificando…</p>';
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/link/decode?url=${encodeURIComponent(url)}`);
+                const d = await res.json();
+                if (!res.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const subLabels = ["site (slot 1)", "canal (slot 2)", "campanha (slot 3)", "categoria (slot 4)", "pid (slot 5)"];
+                const subIds = Array.isArray(d.subIds) ? d.subIds : [];
+                out.innerHTML = `
+                    <div class="p-3 bg-slate-50 rounded space-y-1 text-[11px]">
+                        <p><b>itemId:</b> <span class="font-mono">${escapeHtml(String(d.itemId || "—"))}</span></p>
+                        <p><b>Meu site?</b> ${d.isMySite ? '<span class="text-emerald-600 font-bold">SIM</span>' : '<span class="text-red-500 font-bold">NÃO</span>'}</p>
+                        <p><b>Canal:</b> ${escapeHtml(String(d.channel || "—"))} · <b>Campanha:</b> ${escapeHtml(String(d.campaign || "—"))}</p>
+                        <div><b>Sub IDs:</b><ul class="ml-3 mt-1 space-y-0.5">${subLabels.map((lbl, i) => `<li><span class="text-slate-500">${lbl}:</span> <span class="font-mono">${escapeHtml(String(subIds[i] || "—"))}</span></li>`).join("")}</ul></div>
+                        ${d.destination ? `<p class="break-all"><b>Destino:</b> <span class="font-mono text-[10px] text-slate-600">${escapeHtml(d.destination)}</span></p>` : ""}
+                    </div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const runBatchShortlink = withBusy("batchShortlink", async function () {
+            const inp = document.getElementById("batch-shortlink-urls");
+            const out = document.getElementById("batch-shortlink-result");
+            if (!inp || !out) return;
+            const raw = String(inp.value || "").split(/[\r\n]+/).map(s => s.trim()).filter(Boolean);
+            if (!raw.length) { showToast("Cole ao menos 1 URL", "warning"); return; }
+            if (raw.length > 50) { showToast(`Máximo 50 por chamada (você colou ${raw.length})`, "warning"); return; }
+            const subs = [1, 2, 3, 4, 5].map(n => String(document.getElementById(`batch-shortlink-sub${n}`)?.value || "").trim()).filter(Boolean);
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Gerando via generateBatchShortLink…</p>';
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/shortlink/batch`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ urls: raw, subIds: subs.length ? subs : undefined }),
+                });
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const links = Array.isArray(d.links) ? d.links : [];
+                out.innerHTML = `
+                    <div class="text-[11px] space-y-2">
+                        <p><b>${Number(d.successCount) || 0}</b> / ${Number(d.total) || links.length} gerados.</p>
+                        <div class="overflow-x-auto"><table class="w-full border-collapse">
+                            <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                                <th class="p-1">Origem</th><th class="p-1">Shortlink</th><th class="p-1">Erro</th>
+                            </tr></thead>
+                            <tbody>${links.map(l => `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-1 font-mono text-[10px] break-all max-w-[240px]">${escapeHtml(String(l.originUrl || ""))}</td>
+                                    <td class="p-1 font-mono text-[10px] break-all">${l.success && l.shortLink ? `<span class="text-emerald-600">${escapeHtml(l.shortLink)}</span>` : "—"}</td>
+                                    <td class="p-1 text-red-500 text-[10px]">${escapeHtml(String(l.errorMessage || ""))}</td>
+                                </tr>`).join("")}</tbody>
+                        </table></div>
+                    </div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const runReverifyBatch = withBusy("reverifyBatch", async function () {
+            const inp = document.getElementById("reverify-batch-ids");
+            const out = document.getElementById("reverify-batch-result");
+            if (!inp || !out) return;
+            const ids = String(inp.value || "").split(/[\s,;]+/).map(s => Number(s)).filter(n => Number.isSafeInteger(n) && n > 0);
+            if (!ids.length) { showToast("Cole ao menos 1 item_id", "warning"); return; }
+            const uniq = [...new Set(ids)].slice(0, 30);
+            out.innerHTML = `<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Reverificando ${uniq.length} item(s)…</p>`;
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/reverify/batch`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ itemIds: uniq }),
+                });
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const results = Array.isArray(d.results) ? d.results : [];
+                const okN = results.filter(r => r.ok && !r.hidden).length;
+                const hidden = results.filter(r => r.hidden).length;
+                const fail = results.filter(r => !r.ok).length;
+                out.innerHTML = `
+                    <div class="text-[11px] space-y-2">
+                        <p><b>${okN}</b> atualizados · <b>${hidden}</b> ocultados · <b>${fail}</b> falharam</p>
+                        <div class="overflow-x-auto"><table class="w-full border-collapse">
+                            <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                                <th class="p-1">itemId</th><th class="p-1">Status</th><th class="p-1">Detalhe</th>
+                            </tr></thead>
+                            <tbody>${results.map(r => `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-1 font-mono">${Number(r.itemId) || "—"}</td>
+                                    <td class="p-1">${r.hidden ? '<span class="text-amber-600 font-bold">HIDDEN</span>' : (r.ok ? '<span class="text-emerald-600 font-bold">OK</span>' : '<span class="text-red-500 font-bold">ERR</span>')}</td>
+                                    <td class="p-1 text-slate-600 text-[10px]">${escapeHtml(String(r.error || (r.patch ? Object.keys(r.patch).join(", ") : "")))}</td>
+                                </tr>`).join("")}</tbody>
+                        </table></div>
+                    </div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const loadShopExplorer = withBusy("shopExplorer", async function () {
+            const out = document.getElementById("shop-explorer-result");
+            if (!out) return;
+            const keyword = String(document.getElementById("shop-explorer-keyword")?.value || "").trim();
+            const shopType = String(document.getElementById("shop-explorer-shoptype")?.value || "").trim();
+            const sortType = Number(document.getElementById("shop-explorer-sort")?.value) || 1;
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Consultando shopOfferV2…</p>';
+            try {
+                const params = new URLSearchParams({ sortType: String(sortType), limit: "20" });
+                if (keyword) params.set("keyword", keyword);
+                if (shopType) params.set("shopType", shopType);
+                const res = await adminFetch(`${API_BASE}/api/admin/shopee/shops?${params}`);
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const nodes = Array.isArray(d.nodes) ? d.nodes : [];
+                if (!nodes.length) { out.innerHTML = '<p class="text-slate-400 text-xs">Nenhuma loja retornada.</p>'; return; }
+                out.innerHTML = `
+                    <div class="overflow-x-auto"><table class="w-full text-[11px] border-collapse">
+                        <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                            <th class="p-1">Loja</th><th class="p-1">Tipo</th><th class="p-1 text-right">Comissão</th>
+                            <th class="p-1 text-right">Rating</th><th class="p-1 text-right">Cobertura</th>
+                            <th class="p-1">Budget</th><th class="p-1">Link</th>
+                        </tr></thead>
+                        <tbody>${nodes.map(n => {
+                            const budgetLbl = { 0: "unlimited", 1: "very low", 2: "low", 3: "normal" }[Number(n.remainingBudget)] || "—";
+                            const typeTxt = Array.isArray(n.shopType) ? n.shopType.join(",") : String(n.shopType || "—");
+                            return `<tr class="border-b border-slate-100">
+                                <td class="p-1 font-semibold text-slate-700 truncate max-w-[180px]">${escapeHtml(String(n.shopName || ""))} <span class="text-slate-400 font-mono">#${Number(n.shopId) || "—"}</span></td>
+                                <td class="p-1"><span class="px-1 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px]">${escapeHtml(typeTxt)}</span></td>
+                                <td class="p-1 text-right font-mono text-emerald-700">${escapeHtml(String(n.commissionRate || "—"))}</td>
+                                <td class="p-1 text-right font-mono">${escapeHtml(String(n.ratingStar || "—"))}</td>
+                                <td class="p-1 text-right font-mono">${escapeHtml(String(n.sellerCommCoveRatio || "—"))}</td>
+                                <td class="p-1 text-[10px] text-slate-500">${escapeHtml(budgetLbl)}</td>
+                                <td class="p-1"><a href="${escapeAttr(String(n.offerLink || "#"))}" target="_blank" rel="nofollow sponsored noopener" class="text-shopee-orange hover:underline text-[10px]">abrir</a></td>
+                            </tr>`;
+                        }).join("")}</tbody>
+                    </table></div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const loadShopeeCampaignsExplorer = withBusy("campaignsExplorer", async function () {
+            const out = document.getElementById("shopee-campaigns-result");
+            if (!out) return;
+            const keyword = String(document.getElementById("shopee-campaigns-keyword")?.value || "").trim();
+            const sortType = Number(document.getElementById("shopee-campaigns-sort")?.value) || 1;
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Consultando shopeeOfferV2…</p>';
+            try {
+                const params = new URLSearchParams({ sortType: String(sortType), limit: "20" });
+                if (keyword) params.set("keyword", keyword);
+                const res = await adminFetch(`${API_BASE}/api/admin/shopee/campaigns?${params}`);
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const nodes = Array.isArray(d.nodes) ? d.nodes : [];
+                if (!nodes.length) { out.innerHTML = '<p class="text-slate-400 text-xs">Nenhuma campanha retornada.</p>'; return; }
+                out.innerHTML = `
+                    <div class="overflow-x-auto"><table class="w-full text-[11px] border-collapse">
+                        <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                            <th class="p-1">Nome</th><th class="p-1">Tipo</th><th class="p-1 text-right">Comissão</th>
+                            <th class="p-1">Fim</th><th class="p-1">Link</th>
+                        </tr></thead>
+                        <tbody>${nodes.map(n => {
+                            const typeLabel = Number(n.offerType) === 1 ? "Coleção" : Number(n.offerType) === 2 ? "Categoria" : "—";
+                            const endTs = Number(n.periodEndTime) || 0;
+                            const endLabel = endTs ? new Date((endTs > 1e12 ? endTs : endTs * 1000)).toLocaleDateString('pt-BR') : "—";
+                            return `<tr class="border-b border-slate-100">
+                                <td class="p-1 font-semibold text-slate-700 truncate max-w-[220px]">${escapeHtml(String(n.offerName || ""))}</td>
+                                <td class="p-1 text-[10px] text-slate-500">${escapeHtml(typeLabel)}</td>
+                                <td class="p-1 text-right font-mono text-emerald-700">${escapeHtml(String(n.commissionRate || "—"))}</td>
+                                <td class="p-1 text-[10px] text-slate-500">${escapeHtml(endLabel)}</td>
+                                <td class="p-1"><a href="${escapeAttr(String(n.offerLink || "#"))}" target="_blank" rel="nofollow sponsored noopener" class="text-shopee-orange hover:underline text-[10px]">abrir</a></td>
+                            </tr>`;
+                        }).join("")}</tbody>
+                    </table></div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const loadShopeeHealth = withBusy("health", async function () {
+            const out = document.getElementById("shopee-health-result");
+            if (!out) return;
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando…</p>';
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/shopee/health`);
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const entries = (d.entries || []).slice(0, 30);
+                const s = d.summary || {};
+                out.innerHTML = `
+                    <div class="text-[11px] space-y-2">
+                        <div class="flex flex-wrap gap-3">
+                            <span class="text-emerald-700 font-bold">OK: ${Number(s.ok) || 0}</span>
+                            <span class="text-red-500 font-bold">ERR: ${Number(s.err) || 0}</span>
+                            <span class="text-amber-500 font-bold">429: ${Number(s.rateLimited) || 0}</span>
+                            <span class="text-slate-500">Média: ${Number(s.avgMs) || 0}ms (últimos 5 min)</span>
+                        </div>
+                        <div class="overflow-x-auto"><table class="w-full border-collapse">
+                            <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                                <th class="p-1">Hora</th><th class="p-1">Op</th><th class="p-1 text-right">Status</th>
+                                <th class="p-1 text-right">ms</th><th class="p-1">Erro</th>
+                            </tr></thead>
+                            <tbody>${entries.map(e => `
+                                <tr class="border-b border-slate-100">
+                                    <td class="p-1 font-mono text-[10px]">${escapeHtml(formatFerramentasTime(e.at))}</td>
+                                    <td class="p-1 font-mono text-[10px]">${escapeHtml(String(e.op || "—"))}</td>
+                                    <td class="p-1 text-right"><span class="font-mono ${e.ok ? 'text-emerald-600' : e.rateLimited ? 'text-amber-500' : 'text-red-500'}">${Number(e.status) || 0}</span></td>
+                                    <td class="p-1 text-right font-mono">${Number(e.ms) || 0}</td>
+                                    <td class="p-1 text-red-500 text-[10px] truncate max-w-[220px]">${escapeHtml(String(e.error || ""))}</td>
+                                </tr>`).join("")}</tbody>
+                        </table></div>
+                    </div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const loadValidatedReport = withBusy("validated", async function () {
+            const out = document.getElementById("validated-result");
+            if (!out) return;
+            const validationId = Number(document.getElementById("validated-id")?.value);
+            if (!Number.isSafeInteger(validationId) || validationId <= 0) { showToast("validationId inválido", "warning"); return; }
+            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Consultando validatedReport…</p>';
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/validated?validationId=${validationId}&limit=50`);
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const nodes = Array.isArray(d.nodes) ? d.nodes : [];
+                if (!nodes.length) { out.innerHTML = '<p class="text-slate-400 text-xs">Sem dados nesta validação.</p>'; return; }
+                let totalNet = 0, totalGross = 0, totalMcn = 0;
+                for (const n of nodes) {
+                    totalNet += Number(n.netCommission) || 0;
+                    totalGross += Number(n.totalCommission) || 0;
+                    totalMcn += Number(n.mcnManagementFee) || 0;
+                }
+                out.innerHTML = `
+                    <div class="text-[11px] space-y-2">
+                        <p><b>${nodes.length}</b> conversões · Bruto <b class="text-emerald-700">R$ ${totalGross.toFixed(2).replace('.', ',')}</b> · Líquido <b class="text-emerald-700">R$ ${totalNet.toFixed(2).replace('.', ',')}</b> · MCN <b class="text-slate-500">R$ ${totalMcn.toFixed(2).replace('.', ',')}</b></p>
+                        <div class="overflow-x-auto"><table class="w-full border-collapse">
+                            <thead><tr class="text-left text-slate-500 border-b border-slate-200">
+                                <th class="p-1">Conv</th><th class="p-1">Compra</th><th class="p-1 text-right">Bruto</th>
+                                <th class="p-1 text-right">Líquido</th><th class="p-1">Sub IDs (utmContent)</th>
+                            </tr></thead>
+                            <tbody>${nodes.slice(0, 40).map(n => {
+                                const ts = Number(n.purchaseTime) || 0;
+                                const dt = ts ? new Date((ts > 1e12 ? ts : ts * 1000)).toLocaleDateString('pt-BR') : "—";
+                                return `<tr class="border-b border-slate-100">
+                                    <td class="p-1 font-mono text-[10px]">${Number(n.conversionId) || "—"}</td>
+                                    <td class="p-1 text-[10px]">${escapeHtml(dt)}</td>
+                                    <td class="p-1 text-right font-mono">${(Number(n.totalCommission) || 0).toFixed(2)}</td>
+                                    <td class="p-1 text-right font-mono text-emerald-700">${(Number(n.netCommission) || 0).toFixed(2)}</td>
+                                    <td class="p-1 font-mono text-[10px] text-slate-500 truncate max-w-[220px]">${escapeHtml(String(n.utmContent || ""))}</td>
+                                </tr>`;
+                            }).join("")}</tbody>
+                        </table></div>
+                    </div>`;
+            } catch (err) {
+                out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
+            }
+        });
+
+        const runRefreshMetrics = withBusy("metrics", async function () {
             if (!isAdminMode()) return;
             const out = document.getElementById("feed-result");
+            const batch = Math.min(Math.max(Number(document.getElementById("refresh-metrics-batch")?.value) || 60, 5), 200);
+            const staleHours = Math.min(Math.max(Number(document.getElementById("refresh-metrics-stale")?.value) || 12, 1), 168);
             out.innerHTML = '<p class="text-slate-400">Reverificando métricas…</p>';
             try {
-                const res = await adminFetch(`${API_BASE}/api/cron/refresh-metrics?batch=60&staleHours=12`);
+                const res = await adminFetch(`${API_BASE}/api/cron/refresh-metrics?batch=${batch}&staleHours=${staleHours}`);
                 const d = await res.json();
                 if (!d?.ok) throw new Error(d?.error || "falhou");
                 const m = d.metrics || {};
@@ -2308,16 +2641,16 @@
                     <div class="p-3 bg-emerald-50 border border-emerald-200 rounded">
                         <p class="font-bold text-emerald-700 mb-1">Reverificação de métricas</p>
                         <ul class="text-[11px] space-y-1">
-                            <li>Pedidos: <b>${m.requested || 0}</b> · Atualizados: <b>${m.refreshed || 0}</b> · Ocultados: <b>${m.hidden || 0}</b></li>
-                            <li>Duração: <b>${((m.ms || 0) / 1000).toFixed(1)}s</b></li>
-                            ${d.links ? `<li>Shortlinks pendentes retry: <b>${d.links.generated || 0}</b></li>` : ""}
+                            <li>Pedidos: <b>${Number(m.requested) || 0}</b> · Atualizados: <b>${Number(m.refreshed) || 0}</b> · Ocultados: <b>${Number(m.hidden) || 0}</b></li>
+                            <li>Duração: <b>${((Number(m.ms) || 0) / 1000).toFixed(1)}s</b></li>
+                            ${d.links ? `<li>Shortlinks pendentes retry: <b>${Number(d.links.generated) || 0}</b></li>` : ""}
                         </ul>
                     </div>`;
                 showToast(`Reverificados: ${m.refreshed || 0}`, "success");
             } catch (err) {
-                out.innerHTML = `<p class="text-red-600">Erro: ${err.message}</p>`;
+                out.innerHTML = `<p class="text-red-600">Erro: ${escapeHtml(err.message || String(err))}</p>`;
             }
-        }
+        });
 
         async function loadConversions({ reset = false, advance = false } = {}) {
             const list = document.getElementById('conversion-list');
@@ -2875,6 +3208,8 @@
         }
 
         async function runShortlinkBackfill() {
+            if (toolBusy.backfill) { showToast("Backfill já em execução", "warning"); return; }
+            toolBusy.backfill = true;
             const btn = document.getElementById('btn-shortlink-backfill');
             const line = document.getElementById('shortlink-status-line');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Gerando tudo…'; }
@@ -2900,6 +3235,7 @@
             } catch (err) {
                 showToast(err.message || 'Erro no backfill', 'error');
             } finally {
+                toolBusy.backfill = false;
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-1"></i> Gerar tudo que falta'; }
                 loadShortlinkStatus();
             }
@@ -3377,6 +3713,8 @@
         }
 
         async function prioritizeConversionWinners() {
+            if (toolBusy.prioritize) { showToast('Já rodando', 'warning'); return; }
+            toolBusy.prioritize = true;
             showToast('Priorizando winners no sync…', 'success');
             try {
                 const days = Number(document.getElementById('conversion-days')?.value) || 30;
@@ -3390,6 +3728,8 @@
                 showToast(`${data.jobsQueued} keywords na fila prioritária`, 'success');
             } catch (err) {
                 showToast(err.message || 'Falha ao priorizar', 'error');
+            } finally {
+                toolBusy.prioritize = false;
             }
         }
 
@@ -3651,6 +3991,8 @@
         updateCampaignLinkPreview, updateSubIdPreview, loadCampaignPerformance, openCampaignPerfDetail,
         closeCampaignPerfDetail, openCampaignPerfByName, loadMeuSiteSummary, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runReverify, runFeed, runRefreshMetrics,
+        loadFeedInventory, decodeLink, runBatchShortlink, runReverifyBatch,
+        loadShopExplorer, loadShopeeCampaignsExplorer, loadShopeeHealth, loadValidatedReport,
         loadConversions, previousConversionPage, nextConversionPage,
         onAdminSearch, onAdminFiltersChange, onAdminPageSizeChange, clearAdminFilters,
         toggleAdminProductSelect, toggleSelectAdminPage, selectAllFilteredProducts, clearAdminProductSelection,
