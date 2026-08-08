@@ -475,6 +475,14 @@ async function reprocessSubIds({ limit = 100, dryRun = false } = {}) {
  * NOTA: shortlinks só podem ser decodificados chamando a API — o Shopee retorna
  * originUrl+longLink no generateShortLink. Aqui só validamos URLs que já contenham utm_content.
  */
+/** shopee.com.br/<nome>/<shopId>/<itemId> ou /product/<shopId>/<itemId>. */
+function itemIdFromShopeeUrl(u) {
+  const segs = String(u.pathname || "").split("/").filter(Boolean);
+  const last = segs[segs.length - 1];
+  const n = Number(last);
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
 function decodeSubIdsFromUrl(url) {
   const raw = String(url || "").trim();
   if (!raw) return { ok: false, error: "url vazia" };
@@ -483,12 +491,37 @@ function decodeSubIdsFromUrl(url) {
     const utmContent = u.searchParams.get("utm_content") || u.searchParams.get("sub_id") || "";
     const parts = parseUtmSubIds(utmContent);
     const isMeuSite = parts.sub_id1 === SITE_SUBID;
+    const subIds = [parts.sub_id1, parts.sub_id2, parts.sub_id3, parts.sub_id4, parts.sub_id5].filter(Boolean);
+    // Slot 5 guarda p<itemId>; se a URL já traz o id no caminho, ele vale mais.
+    const fromSlot = /^p(\d+)$/.exec(String(parts.sub_id5 || ""));
+    const itemId = itemIdFromShopeeUrl(u) || (fromSlot ? Number(fromSlot[1]) : null);
+    // Encurtador não carrega os Sub IDs na URL: eles só existem no destino.
+    const isShortener = /^(s\.shopee\.|shope\.ee)/i.test(u.hostname);
+    if (!utmContent && isShortener) {
+      return {
+        ok: true,
+        url: raw,
+        shortener: true,
+        subIds: [],
+        isMeuSite: false,
+        isMySite: false,
+        siteSubId: SITE_SUBID,
+        note: "Este é um link encurtado: os Sub IDs ficam no destino, não na URL. Abra o link e cole aqui o endereço final (o que tem utm_content).",
+      };
+    }
     return {
       ok: true,
       url: raw,
       utmContent,
-      subIds: [parts.sub_id1, parts.sub_id2, parts.sub_id3, parts.sub_id4, parts.sub_id5].filter(Boolean),
+      subIds,
+      itemId,
+      channel: parts.sub_id2 || null,
+      campaign: parts.sub_id3 || null,
+      category: parts.sub_id4 || null,
+      destination: u.origin + u.pathname,
       isMeuSite,
+      // O painel lê isMySite; mantemos os dois nomes pra não quebrar chamador antigo.
+      isMySite: isMeuSite,
       siteSubId: SITE_SUBID,
       note: isMeuSite
         ? "✅ Este link é do seu site (sub_id1 = " + SITE_SUBID + ")."
