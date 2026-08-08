@@ -700,10 +700,10 @@
                     </div>
                     <div class="admin-nav-sub">
                         <button type="button" data-admin-view="campanhas" onclick="switchAdminView('campanhas')" class="admin-nav-item sub" id="nav-campanhas">
-                            Criar / gerenciar
+                            Criar campanha
                         </button>
                         <button type="button" data-admin-view="campanha-desempenho" onclick="switchAdminView('campanha-desempenho')" class="admin-nav-item sub" id="nav-campanha-desempenho">
-                            Desempenho da campanha
+                            Desempenho de campanhas
                         </button>
                     </div>
                 </div>
@@ -1389,25 +1389,30 @@
                                 <label class="block text-slate-600 font-bold mb-1">Campanha</label>
                                 <input id="campaign-link-name" type="text" value="promo_vitrine" oninput="updateCampaignLinkPreview()"
                                     placeholder="ex: ads_vestidos" class="w-full p-2 border rounded-lg outline-shopee-orange font-mono">
+                                <p id="campaign-name-normalized" class="text-[10px] text-slate-500 mt-1"></p>
                             </div>
                         </div>
                         <div>
                             <label class="block text-slate-600 font-bold mb-1">Produtos da campanha</label>
                             <div class="flex gap-2">
                                 <input id="campaign-product-search" type="text" oninput="renderCampaignProductPicker()"
-                                    placeholder="Buscar por nome ou ID…" class="flex-1 p-2 border rounded-lg outline-shopee-orange">
+                                    onkeydown="onCampaignProductSearchKey(event)"
+                                    placeholder="Cole o ID do item, o link da Shopee ou busque pelo nome…"
+                                    class="flex-1 p-2 border rounded-lg outline-shopee-orange">
                                 <button type="button" onclick="addCampaignProductById()"
-                                    class="px-3 py-2 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50 shrink-0">
-                                    + ID
+                                    class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-shopee-orangeHover shrink-0">
+                                    <i class="fas fa-magnifying-glass mr-1"></i> Buscar
                                 </button>
                                 <button type="button" onclick="switchAdminView('produtos')"
                                     class="px-3 py-2 rounded-lg bg-slate-100 text-[11px] font-bold text-slate-600 hover:bg-slate-200 shrink-0">
                                     <i class="fas fa-box-open mr-1"></i> Escolher na lista
                                 </button>
                             </div>
+                            <p id="campaign-product-status" class="text-[10px] text-slate-500 mt-1 empty:hidden"></p>
                             <div id="campaign-product-picker" class="mt-2 max-h-28 overflow-y-auto space-y-1 empty:hidden"></div>
                             <div id="campaign-selected-products" class="mt-2 space-y-1.5"></div>
-                            <p class="text-[10px] text-slate-400 mt-1">Sem produtos = link geral da vitrine. Com produtos = um link por item (abre o produto certo).</p>
+                            <p class="text-[10px] text-slate-400 mt-1">O ID já traz nome e foto do item. Se ele ainda não estiver na vitrine, é publicado automaticamente.</p>
+                            <p class="text-[10px] text-slate-400">Sem produtos = link geral da vitrine. Com produtos = um link por item (abre o produto certo).</p>
                         </div>
                         <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
                             <p class="text-[9px] uppercase font-black text-slate-400">Links para divulgar</p>
@@ -1415,13 +1420,25 @@
                             <div class="flex flex-wrap gap-2">
                                 <button type="button" onclick="copyCampaignLink()"
                                     class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[11px] font-bold hover:bg-slate-700">
-                                    <i class="fas fa-copy mr-1"></i> Copiar todos os links
+                                    <i class="fas fa-copy mr-1"></i> Copiar links do anúncio
+                                </button>
+                                <button type="button" onclick="generateCampaignShopeeLinks()"
+                                    class="px-3 py-1.5 rounded-lg border border-shopee-orange text-shopee-orange text-[11px] font-bold hover:bg-orange-50">
+                                    <i class="fas fa-bolt mr-1"></i> Gerar links da Shopee
+                                </button>
+                                <button type="button" onclick="copyCampaignShopeeLinks()"
+                                    class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[11px] font-bold hover:bg-slate-50">
+                                    <i class="fas fa-copy mr-1"></i> Copiar links Shopee
                                 </button>
                                 <button type="button" onclick="saveCurrentCampaign()"
                                     class="px-3 py-1.5 rounded-lg bg-shopee-orange text-white text-[11px] font-bold hover:bg-shopee-orangeHover">
                                     <i class="fas fa-save mr-1"></i> Salvar campanha
                                 </button>
                             </div>
+                            <p class="text-[10px] text-slate-500 leading-relaxed">
+                                <strong>Link do anúncio</strong>: use no Meta/Google — passa pela vitrine, dispara o Pixel e leva os Sub IDs no botão Comprar.
+                                <strong class="ml-1">Link da Shopee</strong>: link de afiliado direto (gerado pela API com os Sub IDs desta campanha), para WhatsApp, bio e grupos.
+                            </p>
                         </div>
                         <div class="bg-orange-50 border border-orange-100 rounded-lg p-3 font-mono text-[10px] text-slate-700 space-y-1">
                             <div><span class="text-shopee-orange font-bold">1</span> afiliada_mestre → marca do site</div>
@@ -1434,22 +1451,20 @@
                     </div>
                 </div>
 
-        <!-- Campanhas salvas -->
         <div id="campaigns-section" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
-                        <i class="fas fa-bullhorn text-shopee-orange"></i> Campanhas salvas
+                        <i class="fas fa-share-nodes text-blue-600"></i> Como anunciar no Facebook / Meta
                     </h4>
-                    <p class="text-[10px] text-slate-400 mt-1">Guarde links de Facebook, Instagram etc. e reabra quando for anunciar.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Toda campanha salva vai direto para o painel de desempenho.</p>
                 </div>
                 <button type="button" onclick="switchAdminView('campanha-desempenho')" class="px-3 py-2 rounded-lg border border-shopee-orange text-shopee-orange text-[11px] font-bold hover:bg-orange-50">
-                    <i class="fas fa-chart-pie mr-1"></i> Ver desempenho
+                    <i class="fas fa-chart-pie mr-1"></i> Ver campanhas e desempenho
                 </button>
             </div>
-            <div class="p-4 grid md:grid-cols-2 gap-4 text-xs">
+            <div class="p-4 text-xs">
                 <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
-                    <h5 class="font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-share-nodes text-blue-600"></i> Como anunciar no Facebook / Meta</h5>
                     <ol class="list-decimal pl-4 text-slate-600 space-y-1.5 leading-relaxed">
                         <li>Crie a campanha aqui, escolha canal <strong>Facebook</strong> e os produtos.</li>
                         <li>Clique em <strong>Salvar campanha</strong> e copie o link.</li>
@@ -1458,9 +1473,6 @@
                         <li>Publique. Quem clicar e comprar leva seus Sub IDs.</li>
                     </ol>
                     <p class="text-[10px] text-slate-500 pt-1">O Sub ID aparece no relatório oficial da Shopee (campo utmContent / Sub IDs), desde que a pessoa use o botão Comprar da vitrine.</p>
-                </div>
-                <div id="saved-campaigns-list" class="space-y-3 md:col-span-1">
-                    <p class="text-slate-400 text-center py-8">Nenhuma campanha salva ainda.</p>
                 </div>
             </div>
         </div>
@@ -1472,11 +1484,14 @@
                 <div class="bg-slate-50 p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
-                            <i class="fas fa-chart-pie text-shopee-orange"></i> Desempenho por campanha
+                            <i class="fas fa-chart-pie text-shopee-orange"></i> Campanhas e desempenho
                         </h4>
-                        <p class="text-[10px] text-slate-400 mt-1">Agrupa vendas da API Shopee pelo Sub ID da campanha (slot 3 do utmContent).</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Todas as campanhas salvas aparecem aqui — as vendas da API Shopee entram pelo Sub ID da campanha (slot 3 do utmContent).</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <button onclick="switchAdminView('campanhas')" class="px-3 py-2 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50">
+                            <i class="fas fa-plus mr-1"></i> Nova campanha
+                        </button>
                         <select id="camp-perf-days" onchange="loadCampaignPerformance({reset:true})" class="p-2 border rounded-lg">
                             <option value="7">Últimos 7 dias</option>
                             <option value="30" selected>Últimos 30 dias</option>
@@ -1520,7 +1535,7 @@
                 </div>
 
                 <div id="camp-perf-list" class="p-4 space-y-3">
-                    <div class="py-8 text-center text-slate-400 text-xs">Clique em Atualizar para carregar o desempenho.</div>
+                    <div class="py-8 text-center text-slate-400 text-xs">Carregando campanhas…</div>
                 </div>
             </div>
 

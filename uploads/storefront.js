@@ -2290,6 +2290,9 @@ async function loadOffersFromSupabase(opts = {}) {
         const SITE_SUBID = 'afiliadamestre';
         const TRACKING_STORAGE_KEY = 'afiliada_mestre_traffic_v1';
         const TRACKED_LINKS_KEY = 'afiliada_mestre_tracked_links';
+        // Janela de atribuição: depois disso a campanha para de levar o crédito
+        // do tráfego orgânico daquele navegador.
+        const ATTRIBUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
         // Sub IDs Shopee só aceitam alfanumérico — "_" e "-" quebram como "invalid sub id".
         function sanitizeSubId(value, fallback) {
@@ -2322,11 +2325,25 @@ async function loadOffersFromSupabase(opts = {}) {
             return aliases[v] || v;
         }
 
+        function forgetStoredAttribution() {
+            try {
+                sessionStorage.removeItem(TRACKING_STORAGE_KEY);
+                localStorage.removeItem(TRACKING_STORAGE_KEY);
+            } catch (_) {}
+        }
+
         function readStoredAttribution() {
             try {
-                return JSON.parse(sessionStorage.getItem(TRACKING_STORAGE_KEY) || 'null')
+                const stored = JSON.parse(sessionStorage.getItem(TRACKING_STORAGE_KEY) || 'null')
                     || JSON.parse(localStorage.getItem(TRACKING_STORAGE_KEY) || 'null')
                     || null;
+                if (!stored) return null;
+                const capturedAt = Number(stored.capturedAt) || 0;
+                if (!capturedAt || Date.now() - capturedAt > ATTRIBUTION_TTL_MS) {
+                    forgetStoredAttribution();
+                    return null;
+                }
+                return stored;
             } catch (_) {
                 return null;
             }
@@ -2432,11 +2449,13 @@ async function loadOffersFromSupabase(opts = {}) {
         }
 
 
+        // A Shopee devolve os 5 Sub IDs unidos por "-" e mantém os vazios
+        // ("STORY----"), por isso a leitura é posicional: colapsar os separadores
+        // jogaria o canal e a campanha para o slot errado.
         function parseUtmContent(utm) {
             const parts = String(utm || '')
-                .split(/[|,;/]+/)
-                .map(s => s.trim())
-                .filter(Boolean);
+                .split(/[-_|,;/]/)
+                .map(s => s.trim());
             return {
                 site: parts[0] || '',
                 channel: parts[1] || '',
@@ -2578,26 +2597,36 @@ async function loadOffersFromSupabase(opts = {}) {
         async function openAffiliateInNewTab(p, { labelEl = null } = {}) {
             if (!p) return;
             amPixelTrack("InitiateCheckout", amPixelProductPayload(p));
-            const immediate = (hasMatchingTrackedLink(p) && p.shortLink)
-                || p.shortLink
-                || p.affiliateLink
-                || p.productLink
-                || '';
-            const tab = window.open(immediate && immediate !== '#' ? immediate : 'about:blank', '_blank');
-            if (hasMatchingTrackedLink(p) && p.shortLink) return;
+            // Abre direto apenas quando o link em cache já tem os Sub IDs deste
+            // visitante. Caso contrário a aba nasce vazia: se ela abrisse no link
+            // cacheado, a Shopee registraria o clique com a atribuição de outra
+            // origem antes de trocarmos a URL.
+            const matched = hasMatchingTrackedLink(p) ? p.shortLink : '';
+            const tab = window.open(matched || 'about:blank', '_blank');
+            if (matched) return;
             if (labelEl) labelEl.textContent = 'Abrindo…';
+            const fallback = p.shortLink || p.affiliateLink || p.productLink || '';
+            let url = '';
             try {
-                const url = await resolveAffiliateUrl(p);
-                if (url && url !== '#') {
+                url = await resolveAffiliateUrl(p);
+            } catch (_) {
+                url = '';
+            }
+            const finalUrl = url && url !== '#' ? url : fallback;
+            try {
+                if (finalUrl && finalUrl !== '#') {
                     if (tab && !tab.closed) {
-                        try { tab.location.href = url; } catch (_) {
-                            window.location.href = url;
+                        try { tab.location.href = finalUrl; } catch (_) {
+                            window.location.href = finalUrl;
                         }
                     } else {
-                        window.open(url, '_blank', 'noopener,noreferrer');
+                        window.open(finalUrl, '_blank', 'noopener,noreferrer');
                     }
                     const btn = document.getElementById('modal-buy-btn');
-                    if (btn) btn.href = url;
+                    if (btn) btn.href = finalUrl;
+                } else if (tab && !tab.closed) {
+                    tab.close();
+                    showToast('Não foi possível abrir a Shopee. Tente de novo.', 'error');
                 }
             } finally {
                 if (labelEl) labelEl.textContent = 'Comprar na Shopee';
