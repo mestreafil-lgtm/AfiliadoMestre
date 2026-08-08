@@ -1478,6 +1478,177 @@ app.delete("/api/campanhas-rastreio/:id", requireAdmin, async (req, res) => {
 });
 
 /**
+ * Resolve um produto para o gerador de campanha a partir do ID (ou link Shopee).
+ * Item já publicado volta direto do banco; o que faltar é buscado na Shopee e
+ * publicado na vitrine com Sub IDs/shortlink antes de responder.
+ */
+app.post("/api/admin/campanha/produto", requireAdmin, async (req, res) => {
+  try {
+    const raw = String(req.body?.id ?? req.body?.itemId ?? req.body?.url ?? "").trim();
+    if (!raw) {
+      return res.status(400).json({ error: "Informe o ID do produto ou o link da Shopee" });
+    }
+
+    const byProductPath = raw.match(/shopee\.com\.br\/product\/(\d+)\/(\d+)/i);
+    const bySlug = raw.match(/-i\.(\d+)\.(\d+)/i);
+    let itemId = null;
+    if (byProductPath) itemId = Number(byProductPath[2]);
+    else if (bySlug) itemId = Number(bySlug[2]);
+    else if (/^\d+$/.test(raw)) itemId = Number(raw);
+
+    if (!Number.isSafeInteger(itemId) || itemId <= 0) {
+      return res.status(400).json({
+        error: "ID inválido. Use o número do item ou o link do produto na Shopee.",
+      });
+    }
+
+    const existing = await getOffersByItemIds([itemId], { full: true });
+    let row = Array.isArray(existing) && existing.length ? existing[0] : null;
+    let added = false;
+    let repaired = false;
+
+    if (!row || !row.offer_link) {
+      // Produto novo — ou já publicado, mas sem o offerLink de afiliado da Shopee.
+      // Nos dois casos os dados vêm de productOfferV2, nunca do link colado.
+      const nodes = await fetchProductDetailsByIds([itemId]);
+      const node = Array.isArray(nodes) && nodes.length ? nodes[0] : null;
+      if (!node || !node.offerLink) {
+        return res.status(404).json({
+          error: "A Shopee não devolveu link de afiliado para este item — confira se ele continua ativo e dentro do seu programa.",
+        });
+      }
+
+      const keyword = String(node.productName || "").trim().toLowerCase().slice(0, 80);
+      const fresh = mapOfferToRow(node, keyword, null);
+      if (!fresh.item_id || !fresh.offer_link) {
+        return res.status(502).json({ error: "Dados incompletos da Shopee — não foi possível publicar o produto" });
+      }
+      // Mantém a curadoria de categoria que já existia na vitrine.
+      if (row) {
+        fresh.category = row.category || fresh.category;
+        fresh.subcategory = row.subcategory || fresh.subcategory;
+      }
+
+      await saveOffersWithShortlinks([fresh], { withShortlinks: true, skipExisting: false, gapMs: 100 });
+      categoriasCache = { at: 0, data: null };
+      ofertasCache.clear();
+      added = !row;
+      repaired = Boolean(row);
+
+      const saved = await getOffersByItemIds([itemId], { full: true });
+      row = Array.isArray(saved) && saved.length ? saved[0] : fresh;
+    } else if (!row.short_link) {
+      // Tem o link de afiliado, só falta o shope.ee com os Sub IDs.
+      const { ensureLinkedRows } = require("./linking");
+      const linked = await ensureLinkedRows([{ ...row }], { regenerate: false, gapMs: 100 });
+      const updated = linked.rows?.[0];
+      if (updated?.short_link) {
+        await updateShortLink(itemId, updated.short_link).catch(() => {});
+        row = { ...row, short_link: updated.short_link, sub_ids: updated.sub_ids };
+        ofertasCache.clear();
+        repaired = true;
+      }
+    }
+
+    if (!row.offer_link) {
+      return res.status(502).json({ error: "Não foi possível obter o link de afiliado deste item na Shopee." });
+    }
+
+    const product = rowToProduct(row);
+    res.json({
+      ok: true,
+      added,
+      repaired,
+      tracking: {
+        affiliateLink: row.offer_link,
+        shortLink: row.short_link || null,
+        subIds: product.subIds,
+        shortLinkPending: !row.short_link,
+      },
+      product,
+    });
+  } catch (err) {
+    console.error("[/api/admin/campanha/produto]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/**
+ * Links de afiliado da Shopee para uma campanha: um shortlink por produto,
+ * com os Sub IDs do canal/campanha (slot 2 e 3) em vez dos orgânicos.
+ * Não grava em `ofertas` — o short_link do produto continua sendo o orgânico.
+ * Body: { channel, campaign, productIds: [] }
+ */
+app.post("/api/admin/campanha/links", requireAdmin, async (req, res) => {
+  try {
+    const channel = sanitizeSubId(req.body?.channel, "organico");
+    const campaign = sanitizeSubId(req.body?.campaign, "vitrine");
+    const ids = [...new Set(
+      (Array.isArray(req.body?.productIds) ? req.body.productIds : [])
+        .map(Number)
+        .filter((id) => Number.isSafeInteger(id) && id > 0)
+    )].slice(0, 50);
+
+    if (!ids.length) return res.json({ ok: true, links: [], channel, campaign });
+
+    const rows = await getOffersByItemIds(ids, { full: true });
+    const byId = new Map(
+      (Array.isArray(rows) ? rows : []).map((r) => [String(r.item_id), r])
+    );
+
+    const payload = [];
+    const missing = [];
+    for (const id of ids) {
+      const row = byId.get(String(id));
+      if (!row || !row.offer_link) {
+        missing.push(id);
+        continue;
+      }
+      const originUrl = resolveProductOriginUrl(row);
+      if (!originUrl) {
+        missing.push(id);
+        continue;
+      }
+      payload.push({
+        originUrl,
+        subIds: buildTrackedSubIds(row.category, row.item_id, row.subcategory, {
+          channel,
+          campaign,
+          medium: "social",
+        }),
+        itemId: row.item_id,
+      });
+    }
+
+    let generated = [];
+    let rateLimited = false;
+    if (payload.length) {
+      const batch = await generateBatchShortLink(payload);
+      rateLimited = !!batch.rateLimited;
+      const bySent = new Map(payload.map((p) => [String(p.itemId), p]));
+      generated = (batch.links || []).map((l) => ({
+        productId: l.itemId,
+        shopeeUrl: l.success ? l.shortLink : null,
+        subIds: bySent.get(String(l.itemId))?.subIds || [],
+        error: l.success ? null : (l.errorMessage || "falhou"),
+      }));
+    }
+
+    res.json({
+      ok: true,
+      channel,
+      campaign,
+      links: generated,
+      missing,
+      rateLimited,
+    });
+  } catch (err) {
+    console.error("[/api/admin/campanha/links]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/**
  * Gera short link (com subIds) e opcionalmente cacheia no Supabase.
  * Body: { originUrl, subIds?, itemId? }
  */
@@ -1495,14 +1666,17 @@ app.post("/api/shortlink", async (req, res) => {
     }
     const itemId = req.body?.itemId != null ? Number(req.body.itemId) : null;
     const shortLink = await generateShortLink(originUrl, subIds);
-    if (shortLink && itemId) {
+    // Só o link orgânico pode virar cache do produto. Guardar um link de campanha
+    // aqui faria o próximo visitante orgânico sair com o Sub ID da campanha alheia.
+    const isOrganic = subIds[1] === "organico" && subIds[2] === "vitrine";
+    if (shortLink && itemId && isOrganic) {
       try {
         await updateShortLink(itemId, shortLink);
       } catch (e) {
         console.warn("[/api/shortlink] cache falhou:", e.message);
       }
     }
-    res.json({ shortLink, originUrl, subIds });
+    res.json({ shortLink, originUrl, subIds, cached: Boolean(shortLink && itemId && isOrganic) });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message, details: err.payload || null });
   }
@@ -1707,7 +1881,7 @@ app.get("/api/conversions/summary", requireAdmin, async (req, res) => {
     const byChannel = new Map();
     const byItem = new Map();
     for (const c of nodes) {
-      const parts = String(c.utmContent || "").split(/[|,]/).map((s) => s.trim()).filter(Boolean);
+      const parts = String(c.utmContent || "").split(/[-_|,;/]/).map((s) => s.trim());
       const channel = (parts[1] || "organico").toLowerCase();
       const commission = Number(String(c.totalCommission || "").replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
       const ch = byChannel.get(channel) || { channel, conversions: 0, commission: 0 };

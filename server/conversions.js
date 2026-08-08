@@ -16,11 +16,18 @@ const { SITE_SUBID } = require("./tracking");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** utmContent do Shopee: "sub1_sub2_sub3_sub4_sub5" (separador = "_"). */
+/**
+ * utmContent do Shopee: os 5 slots unidos por "-" ("sub1-sub2-sub3-sub4-sub5").
+ * Slots vazios aparecem como separadores seguidos ("STORY----"), então a divisão
+ * é posicional — colapsar separadores deslocaria canal/campanha de lugar.
+ * "_" e "|" ficam aceitos por causa de links antigos.
+ */
+const UTM_SUBID_SEPARATOR = /[-_|,;/]/;
+
 function parseUtmSubIds(utmContent) {
   const raw = String(utmContent || "").trim();
   if (!raw) return { sub_id1: null, sub_id2: null, sub_id3: null, sub_id4: null, sub_id5: null };
-  const parts = raw.split(/[_|]+/).filter(Boolean).slice(0, 5);
+  const parts = raw.split(UTM_SUBID_SEPARATOR).map((s) => s.trim()).slice(0, 5);
   return {
     sub_id1: parts[0] || null,
     sub_id2: parts[1] || null,
