@@ -64,10 +64,13 @@ async function generateShortlinksForRows(rows = [], { gapMs = 400 } = {}) {
             body: { short_link_pending: false },
             prefer: "return=minimal",
             useService: true,
-          }).catch(() => {});
+          }).catch((e) => {
+            console.warn(`[shortlinks] clear-pending falhou item=${row.item_id}: ${e.message}`);
+          });
         }
         generated += 1;
-      } catch (_) {
+      } catch (err) {
+        console.warn(`[shortlinks] updateShortLink falhou item=${row.item_id}: ${err.message}`);
         failed += 1;
       }
     }

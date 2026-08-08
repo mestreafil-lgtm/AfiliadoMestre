@@ -28,6 +28,7 @@ const {
   MIN_RATING,
   MIN_SALES,
   DEFAULT_BATCH_GAP_MS,
+  sanitizeSubIdsForShopee,
 } = require("./shopee");
 const {
   upsertOfertas,
@@ -143,6 +144,96 @@ async function requireAdmin(req, res, next) {
   } catch (_) {}
   return res.status(401).json({ error: "Sessão inválida ou expirada.", code: "ADMIN_AUTH" });
 }
+
+let warnedCronSecret = false;
+
+/**
+ * Protege os endpoints /api/cron/*, que costumavam ser públicos e drenavam
+ * quota Shopee. Aceita:
+ *   - header x-cron-secret, query cronSecret, ou Authorization: Bearer
+ *     (a Vercel Cron manda o segredo nesse último formato);
+ *   - OU sessão admin válida (dispara manual pelo painel).
+ * Enquanto CRON_SECRET não estiver configurado a proteção fica desligada: o
+ * agendador vive fora deste repositório e travar antes dele saber o segredo
+ * pararia a sincronização em silêncio. Definir CRON_SECRET liga a trava.
+ */
+async function requireCronOrAdmin(req, res, next) {
+  const secret = String(process.env.CRON_SECRET || "").trim();
+  if (!secret) {
+    if (!warnedCronSecret) {
+      warnedCronSecret = true;
+      console.warn("[cron] CRON_SECRET não configurado — endpoints /api/cron/* seguem abertos.");
+    }
+    return next();
+  }
+  const bearer = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+  const provided = String(
+    req.headers["x-cron-secret"] || req.query.cronSecret || bearer || ""
+  ).trim();
+  if (secret && provided && provided === secret) {
+    req.cronAuth = "secret";
+    return next();
+  }
+  if (ADMIN_EMAILS.size) {
+    try {
+      const user = await getAdminUser(extractAdminToken(req));
+      if (user) {
+        req.adminUser = user;
+        req.cronAuth = "admin";
+        return next();
+      }
+    } catch (_) {}
+  }
+  return res.status(401).json({
+    error: "Cron protegido. Envie x-cron-secret ou faça login como admin.",
+    code: "CRON_AUTH",
+  });
+}
+
+function clientIp(req) {
+  const fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return fwd || req.ip || req.socket?.remoteAddress || "desconhecido";
+}
+
+/**
+ * Rate limit por IP, em memória. Endpoints como /api/shortlink precisam ficar
+ * abertos (a vitrine chama sem sessão, no clique de compra), mas gastam quota
+ * Shopee. Em serverless o contador vive por instância quente, então isso corta
+ * abuso — não é uma cota global exata.
+ */
+function rateLimitByIp({ max = 30, windowMs = 60000 } = {}) {
+  const hits = new Map();
+  let lastPrune = Date.now();
+  return function (req, res, next) {
+    const now = Date.now();
+    if (now - lastPrune > windowMs) {
+      for (const [key, val] of hits) if (val.resetAt <= now) hits.delete(key);
+      lastPrune = now;
+    }
+    const ip = clientIp(req);
+    const entry = hits.get(ip);
+    if (!entry || entry.resetAt <= now) {
+      hits.set(ip, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    entry.count += 1;
+    if (entry.count > max) {
+      const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+      res.set("Retry-After", String(retryAfter));
+      return res.status(429).json({
+        error: "Muitas requisições. Tente de novo em instantes.",
+        code: "RATE_LIMITED",
+        retryAfter,
+      });
+    }
+    return next();
+  };
+}
+
+const shortlinkRateLimit = rateLimitByIp({
+  max: Math.min(Math.max(Number(process.env.SHORTLINK_RATE_MAX) || 30, 1), 600),
+  windowMs: 60000,
+});
 
 app.post("/api/admin/login", async (req, res) => {
   const email = String(req.body?.email || req.body?.username || "").trim().toLowerCase();
@@ -1200,7 +1291,7 @@ app.get("/api/cron/sync", async (_req, res) => {
 });
 
 /** Força refresh dos top moneyScore (cron/manual). */
-app.get("/api/cron/refresh-top", async (_req, res) => {
+app.get("/api/cron/refresh-top", requireCronOrAdmin, async (_req, res) => {
   try {
     const result = await autosync.runOnce({ manual: true, forcePhase: "refresh-top" });
     res.json({ ok: true, result });
@@ -1210,7 +1301,7 @@ app.get("/api/cron/refresh-top", async (_req, res) => {
 });
 
 /** Invariante B — reverifica sales/rating/comissão dos produtos com metricas antigas. */
-app.get("/api/cron/refresh-metrics", async (req, res) => {
+app.get("/api/cron/refresh-metrics", requireCronOrAdmin, async (req, res) => {
   try {
     const { refreshStaleMetrics } = require("./metricsRefresh");
     const { retryPendingShortlinks } = require("./linking");
@@ -1335,7 +1426,7 @@ app.post("/api/admin/reverify", requireAdmin, async (req, res) => {
 });
 
 /** Cron — puxa conversionReport das últimas 48h. */
-app.get("/api/cron/conversions", async (req, res) => {
+app.get("/api/cron/conversions", requireCronOrAdmin, async (req, res) => {
   try {
     const { pullConversionReport } = require("./conversions");
     const sinceMin = Math.min(Math.max(Number(req.query.sinceMin) || 60 * 48, 15), 60 * 24 * 30);
@@ -1392,7 +1483,7 @@ app.post("/api/admin/meu-site/reprocess-subids", requireAdmin, async (req, res) 
 });
 
 /** Cron — feed FULL (1x/dia). Varre catálogo aprovado em páginas de 500. */
-app.get("/api/cron/feed-full", async (req, res) => {
+app.get("/api/cron/feed-full", requireCronOrAdmin, async (req, res) => {
   try {
     const { runFullFeedSync } = require("./feedSync");
     const force = String(req.query.force || "").trim() === "1";
@@ -1407,7 +1498,7 @@ app.get("/api/cron/feed-full", async (req, res) => {
 });
 
 /** Cron — feed DELTA (1x/h). NEW/UPDATE upsert; DELETE marca hidden. */
-app.get("/api/cron/feed-delta", async (req, res) => {
+app.get("/api/cron/feed-delta", requireCronOrAdmin, async (req, res) => {
   try {
     const { runDeltaFeedSync } = require("./feedSync");
     const force = String(req.query.force || "").trim() === "1";
@@ -1427,9 +1518,157 @@ app.get("/api/admin/link/decode", requireAdmin, async (req, res) => {
     const { decodeSubIdsFromUrl } = require("./conversions");
     const url = String(req.query?.url || "").trim();
     if (!url) return res.status(400).json({ error: "url obrigatório" });
+    if (url.length > 4096) return res.status(400).json({ error: "URL muito longa (>4096)" });
     res.json(decodeSubIdsFromUrl(url));
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+/** Admin — Ferramentas: inventário dos feeds disponíveis (listItemFeeds). */
+app.get("/api/admin/feeds/list", requireAdmin, async (req, res) => {
+  try {
+    const { listItemFeeds } = require("./feed");
+    const mode = String(req.query?.feedMode || "").toUpperCase();
+    const feeds = await listItemFeeds(mode === "FULL" || mode === "DELTA" ? mode : null);
+    res.json({ ok: true, feeds, count: feeds.length });
+  } catch (err) {
+    console.error("[/api/admin/feeds/list]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/** Admin — Ferramentas: batch shortlink ad-hoc (até 50 URLs, com subIds opcionais). */
+app.post("/api/admin/shortlink/batch", requireAdmin, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const rawUrls = Array.isArray(body.urls)
+      ? body.urls
+      : String(body.urls || "").split(/[\r\n]+/);
+    const subIds = Array.isArray(body.subIds) ? body.subIds.map(String) : null;
+    const urls = rawUrls
+      .map((u) => String(u || "").trim())
+      .filter((u) => /^https?:\/\//i.test(u))
+      .slice(0, 50);
+    if (!urls.length) return res.status(400).json({ error: "Envie até 50 URLs válidas." });
+    const payload = urls.map((originUrl) => ({ originUrl, subIds }));
+    const result = await generateBatchShortLink(payload);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("[/api/admin/shortlink/batch]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/** Admin — Ferramentas: reverificar em lote (até 30 IDs). */
+app.post("/api/admin/reverify/batch", requireAdmin, async (req, res) => {
+  try {
+    const { reverifyItem } = require("./metricsRefresh");
+    const body = req.body || {};
+    const raw = Array.isArray(body.itemIds)
+      ? body.itemIds
+      : String(body.itemIds || "").split(/[\s,;]+/);
+    const ids = [...new Set(
+      raw.map((v) => Number(v)).filter((n) => Number.isSafeInteger(n) && n > 0)
+    )].slice(0, 30);
+    if (!ids.length) return res.status(400).json({ error: "Nenhum item_id válido." });
+    const gapMs = Math.min(Math.max(Number(body.gapMs) || 250, 100), 2000);
+    const results = [];
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      try {
+        const r = await reverifyItem(id);
+        results.push({ itemId: id, ok: true, ...r });
+      } catch (e) {
+        results.push({ itemId: id, ok: false, error: e.message });
+      }
+      if (i < ids.length - 1) await new Promise((r) => setTimeout(r, gapMs));
+    }
+    ofertasCache.clear();
+    res.json({ ok: true, total: ids.length, results });
+  } catch (err) {
+    console.error("[/api/admin/reverify/batch]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** Admin — Ferramentas: explorador de lojas (shopOfferV2). */
+app.get("/api/admin/shopee/shops", requireAdmin, async (req, res) => {
+  try {
+    const { fetchShopOffers } = require("./shopee");
+    const shopTypeRaw = String(req.query?.shopType || "").trim();
+    const shopType = shopTypeRaw
+      ? shopTypeRaw.split(",").map((s) => Number(s)).filter((n) => [0, 1, 2, 3].includes(n))
+      : null;
+    const result = await fetchShopOffers({
+      keyword: String(req.query?.keyword || "").trim(),
+      shopType: shopType && shopType.length ? shopType : null,
+      sortType: Number(req.query?.sortType) || 1,
+      page: Number(req.query?.page) || 1,
+      limit: Number(req.query?.limit) || 20,
+      shopId: req.query?.shopId ? Number(req.query.shopId) : null,
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("[/api/admin/shopee/shops]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/** Admin — Ferramentas: campanhas oficiais Shopee (shopeeOfferV2). */
+app.get("/api/admin/shopee/campaigns", requireAdmin, async (req, res) => {
+  try {
+    const result = await fetchShopeeOffers({
+      keyword: String(req.query?.keyword || "").trim(),
+      sortType: Number(req.query?.sortType) || 1,
+      page: Number(req.query?.page) || 1,
+      limit: Number(req.query?.limit) || 20,
+    });
+    res.json({ ok: true, nodes: result.nodes || [], pageInfo: result.pageInfo || {} });
+  } catch (err) {
+    console.error("[/api/admin/shopee/campaigns]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/** Admin — Ferramentas: últimas N chamadas GraphQL Shopee (diagnóstico). */
+app.get("/api/admin/shopee/health", requireAdmin, async (_req, res) => {
+  try {
+    const { getHealth } = require("./shopee");
+    const entries = getHealth();
+    const now = Date.now();
+    const last5min = entries.filter((e) => now - e.at < 5 * 60 * 1000);
+    const summary = {
+      ok: last5min.filter((e) => e.ok).length,
+      err: last5min.filter((e) => !e.ok && !e.rateLimited).length,
+      rateLimited: last5min.filter((e) => e.rateLimited).length,
+      avgMs: last5min.length
+        ? Math.round(last5min.reduce((s, e) => s + (e.ms || 0), 0) / last5min.length)
+        : 0,
+    };
+    res.json({ ok: true, entries, summary });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Admin — Ferramentas: validatedReport (comissão validada). */
+app.get("/api/admin/validated", requireAdmin, async (req, res) => {
+  try {
+    const { fetchValidatedReport } = require("./shopee");
+    const validationId = Number(req.query?.validationId);
+    if (!Number.isSafeInteger(validationId) || validationId <= 0) {
+      return res.status(400).json({ error: "validationId obrigatório (inteiro > 0)" });
+    }
+    const result = await fetchValidatedReport({
+      validationId,
+      limit: Math.min(Math.max(Number(req.query?.limit) || 50, 1), 100),
+      scrollId: String(req.query?.scrollId || "").trim(),
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("[/api/admin/validated]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
   }
 });
 
@@ -1651,8 +1890,12 @@ app.post("/api/admin/campanha/links", requireAdmin, async (req, res) => {
 /**
  * Gera short link (com subIds) e opcionalmente cacheia no Supabase.
  * Body: { originUrl, subIds?, itemId? }
+ * Público de propósito: a vitrine chama isto no clique de compra pra resolver
+ * os Sub IDs da campanha do visitante. Exigir sessão aqui faria todo tráfego
+ * de anúncio sair pelo link orgânico e perder a atribuição. Contra abuso de
+ * quota, vale rate limit por IP.
  */
-app.post("/api/shortlink", async (req, res) => {
+app.post("/api/shortlink", shortlinkRateLimit, async (req, res) => {
   try {
     const originUrl = String(req.body?.originUrl || "").trim();
     if (!originUrl) return res.status(400).json({ error: "originUrl obrigatório" });
@@ -1664,6 +1907,9 @@ app.post("/api/shortlink", async (req, res) => {
     if (subIds[0] !== SITE_SUBID) {
       subIds = [SITE_SUBID, ...subIds].slice(0, 5);
     }
+    // Normaliza aqui pra responder (e decidir o cache) com o que a Shopee de
+    // fato registrou — o painel mostra esses Sub IDs pra casar com o relatório.
+    subIds = sanitizeSubIdsForShopee(subIds);
     const itemId = req.body?.itemId != null ? Number(req.body.itemId) : null;
     const shortLink = await generateShortLink(originUrl, subIds);
     // Só o link orgânico pode virar cache do produto. Guardar um link de campanha

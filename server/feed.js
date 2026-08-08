@@ -8,45 +8,12 @@
  *   getItemFeedData: 1 request / 500 produtos + já vem filtrado por categoria/loja aprovada.
  */
 
-const crypto = require("crypto");
 const { resolveTaxonomy } = require("./productMeta");
 const { buildProductSubIds, SITE_SUBID } = require("./tracking");
-
-const SHOPEE_API_URL = "https://open-api.affiliate.shopee.com.br/graphql";
+// Retry/backoff/health unificados no shopee.js — não duplicamos aqui.
+const { shopeeGraphql, toUnixSec } = require("./shopee");
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-
-function sign(appId, timestamp, payload, secret) {
-  return crypto.createHash("sha256").update(appId + timestamp + payload + secret).digest("hex");
-}
-
-async function shopeeGraphql(query, variables = null) {
-  // Reusa a mesma auth do módulo shopee.js (evita reimplementar retry)
-  const { getCreds } = require("./shopee");
-  const { appId, secret } = getCreds();
-  const timestamp = Math.floor(Date.now() / 1000);
-  const payload = JSON.stringify(variables ? { query, variables } : { query });
-  const signature = sign(appId, timestamp, payload, secret);
-  const res = await fetch(SHOPEE_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${signature}`,
-    },
-    body: payload,
-  });
-  const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  if (!res.ok || data.errors) {
-    const err = new Error(data.errors?.[0]?.message || `HTTP ${res.status}`);
-    err.status = res.status;
-    err.payload = data;
-    err.rateLimited = res.status === 429 || /rate|quota|throttle/i.test(err.message || "");
-    throw err;
-  }
-  return data.data || {};
-}
 
 async function listItemFeeds(feedMode = null) {
   const args = feedMode ? `(feedMode: ${feedMode})` : "";
@@ -174,11 +141,13 @@ function columnsJsonToRow(columnsStr, updateType = "NEW") {
     keyword: "feed",
     category: catId,
     subcategory: subId,
-    period_start: num(pick("period_start_time", "periodStartTime")),
-    period_end: num(pick("period_end_time", "periodEndTime")),
+    // Feed pode devolver ms ou s — toUnixSec normaliza pra segundos (isFlashActive assume s).
+    period_start: toUnixSec(pick("period_start_time", "periodStartTime")),
+    period_end: toUnixSec(pick("period_end_time", "periodEndTime")),
     list_type: null,
     sub_ids: buildProductSubIds(catId, itemId, subId), // já com SITE_SUBID no slot 1
-    sales_verified_at: new Date().toISOString(), // feed é fonte primária → verificado
+    // Não seta sales_verified_at aqui: sales do feed vem congelado, deixar sem
+    // marca faz refreshStaleMetrics revalidar via productOfferV2 (fresco).
     updated_at: new Date().toISOString(),
     _feedUpdateType: String(updateType || "NEW").toUpperCase(),
   };
