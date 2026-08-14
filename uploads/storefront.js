@@ -2751,6 +2751,7 @@ async function loadOffersFromSupabase(opts = {}) {
             showToast, escapeHtml, escapeAttr,
             formatSold, formatRating, displayDiscount, cleanShopName, isOfficialShop,
             sanitizeSubId, normalizeChannel, getTrackingSubIds, getSubIdSettings,
+            parseUtmContent,
             SITE_SUBID,
             renderStoreProducts, renderCategories, renderHomeSections,
             moneyScoreOf, femaleOnly, sortByMoney,

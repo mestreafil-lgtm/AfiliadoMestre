@@ -14,6 +14,17 @@
     const loadOffersFromSupabase = AM.loadOffersFromSupabase;
     const loadCategoriesFromApi = AM.loadCategoriesFromApi;
     const sanitizeSubId = AM.sanitizeSubId;
+    const parseUtmContent = AM.parseUtmContent || function (utm) {
+        const parts = String(utm || "").split(/[-_|,;/]/).map((s) => s.trim());
+        return {
+            site: parts[0] || "",
+            channel: parts[1] || "",
+            campaign: parts[2] || "",
+            category: parts[3] || "",
+            product: parts[4] || "",
+            raw: parts,
+        };
+    };
     const SITE_SUBID = AM.SITE_SUBID || "afiliadamestre";
     const getTrackingSubIds = AM.getTrackingSubIds;
     const getSubIdSettings = AM.getSubIdSettings;
@@ -69,10 +80,13 @@
     let adminAuthReady = false;
     let adminLoggedIn = false;
     const CONVERSION_PAGE_SIZE = 20;
+    const CONVERSIONS_PULL_THROTTLE_MS = 5 * 60 * 1000;
+    const CONVERSIONS_PULL_KEY = "am_last_conv_pull_ms";
     let conversionScrollId = "";
     let conversionRows = [];
     let conversionPage = 1;
     let conversionHasNextRemote = false;
+    let conversionPullBusy = false;
     let campaignSelectedProducts = [];
     let adminPage = 0;
     let adminPageSize = 24;
@@ -404,11 +418,11 @@
                 updateCampaignLinkPreview();
                 syncSavedCampaigns();
             } else if (view === "campanha-desempenho") {
-                loadCampaignPerformance({ reset: true });
+                loadCampaignPerformance({ reset: true, pull: true });
             } else if (view === "desempenho") {
-                loadConversions({ reset: true });
+                loadConversions({ reset: true, pull: true });
             } else if (view === "meu-site") {
-                loadMeuSiteSummary();
+                loadMeuSiteSummary({ pull: true });
             } else if (view === "ferramentas") {
                 // Inventário de feeds é barato (1 request), útil na abertura.
                 loadFeedInventory();
@@ -1623,9 +1637,9 @@
                     <div class="py-8 text-center text-slate-400 text-xs space-y-2">
                         <i class="fas fa-chart-line text-2xl mb-2 block"></i>
                         <p class="font-bold text-slate-600">Nenhuma venda deste site ainda</p>
-                        <p>O painel só mostra pedidos com Sub ID <strong>afiliada_mestre</strong>.</p>
+                        <p>O painel só mostra pedidos com Sub ID <strong>afiliadamestre</strong> (slot 1).</p>
                         <p>Vendas de Stories, Pin e outras campanhas da Shopee ficam de fora — isso é esperado.</p>
-                        <p class="text-slate-500">Assim que alguém comprar pela vitrine, a conversão aparece aqui.</p>
+                        <p class="text-slate-500">Clique em Atualizar para puxar da Shopee; o cron também sincroniza sozinho.</p>
                     </div>`;
                 return;
             }
@@ -1811,17 +1825,34 @@
             );
         }
 
-        async function fetchConversionBatch({ days, status, scrollId = '' }) {
-            const params = new URLSearchParams({ days: String(days), limit: '50', siteOnly: '1' });
-            if (status) params.set('status', status);
-            if (scrollId) params.set('scrollId', scrollId);
-            const res = await fetch(`${API_BASE}/api/conversions?${params}`);
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Não foi possível consultar as conversões');
-            return data;
+        /**
+         * Puxa conversionReport da Shopee → Supabase.
+         * Throttle de 5 min (sessionStorage) pra não estourar quota ao trocar de aba.
+         */
+        async function ensureConversionsFresh({ force = false } = {}) {
+            if (!isAdminMode()) return { skipped: true };
+            const last = Number(sessionStorage.getItem(CONVERSIONS_PULL_KEY) || 0);
+            if (!force && Date.now() - last < CONVERSIONS_PULL_THROTTLE_MS) {
+                return { skipped: true, ageMs: Date.now() - last };
+            }
+            if (conversionPullBusy) return { skipped: true, busy: true };
+            conversionPullBusy = true;
+            try {
+                const res = await adminFetch(`${API_BASE}/api/cron/conversions?sinceMin=2880`);
+                const data = await res.json();
+                if (!res.ok || !data?.ok) {
+                    throw new Error(data?.error || `HTTP ${res.status}`);
+                }
+                sessionStorage.setItem(CONVERSIONS_PULL_KEY, String(Date.now()));
+                return data;
+            } catch (err) {
+                return { ok: false, error: err.message || String(err) };
+            } finally {
+                conversionPullBusy = false;
+            }
         }
 
-        async function loadCampaignPerformance({ reset = false } = {}) {
+        async function loadCampaignPerformance({ reset = false, pull = false } = {}) {
             const list = document.getElementById('camp-perf-list');
             if (!list || !isAdminMode() || campaignPerfLoading) return;
             campaignPerfLoading = true;
@@ -1832,6 +1863,16 @@
             }
             list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando vendas do banco…</div>';
             try {
+                if (pull) {
+                    list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Atualizando conversões da Shopee…</div>';
+                    const pulled = await ensureConversionsFresh({ force: false });
+                    if (pulled?.ok && pulled.result) {
+                        const r = pulled.result;
+                        if (Number(r.saved) > 0) {
+                            showToast(`Shopee: ${r.saved} conversão(ões) salvas`, 'success');
+                        }
+                    }
+                }
                 await syncSavedCampaigns();
                 const days = document.getElementById('camp-perf-days')?.value || '30';
                 const status = document.getElementById('camp-perf-status')?.value || '';
@@ -1839,6 +1880,7 @@
                 // não o scroll ao vivo da Shopee — aquele mistura tudo e perde vendas.
                 const params = new URLSearchParams({ days: String(days) });
                 if (status) params.set('status', status);
+                list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando vendas do banco…</div>';
                 const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -2128,7 +2170,7 @@
             renderCampaignPerformance();
         }
 
-        async function loadMeuSiteSummary() {
+        async function loadMeuSiteSummary({ pull = false } = {}) {
             if (!isAdminMode()) return;
             const daysSel = document.getElementById("ms-days");
             const onlyMe = document.getElementById("ms-only-me");
@@ -2137,6 +2179,9 @@
             const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
             setText("ms-net", "Carregando…");
             try {
+                if (pull) {
+                    await ensureConversionsFresh({ force: false });
+                }
                 const res = await adminFetch(`${API_BASE}/api/admin/meu-site/summary?days=${days}&onlyMeuSite=${onlyMeuSite}`);
                 const data = await res.json();
                 if (!res.ok || !data?.ok) throw new Error(data?.error || "falhou");
@@ -2194,13 +2239,14 @@
             if (!isAdminMode()) return;
             showToast("Puxando conversões da Shopee…", "info");
             try {
-                const res = await adminFetch(`${API_BASE}/api/cron/conversions?sinceMin=2880`);
-                const data = await res.json();
-                if (!data?.ok) throw new Error(data?.error || "falhou");
-                const r = data.result || {};
+                const data = await ensureConversionsFresh({ force: true });
+                if (data?.skipped && data.error) throw new Error(data.error);
+                if (!data?.ok && data?.error) throw new Error(data.error);
+                const r = data?.result || {};
                 showToast(`Salvo ${r.saved || 0} conversão(ões) (${r.pages || 0} páginas)`, "success");
-                loadMeuSiteSummary();
-                loadCampaignPerformance({ reset: true });
+                loadMeuSiteSummary({ pull: false });
+                loadCampaignPerformance({ reset: true, pull: false });
+                loadConversions({ reset: true, pull: false });
             } catch (err) { showToast("Erro: " + err.message, "error"); }
         }
 
@@ -2423,7 +2469,7 @@
             }
         });
 
-        async function loadConversions({ reset = false, advance = false } = {}) {
+        async function loadConversions({ reset = false, advance = false, pull = true, forcePull = false } = {}) {
             const list = document.getElementById('conversion-list');
             if (!list || !isAdminMode()) return;
             if (reset) {
@@ -2432,25 +2478,30 @@
                 conversionPage = 1;
                 conversionHasNextRemote = false;
             }
-            list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Consultando a Shopee…</div>';
             try {
+                if (reset && (pull || forcePull)) {
+                    list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Atualizando conversões da Shopee…</div>';
+                    const pulled = await ensureConversionsFresh({ force: !!forcePull });
+                    if (pulled?.ok && pulled.result && Number(pulled.result.saved) > 0) {
+                        showToast(`Shopee: ${pulled.result.saved} conversão(ões) salvas`, 'success');
+                    } else if (pulled?.error && !pulled.skipped) {
+                        showToast(`Pull Shopee: ${pulled.error} — mostrando o que já está no banco`, 'warning');
+                    }
+                }
+                list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando do banco…</div>';
                 const days = document.getElementById('conversion-days')?.value || '30';
                 const status = document.getElementById('conversion-status')?.value || '';
-                const params = new URLSearchParams({ days, limit: '20', siteOnly: '1' });
+                // Mesma fonte do Meu Site / Campanhas — não usa /api/conversions ao vivo.
+                const params = new URLSearchParams({ days: String(days) });
                 if (status) params.set('status', status);
-                if (conversionScrollId) params.set('scrollId', conversionScrollId);
-                const res = await fetch(`${API_BASE}/api/conversions?${params}`);
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Não foi possível consultar as conversões');
-                const received = Array.isArray(data.conversions) ? data.conversions : [];
-                conversionRows = reset ? received : conversionRows.concat(received);
-                conversionScrollId = data.pageInfo?.scrollId || '';
-                conversionHasNextRemote = Boolean(data.pageInfo?.hasNextPage && conversionScrollId);
-                if (advance && received.length) conversionPage += 1;
+                conversionRows = Array.isArray(data.conversions) ? data.conversions : [];
+                conversionScrollId = '';
+                conversionHasNextRemote = false;
+                if (advance) conversionPage += 1;
                 renderConversions();
-                if (reset && data.ignoredFromOtherChannels > 0 && !received.length) {
-                    showToast(`${data.ignoredFromOtherChannels} vendas de outras campanhas foram ocultadas (não são deste site)`, 'success');
-                }
             } catch (err) {
                 list.innerHTML = `
                     <div class="py-8 text-center text-red-500 text-xs">
@@ -2476,10 +2527,6 @@
                 conversionPage += 1;
                 renderConversions();
                 document.getElementById('conversion-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                return;
-            }
-            if (conversionHasNextRemote && conversionScrollId) {
-                loadConversions({ reset: false, advance: true });
             }
         }
 
@@ -3509,16 +3556,39 @@
             if (list) list.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando canais…</p>';
             try {
                 const days = Number(document.getElementById('conversion-days')?.value) || 30;
-                const res = await adminFetch(`${API_BASE}/api/conversions/summary?days=${days}`);
+                const status = document.getElementById('conversion-status')?.value || '';
+                const params = new URLSearchParams({ days: String(days) });
+                if (status) params.set('status', status);
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-                const channels = data.channels || [];
-                const tops = data.topItems || [];
+                const rows = Array.isArray(data.conversions) ? data.conversions : [];
+                const channelMap = new Map();
+                const itemMap = new Map();
+                for (const c of rows) {
+                    const parsed = parseUtmContent(c.utmContent);
+                    const channel = sanitizeSubId(parsed.channel, 'desconhecido') || 'desconhecido';
+                    if (!channelMap.has(channel)) channelMap.set(channel, { channel, conversions: 0, commission: 0 });
+                    const ch = channelMap.get(channel);
+                    ch.conversions += 1;
+                    ch.commission += commissionNumber(c.totalCommission);
+                    for (const order of (c.orders || [])) {
+                        for (const item of (order.items || [])) {
+                            const id = String(item.itemId || item.itemName || 'item');
+                            if (!itemMap.has(id)) {
+                                itemMap.set(id, { itemId: item.itemId, itemName: item.itemName || '', qty: 0 });
+                            }
+                            itemMap.get(id).qty += Number(item.qty) || 1;
+                        }
+                    }
+                }
+                const channels = [...channelMap.values()].sort((a, b) => b.commission - a.commission);
+                const tops = [...itemMap.values()].sort((a, b) => b.qty - a.qty);
                 if (list) {
                     list.innerHTML = `
                         <div class="space-y-3">
                             <div>
-                                <p class="text-[10px] font-bold uppercase text-slate-500 mb-2">Por canal (Sub ID)</p>
+                                <p class="text-[10px] font-bold uppercase text-slate-500 mb-2">Por canal (Sub ID) · banco</p>
                                 ${channels.length ? channels.map((c) => `
                                     <div class="flex justify-between text-xs border-b border-slate-50 py-1.5">
                                         <span class="font-semibold text-slate-700">${escapeHtml(c.channel)}</span>
@@ -3531,10 +3601,13 @@
                                     <div class="text-xs truncate py-1">#${t.itemId} · ${escapeHtml(t.itemName || '')} · qty ${t.qty}</div>
                                 `).join('') || '<p class="text-slate-400 text-xs">Sem itens.</p>'}
                             </div>
+                            <button type="button" onclick="loadConversions({reset:true,pull:false})" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">
+                                Voltar à lista
+                            </button>
                         </div>`;
                 }
             } catch (err) {
-                if (list) list.innerHTML = `<p class="text-rose-500 text-xs">${escapeHtml(err.message)}</p>`;
+                if (list) list.innerHTML = `<p class="text-red-500 text-xs">${escapeHtml(err.message)}</p>`;
             }
         }
 

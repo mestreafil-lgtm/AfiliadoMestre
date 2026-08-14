@@ -1492,20 +1492,20 @@
                         <button onclick="switchAdminView('campanhas')" class="px-3 py-2 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50">
                             <i class="fas fa-plus mr-1"></i> Nova campanha
                         </button>
-                        <select id="camp-perf-days" onchange="loadCampaignPerformance({reset:true})" class="p-2 border rounded-lg">
+                        <select id="camp-perf-days" onchange="loadCampaignPerformance({reset:true,pull:false})" class="p-2 border rounded-lg">
                             <option value="7">Últimos 7 dias</option>
                             <option value="30" selected>Últimos 30 dias</option>
                             <option value="60">Últimos 60 dias</option>
                             <option value="90">Últimos 90 dias</option>
                         </select>
-                        <select id="camp-perf-status" onchange="loadCampaignPerformance({reset:true})" class="p-2 border rounded-lg">
+                        <select id="camp-perf-status" onchange="loadCampaignPerformance({reset:true,pull:false})" class="p-2 border rounded-lg">
                             <option value="">Todos os status</option>
                             <option value="PENDING">Pendente</option>
                             <option value="COMPLETED">Concluído</option>
                             <option value="CANCELLED">Cancelado</option>
                             <option value="UNPAID">Não pago</option>
                         </select>
-                        <button onclick="loadCampaignPerformance({reset:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
+                        <button onclick="loadCampaignPerformance({reset:true,pull:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
                             <i class="fas fa-rotate mr-1"></i> Atualizar
                         </button>
                     </div>
@@ -1577,23 +1577,23 @@
                     <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
                         <i class="fas fa-chart-line text-shopee-orange"></i> Conversões por Sub ID
                     </h4>
-                    <p class="text-[10px] text-slate-400 mt-1">Só vendas geradas por este site (Sub ID afiliada_mestre). Outras campanhas da Shopee ficam de fora.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Vendas do site no banco (Sub ID <strong>afiliadamestre</strong>). Ao abrir ou atualizar, puxa a Shopee automaticamente (máx. a cada 5 min).</p>
                 </div>
                 <div class="flex items-center gap-2 text-xs">
-                    <select id="conversion-days" onchange="loadConversions({reset:true})" class="p-2 border rounded-lg">
+                    <select id="conversion-days" onchange="loadConversions({reset:true,pull:false})" class="p-2 border rounded-lg">
                         <option value="7">Últimos 7 dias</option>
                         <option value="30" selected>Últimos 30 dias</option>
                         <option value="60">Últimos 60 dias</option>
                         <option value="90">Últimos 90 dias</option>
                     </select>
-                    <select id="conversion-status" onchange="loadConversions({reset:true})" class="p-2 border rounded-lg">
+                    <select id="conversion-status" onchange="loadConversions({reset:true,pull:false})" class="p-2 border rounded-lg">
                         <option value="">Todos os status</option>
                         <option value="PENDING">Pendente</option>
                         <option value="COMPLETED">Concluído</option>
                         <option value="CANCELLED">Cancelado</option>
                         <option value="UNPAID">Não pago</option>
                     </select>
-                    <button onclick="loadConversions({reset:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
+                    <button onclick="loadConversions({reset:true,forcePull:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
                         Atualizar
                     </button>
                     <button onclick="prioritizeConversionWinners()" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700">
@@ -1661,7 +1661,7 @@
                             <input type="checkbox" id="ms-only-me" checked class="rounded">
                             Só meu site
                         </label>
-                        <button onclick="loadMeuSiteSummary()" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
+                        <button onclick="loadMeuSiteSummary({pull:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
                             <i class="fas fa-rotate mr-1"></i> Atualizar
                         </button>
                         <button onclick="pullConversionsNow()" title="Puxa conversões da Shopee agora" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700">

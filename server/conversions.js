@@ -601,6 +601,23 @@ async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
     };
   });
 
+  // Enriquecer fotos a partir do catálogo (ofertas), sem chamar a Shopee.
+  try {
+    const { getOffersByItemIds } = require("./supabase");
+    const ids = [...new Set(conversions.map((c) => c.orders?.[0]?.items?.[0]?.itemId).filter(Boolean))];
+    if (ids.length) {
+      const offers = await getOffersByItemIds(ids);
+      const byId = new Map((offers || []).map((o) => [String(o.item_id), o]));
+      for (const c of conversions) {
+        const item = c.orders?.[0]?.items?.[0];
+        if (!item?.itemId) continue;
+        const offer = byId.get(String(item.itemId));
+        if (offer?.image_url) item.imageUrl = offer.image_url;
+        if (offer?.category) item.category = offer.category;
+      }
+    }
+  } catch (_) {}
+
   return {
     ok: true,
     source: "db",
