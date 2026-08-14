@@ -839,7 +839,7 @@
                     <p id="dash-conversion-total" class="text-xl font-black">—</p>
                 </div>
                 <div class="text-center">
-                    <p class="text-[9px] text-slate-400 uppercase">Comissão</p>
+                    <p class="text-[9px] text-slate-400 uppercase">Confirmado</p>
                     <p id="dash-conversion-commission" class="text-lg font-black text-emerald-400">—</p>
                 </div>
                 <span class="bg-shopee-orange px-4 py-2 rounded-lg text-xs font-bold">Abrir relatório →</span>
@@ -1599,29 +1599,35 @@
                 </div>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100">
-                <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Conversões</p>
-                    <p id="conversion-total" class="text-xl font-black text-slate-800">0</p>
+                <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                    <p class="text-[9px] uppercase font-bold text-emerald-700">Você já ganhou</p>
+                    <p id="conversion-confirmed" class="text-xl font-black text-emerald-700">R$ 0,00</p>
+                    <p class="text-[10px] text-emerald-600 mt-0.5">só Concluído</p>
+                </div>
+                <div class="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                    <p class="text-[9px] uppercase font-bold text-amber-700">Ainda pode virar</p>
+                    <p id="conversion-estimated" class="text-xl font-black text-amber-700">R$ 0,00</p>
+                    <p class="text-[10px] text-amber-600 mt-0.5">Pendente + Não pago</p>
                 </div>
                 <div class="bg-slate-50 rounded-lg p-3">
                     <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos</p>
                     <p id="conversion-orders" class="text-xl font-black text-slate-800">0</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5"><span id="conversion-total">0</span> conversões · <span id="conversion-subids">0</span> Sub IDs</p>
                 </div>
                 <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Comissão</p>
-                    <p id="conversion-commission" class="text-lg font-black text-emerald-600">R$ 0,00</p>
-                </div>
-                <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Sub IDs encontrados</p>
-                    <p id="conversion-subids" class="text-xl font-black text-shopee-orange">0</p>
+                    <p class="text-[9px] uppercase font-bold text-slate-400">Cancelados</p>
+                    <p id="conversion-cancelled" class="text-xl font-black text-slate-800">0</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">sem comissão</p>
                 </div>
             </div>
-            <div class="px-4 pt-3 pb-2 border-b border-slate-100 flex flex-wrap items-center gap-2">
+            <div id="conversion-funnel" class="px-4 pt-3 flex flex-wrap gap-1.5 border-b border-slate-100"></div>
+            <div class="px-4 pt-2 pb-2 border-b border-slate-100 flex flex-wrap items-center gap-2">
                 <div id="conversion-status-tabs" class="flex flex-wrap gap-1.5 flex-1"></div>
                 <input id="conversion-search" type="search" placeholder="Buscar pedido, produto ou Sub ID"
                     oninput="onConversionSearch()"
                     class="w-full sm:w-56 p-2 border rounded-lg text-[11px]">
             </div>
+            <p id="conversion-filter-hint" class="px-4 py-2 text-[10px] text-slate-500 border-b border-slate-100 hidden"></p>
             <div id="conversion-list" class="p-4 space-y-3">
                 <div class="py-8 text-center text-slate-400 text-xs">Clique em “Atualizar Shopee” para carregar.</div>
             </div>
@@ -1681,49 +1687,65 @@
                     </div>
                 </div>
 
+                <div class="mx-4 mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-[11px] text-slate-700 space-y-1">
+                    <p class="font-bold text-emerald-800 uppercase text-[10px] tracking-wide">Como ler seus ganhos</p>
+                    <div class="grid sm:grid-cols-3 gap-2">
+                        <p><span class="font-bold text-emerald-700">Você já ganhou</span><br><span class="text-slate-500">só Concluído — pode contar</span></p>
+                        <p><span class="font-bold text-amber-700">Ainda pode virar</span><br><span class="text-slate-500">Pendente/Não pago — estimativa</span></p>
+                        <p><span class="font-bold text-red-600">Cancelamentos</span><br><span class="text-slate-500">sem comissão</span></p>
+                    </div>
+                    <p class="text-slate-500 pt-0.5">O número grande verde é só o confirmado. Os R$ 53 da estimativa <strong>não</strong> são dinheiro garantido.</p>
+                </div>
+
+                <div id="ms-funnel" class="px-4 pt-3 flex flex-wrap gap-1.5"></div>
+
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100">
                     <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                        <p class="text-[9px] uppercase font-bold text-emerald-700">Comissão confirmada</p>
+                        <p class="text-[9px] uppercase font-bold text-emerald-700">Você já ganhou</p>
                         <p id="ms-net" class="text-xl font-black text-emerald-700">R$ 0,00</p>
-                        <p class="text-[10px] text-emerald-600 mt-0.5">só status Concluído · após MCN</p>
+                        <p class="text-[10px] text-emerald-600 mt-0.5">pedidos concluídos</p>
                     </div>
                     <div class="bg-amber-50 border border-amber-100 rounded-lg p-3">
-                        <p class="text-[9px] uppercase font-bold text-amber-700">Comissão estimada</p>
+                        <p class="text-[9px] uppercase font-bold text-amber-700">Ainda pode virar</p>
                         <p id="ms-pending-net" class="text-lg font-black text-amber-700">R$ 0,00</p>
-                        <p class="text-[10px] text-amber-600 mt-0.5">Pendente + Não pago</p>
+                        <p class="text-[10px] text-amber-600 mt-0.5">pendentes + não pagos</p>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-3">
-                        <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos</p>
+                        <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos no período</p>
                         <p id="ms-orders" class="text-xl font-black text-slate-800">0</p>
                         <p class="text-[10px] text-slate-500 mt-0.5" id="ms-orders-break">—</p>
                     </div>
-                    <div class="bg-slate-50 rounded-lg p-3">
-                        <p class="text-[9px] uppercase font-bold text-slate-400">Saúde</p>
-                        <p id="ms-health" class="text-sm font-black text-slate-800">—</p>
-                        <p class="text-[10px] text-slate-500 mt-0.5"><span id="ms-cancel-pct">0%</span> cancel · <span id="ms-fraud-pct">0%</span> fraude</p>
+                    <div class="bg-red-50 border border-red-100 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-red-600">Cancelamentos</p>
+                        <p id="ms-cancel-count" class="text-xl font-black text-red-600">0</p>
+                        <p class="text-[10px] text-red-500 mt-0.5"><span id="ms-cancel-pct">0%</span> do período · fraude <span id="ms-fraud-pct">0%</span></p>
                     </div>
                 </div>
                 <div class="px-4 pb-3 text-[10px] text-slate-500 border-b border-slate-100">
                     Bruta confirmada: <span id="ms-gross" class="font-semibold text-slate-700">R$ 0,00</span>
                     · ticket médio (concluídos): <span id="ms-ticket" class="font-semibold text-slate-700">R$ 0,00</span>
+                    <span id="ms-health" class="hidden">—</span>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
                     <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
                         <div class="bg-slate-50 px-3 py-2 border-b border-slate-100">
                             <p class="text-[10px] uppercase font-bold text-slate-600">Top 10 produtos</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">Inclui estimado + confirmado; cancelados fora.</p>
                         </div>
                         <div id="ms-top-items" class="p-2 text-[11px] text-slate-500">—</div>
                     </div>
                     <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
                         <div class="bg-slate-50 px-3 py-2 border-b border-slate-100">
                             <p class="text-[10px] uppercase font-bold text-slate-600">Top 10 lojas</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">Inclui estimado + confirmado; cancelados fora.</p>
                         </div>
                         <div id="ms-top-shops" class="p-2 text-[11px] text-slate-500">—</div>
                     </div>
                     <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
                         <div class="bg-slate-50 px-3 py-2 border-b border-slate-100">
                             <p class="text-[10px] uppercase font-bold text-slate-600">Top 10 campanhas (sub_id3)</p>
+                            <p class="text-[9px] text-slate-400 mt-0.5">Inclui estimado + confirmado; cancelados fora.</p>
                         </div>
                         <div id="ms-top-campaigns" class="p-2 text-[11px] text-slate-500">—</div>
                     </div>

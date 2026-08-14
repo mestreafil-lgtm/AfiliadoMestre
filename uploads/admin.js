@@ -1696,6 +1696,60 @@
             document.getElementById("conversion-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
+        function conversionMoneyKind(status) {
+            const st = String(status || "").toUpperCase();
+            if (st === "COMPLETED") {
+                return { key: "confirmed", label: "confirmado", className: "text-emerald-600" };
+            }
+            if (st === "CANCELLED") {
+                return { key: "zero", label: "sem comissão", className: "text-slate-400" };
+            }
+            if (st === "PENDING" || st === "UNPAID") {
+                return { key: "estimated", label: "estimativa", className: "text-amber-600" };
+            }
+            return { key: "other", label: "—", className: "text-slate-400" };
+        }
+
+        function renderStatusFunnel(elId, counts) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const items = [
+                { key: "UNPAID", label: "Não pago", count: counts.UNPAID || 0 },
+                { key: "PENDING", label: "Pendente", count: counts.PENDING || 0 },
+                { key: "COMPLETED", label: "Concluído", count: counts.COMPLETED || 0 },
+                { key: "CANCELLED", label: "Cancelado", count: counts.CANCELLED || 0 },
+            ];
+            el.innerHTML = items.map((item, idx) => {
+                const meta = CONVERSION_STATUS_META[item.key];
+                const arrow = idx < items.length - 1
+                    ? `<span class="text-slate-300 text-[10px] px-0.5 self-center">→</span>`
+                    : "";
+                return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-bold ${meta.chip}">
+                    <i class="fas ${meta.icon}"></i>${escapeHtml(item.label)}
+                    <span class="opacity-80">${item.count}</span>
+                </span>${arrow}`;
+            }).join("");
+        }
+
+        function renderConversionFilterHint() {
+            const hint = document.getElementById("conversion-filter-hint");
+            if (!hint) return;
+            const st = String(conversionStatusFilter || "").toUpperCase();
+            if (!st) {
+                hint.classList.add("hidden");
+                hint.textContent = "";
+                return;
+            }
+            const money = conversionMoneyKind(st);
+            const label = conversionStatusLabel(st);
+            let msg = `Lista filtrada: ${label}`;
+            if (money.key === "estimated") msg += " — valores abaixo são estimativa";
+            else if (money.key === "confirmed") msg += " — valores abaixo são confirmados";
+            else if (money.key === "zero") msg += " — sem comissão";
+            hint.textContent = msg;
+            hint.classList.remove("hidden");
+        }
+
         function renderConversionStatusTabs(allOrders, filteredCount) {
             const tabs = document.getElementById("conversion-status-tabs");
             if (!tabs) return;
@@ -1726,6 +1780,8 @@
                     <span class="ml-1 opacity-80">${item.count}</span>
                 </button>`;
             }).join("");
+            renderStatusFunnel("conversion-funnel", counts);
+            renderConversionFilterHint();
         }
 
         function renderConversionPageButtons(totalPages) {
@@ -1768,18 +1824,29 @@
             const subIds = new Set(
                 conversionRows.map((c) => String(c.utmContent || "").trim()).filter(Boolean)
             );
-            const scoped = conversionStatusFilter || conversionSearchTerm ? orders : allOrders;
-            const commission = scoped.reduce((sum, row) => sum + commissionNumber(row.conversion.totalCommission), 0);
-
-            document.getElementById("conversion-total").textContent = String(conversionRows.length);
-            document.getElementById("conversion-orders").textContent = String(allOrders.length);
-            const commissionText = commission.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-            document.getElementById("conversion-commission").textContent = commissionText;
-            document.getElementById("conversion-subids").textContent = String(subIds.size);
+            let confirmed = 0;
+            let estimated = 0;
+            let cancelledCount = 0;
+            for (const row of allOrders) {
+                const st = conversionOrderStatus(row);
+                const money = commissionNumber(row.conversion.totalCommission);
+                if (st === "COMPLETED") confirmed += money;
+                else if (st === "PENDING" || st === "UNPAID") estimated += money;
+                else if (st === "CANCELLED") cancelledCount += 1;
+            }
+            const confirmedText = confirmed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            const estimatedText = estimated.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setTxt("conversion-total", String(conversionRows.length));
+            setTxt("conversion-orders", String(allOrders.length));
+            setTxt("conversion-confirmed", confirmedText);
+            setTxt("conversion-estimated", estimatedText);
+            setTxt("conversion-cancelled", String(cancelledCount));
+            setTxt("conversion-subids", String(subIds.size));
             const dashTotal = document.getElementById("dash-conversion-total");
             const dashComm = document.getElementById("dash-conversion-commission");
             if (dashTotal) dashTotal.textContent = String(conversionRows.length);
-            if (dashComm) dashComm.textContent = commission.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            if (dashComm) dashComm.textContent = confirmedText;
 
             renderConversionStatusTabs(allOrders, orders.length);
 
@@ -1808,15 +1875,24 @@
 
             const parts = [];
             let lastStatus = null;
+            // Cabeçalho da “tabela” compacta
+            parts.push(`
+                <div class="hidden md:grid grid-cols-[72px_1fr_110px_100px_90px] gap-2 px-2 pb-1 text-[9px] font-bold uppercase text-slate-400 border-b border-slate-100">
+                    <span>Foto</span>
+                    <span>Pedido / produto</span>
+                    <span>Campanha</span>
+                    <span>Status</span>
+                    <span class="text-right">Comissão</span>
+                </div>`);
             for (const { conversion, order } of visibleOrders) {
                 const st = conversionOrderStatus({ conversion, order });
                 if (!conversionStatusFilter && st !== lastStatus) {
                     const meta = conversionStatusMeta(st);
                     const count = orders.filter((row) => conversionOrderStatus(row) === st).length;
                     parts.push(`
-                        <div class="flex items-center gap-2 pt-1">
-                            <span class="w-1.5 h-5 rounded-full ${meta.bar}"></span>
-                            <h5 class="text-[11px] font-black uppercase tracking-wide text-slate-700">
+                        <div class="flex items-center gap-2 pt-2 pb-1">
+                            <span class="w-1.5 h-4 rounded-full ${meta.bar}"></span>
+                            <h5 class="text-[10px] font-black uppercase tracking-wide text-slate-700">
                                 <i class="fas ${meta.icon} mr-1"></i>${escapeHtml(meta.label)}
                             </h5>
                             <span class="text-[10px] font-bold text-slate-400">${count}</span>
@@ -1825,56 +1901,45 @@
                     lastStatus = st;
                 }
                 const items = Array.isArray(order.items) ? order.items : [];
+                const item = items[0] || {};
                 const meta = conversionStatusMeta(st);
+                const moneyKind = conversionMoneyKind(st);
                 const parsed = parseUtmContent(conversion.utmContent);
+                const image = item.imageUrl
+                    ? escapeAttr(item.imageUrl)
+                    : "https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee";
+                const moneyClass = moneyKind.key === "zero"
+                    ? "text-slate-400"
+                    : moneyKind.key === "estimated"
+                        ? "text-amber-600"
+                        : "text-emerald-600";
+                const moneyVal = commissionNumber(item.itemTotalCommission || conversion.totalCommission)
+                    .toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
                 parts.push(`
-                    <article class="border border-slate-200 rounded-xl p-3 text-xs">
-                        <div class="flex flex-wrap justify-between gap-2 mb-3">
-                            <div>
-                                <p class="font-bold text-slate-800">Pedido ${escapeHtml(String(order.orderId || "—"))}</p>
-                                <p class="text-[10px] text-slate-400">${escapeHtml(conversionDate(conversion.purchaseTime))}</p>
-                            </div>
-                            <span class="self-start px-2 py-1 rounded-md text-[9px] font-bold border ${meta.chip}">
-                                <i class="fas ${meta.icon} mr-1"></i>${escapeHtml(meta.label)}
-                            </span>
+                    <article class="grid grid-cols-1 md:grid-cols-[72px_1fr_110px_100px_90px] gap-2 items-center border border-slate-200 rounded-lg p-2 text-xs hover:bg-slate-50">
+                        <img src="${image}" alt="" class="w-14 h-14 rounded-md object-cover bg-slate-100 border border-slate-100"
+                            onerror="this.onerror=null;this.src='https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee'">
+                        <div class="min-w-0">
+                            <p class="font-semibold text-slate-800 line-clamp-1">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
+                            <p class="text-[10px] text-slate-500 truncate">
+                                Pedido ${escapeHtml(String(order.orderId || "—"))}
+                                · ${escapeHtml(conversionDate(conversion.purchaseTime))}
+                                · ${escapeHtml(String(item.shopName || "Loja"))}
+                            </p>
+                            <p class="text-[9px] text-slate-400 font-mono truncate" title="${escapeAttr(String(conversion.utmContent || ""))}">
+                                ${escapeHtml(parsed.channel || "—")} / ${escapeHtml(parsed.campaign || "—")} / ${escapeHtml(parsed.product || "—")}
+                            </p>
                         </div>
-                        <div class="bg-orange-50 border border-orange-100 rounded-lg p-2 mb-3">
-                            <p class="text-[9px] uppercase font-black text-shopee-orange mb-1">Rastreio da venda</p>
-                            ${!parsed.raw.length
-                                ? `<p class="font-mono text-[10px] text-slate-500">Sem Sub ID informado</p>`
-                                : `
-                                <div class="grid grid-cols-2 gap-1.5 text-[10px]">
-                                    <div><span class="text-slate-400">Site</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.site || "—")}</span></div>
-                                    <div><span class="text-slate-400">Canal</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.channel || "—")}</span></div>
-                                    <div><span class="text-slate-400">Campanha</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.campaign || "—")}</span></div>
-                                    <div><span class="text-slate-400">Categoria</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.category || "—")}</span></div>
-                                    <div class="col-span-2"><span class="text-slate-400">Produto</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.product || "—")}</span></div>
-                                </div>
-                                <p class="font-mono text-[9px] text-slate-400 mt-2 break-all">${escapeHtml(String(conversion.utmContent || ""))}</p>`}
+                        <div class="text-[10px] text-slate-600">
+                            <p class="font-bold text-slate-800 truncate">${escapeHtml(parsed.campaign || "—")}</p>
+                            <p class="text-slate-400 truncate">${escapeHtml(parsed.channel || "—")}</p>
                         </div>
-                        <div class="space-y-2">
-                            ${items.map((item) => {
-                                const category = AM.categories.find((c) => c.id === item.category);
-                                const categoryLabel = category?.label || (item.category === "todos" ? "Categoria não identificada" : item.category);
-                                const image = item.imageUrl
-                                    ? escapeAttr(item.imageUrl)
-                                    : "https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee";
-                                return `
-                                <div class="flex items-center justify-between gap-3 border-t border-slate-100 pt-2">
-                                    <img src="${image}" alt="" class="w-12 h-12 rounded-lg object-cover bg-slate-100 border border-slate-100 shrink-0"
-                                        onerror="this.onerror=null;this.src='https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee'">
-                                    <div class="min-w-0 flex-1">
-                                        <p class="font-semibold text-slate-700 line-clamp-2">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
-                                        <div class="flex flex-wrap items-center gap-1 mt-1">
-                                            <span class="bg-orange-50 text-shopee-orange rounded px-1.5 py-0.5 text-[8px] font-bold uppercase">${escapeHtml(String(categoryLabel || "—"))}</span>
-                                            <span class="text-[9px] text-slate-400">${escapeHtml(String(item.shopName || "Loja Shopee"))} · Qtd. ${Number(item.qty) || 1}</span>
-                                        </div>
-                                    </div>
-                                    <span class="font-bold text-emerald-600 whitespace-nowrap">
-                                        ${commissionNumber(item.itemTotalCommission).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                    </span>
-                                </div>`;
-                            }).join("") || '<p class="text-slate-400 text-[10px]">Itens não detalhados pela Shopee.</p>'}
+                        <div>
+                            <span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${meta.chip}">${escapeHtml(meta.label)}</span>
+                            <p class="text-[9px] font-bold mt-0.5 ${moneyKind.className}">${escapeHtml(moneyKind.label)}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black ${moneyClass} whitespace-nowrap">${moneyVal}</p>
                         </div>
                     </article>`);
             }
@@ -2375,8 +2440,9 @@
                 setText("ms-orders", String(t.orders || 0));
                 setText(
                     "ms-orders-break",
-                    `${t.completed || 0} concl. · ${t.pending || 0} pend. · ${t.cancelled || 0} cancel.`
+                    `${t.completed || 0} concl. · ${t.pending || 0} pend. · ${t.unpaid || 0} não pagos · ${t.cancelled || 0} cancel.`
                 );
+                setText("ms-cancel-count", String(t.cancelled || 0));
                 setText("ms-ticket", BRL(t.avgTicket));
                 setText("ms-cancel-pct", PCT(t.cancelledPct));
                 setText("ms-fraud-pct", PCT(t.fraudPct));
@@ -2386,6 +2452,12 @@
                 setText("ms-window", `${fmt(win.from)} → ${fmt(win.to)}`);
                 const health = (t.cancelledPct || 0) + (t.fraudPct || 0);
                 setText("ms-health", health < 5 ? "✅ Saudável" : health < 15 ? "⚠️ Atenção" : "🚨 Crítico");
+                renderStatusFunnel("ms-funnel", {
+                    UNPAID: t.unpaid || 0,
+                    PENDING: t.pending || 0,
+                    COMPLETED: t.completed || 0,
+                    CANCELLED: t.cancelled || 0,
+                });
 
                 const renderTop = (id, rows, fmtRow) => {
                     const el = document.getElementById(id);
