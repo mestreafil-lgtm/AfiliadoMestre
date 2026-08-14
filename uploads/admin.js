@@ -122,14 +122,15 @@
     let campaignShopeeLoading = false;
 
     const ADMIN_VIEWS = {
-        dashboard: { title: "Dashboard", subtitle: "Visão geral da operação" },
+        dashboard: { title: "Dashboard", subtitle: "Visão geral da operação de afiliados" },
+        "vitrine-preview": { title: "Preview Index", subtitle: "Vitrine pública ao vivo — desktop, tablet e mobile" },
         catalogo: { title: "Catálogo & Sync", subtitle: "Sincronize ofertas da Shopee" },
         produtos: { title: "Produtos", subtitle: "Gerencie o catálogo da vitrine" },
         duplicados: { title: "Remover duplicados", subtitle: "Limpe itens repetidos" },
         campanhas: { title: "Campanhas", subtitle: "Links rastreáveis para Facebook, Instagram e outros canais" },
         "campanha-desempenho": { title: "Desempenho de campanhas", subtitle: "Resultados por Sub ID" },
-        desempenho: { title: "Desempenho geral", subtitle: "Conversões e métricas" },
-        "meu-site": { title: "Meu Site", subtitle: "Vendas atribuídas ao site" },
+        desempenho: { title: "Desempenho geral", subtitle: "Conversões e comissões por Sub ID" },
+        "meu-site": { title: "Meu Site", subtitle: "Vendas atribuídas à vitrine pública" },
         ferramentas: { title: "Ferramentas", subtitle: "Feed, reverify e utilitários" },
     };
 
@@ -165,7 +166,8 @@
             }
             if (panel) {
                 panel.classList.add("hidden");
-                panel.classList.remove("flex");
+                panel.classList.remove("flex", "is-open");
+                panel.style.display = "none";
             }
             const err = document.getElementById("admin-login-error");
             if (err) {
@@ -311,7 +313,8 @@
             if (!isAdminMode()) {
                 if (panel) {
                     panel.classList.add("hidden");
-                    panel.classList.remove("flex");
+                    panel.classList.remove("flex", "is-open");
+                    panel.style.display = "none";
                 }
                 if (login) {
                     login.classList.add("hidden");
@@ -339,7 +342,8 @@
             hideAdminLogin();
             if (panel) {
                 panel.classList.remove("hidden");
-                panel.classList.add("flex");
+                panel.classList.add("flex", "is-open");
+                panel.style.display = "flex";
             }
 
             const badge = document.getElementById("admin-api-badge");
@@ -360,6 +364,8 @@
                 campaigns: "campanhas",
                 "campaign-perf": "campanha-desempenho",
                 "campanhas-desempenho": "campanha-desempenho",
+                preview: "vitrine-preview",
+                "preview-index": "vitrine-preview",
             };
             if (legacyMap[view]) view = legacyMap[view];
             if (!ADMIN_VIEWS[view]) view = "dashboard";
@@ -374,6 +380,65 @@
             sidebar.classList.toggle("open", open);
             if (backdrop) backdrop.classList.toggle("hidden", !open);
         }
+        /** Alias do mock / HTML alternativo */
+        function toggleMobileSidebar(forceOpen) {
+            return toggleAdminSidebar(forceOpen);
+        }
+
+        function setPreviewDevice(device) {
+            const wrap = document.getElementById("vitrine-preview-frame-wrap");
+            if (!wrap) return;
+            const mode = ["desktop", "tablet", "mobile"].includes(device) ? device : "desktop";
+            wrap.classList.remove("preview-device-desktop", "preview-device-tablet", "preview-device-mobile");
+            wrap.classList.add("preview-device-" + mode);
+            ["desktop", "tablet", "mobile"].forEach((d) => {
+                const btn = document.getElementById("btn-device-" + d);
+                if (!btn) return;
+                const on = d === mode;
+                btn.classList.toggle("active", on);
+                btn.classList.toggle("tab", true);
+                btn.style.background = on ? "#fff" : "transparent";
+                btn.style.color = on ? "#0f172a" : "#64748b";
+                btn.style.fontWeight = on ? "600" : "500";
+                btn.classList.toggle("bg-white", on);
+                btn.classList.toggle("text-slate-800", on);
+                btn.classList.toggle("shadow-sm", on);
+                btn.classList.toggle("text-slate-600", !on);
+            });
+        }
+
+        function switchCatalogTab(tab) {
+            const tabs = ["explorer", "coverage", "money", "system"];
+            const key = tabs.includes(tab) ? tab : "explorer";
+            document.querySelectorAll("#catalog-tabs .cat-tab, #catalog-tabs [data-tab]").forEach((btn) => {
+                const on = btn.dataset.tab === key;
+                btn.classList.toggle("active", on);
+                if (on) {
+                    btn.style.background = "#fff";
+                    btn.style.color = "#0f172a";
+                    btn.style.fontWeight = "600";
+                } else {
+                    btn.style.background = "transparent";
+                    btn.style.color = "#475569";
+                    btn.style.fontWeight = "500";
+                }
+            });
+            tabs.forEach((t) => {
+                const panel = document.getElementById("cat-panel-" + t);
+                if (panel) panel.style.display = t === key ? "block" : "none";
+            });
+            if (key === "coverage") {
+                loadCoverageReport();
+                loadShortlinkStatus();
+            } else if (key === "money") {
+                renderMoneyQueue();
+            } else if (key === "system") {
+                populateAdminCategorySelect();
+                renderAdminCategoriesPanel();
+                loadAutoStatus();
+                loadOfficialShopeeOffers();
+            }
+        }
 
         function switchAdminView(view, opts = {}) {
             if (!isAdminMode()) {
@@ -386,7 +451,7 @@
             const target = document.getElementById("admin-view-" + view);
             if (target) target.classList.add("active");
 
-            document.querySelectorAll(".admin-nav-item[data-admin-view]").forEach(btn => {
+            document.querySelectorAll(".admin-nav-item[data-admin-view], .nav-item[data-admin-view]").forEach(btn => {
                 btn.classList.toggle("active", btn.dataset.adminView === view);
             });
 
@@ -407,11 +472,19 @@
             if (view === "dashboard") {
                 loadAdminStats();
                 loadAutoStatus();
+            } else if (view === "vitrine-preview") {
+                const iframe = document.getElementById("vitrine-preview-iframe");
+                if (iframe && !iframe.dataset.loaded) {
+                    iframe.dataset.loaded = "1";
+                    iframe.src = "/";
+                }
+                setPreviewDevice("desktop");
             } else if (view === "catalogo") {
                 populateAdminCategorySelect();
                 loadAutoStatus();
                 loadShortlinkStatus();
                 applyExplorerPreset('bestsellers');
+                switchCatalogTab("explorer");
             } else if (view === "produtos") {
                 adminPage = 1;
                 populateAdminProductCategoryFilter();
@@ -536,11 +609,7 @@
             if (rc) rc.checked = !!p.requireCommission;
             if (mc) mc.value = String(p.minCommissionPct != null ? p.minCommissionPct : 0);
             document.querySelectorAll(".explorer-preset").forEach((btn) => {
-                const on = btn.dataset.preset === name;
-                btn.classList.toggle("bg-shopee-orange", on);
-                btn.classList.toggle("border-shopee-orange", on);
-                btn.classList.toggle("bg-white/10", !on);
-                btn.classList.toggle("border-white/10", !on);
+                btn.classList.toggle("active", btn.dataset.preset === name);
             });
             updateExplorerKwCount();
             updateExplorerModeHint();
@@ -576,6 +645,7 @@
             const lab = document.getElementById("explorer-progress-label");
             if (!wrap) return;
             wrap.classList.toggle("hidden", !show);
+            wrap.style.display = show ? "flex" : "none";
             if (bar) bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
             if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
             if (lab && label) lab.textContent = label;
@@ -611,7 +681,10 @@
                     ? `<i class="fas fa-spinner fa-spin"></i> Buscando…`
                     : `<i class="fas fa-magnifying-glass"></i> Pré-visualizar`;
             }
-            if (cancel) cancel.classList.toggle("hidden", !busy);
+            if (cancel) {
+                cancel.classList.toggle("hidden", !busy);
+                cancel.style.display = busy ? "" : "none";
+            }
         }
 
         function cancelExplorerSearch() {
@@ -1875,14 +1948,13 @@
 
             const parts = [];
             let lastStatus = null;
-            // Cabeçalho da “tabela” compacta
             parts.push(`
-                <div class="hidden md:grid grid-cols-[72px_1fr_110px_100px_90px] gap-2 px-2 pb-1 text-[9px] font-bold uppercase text-slate-400 border-b border-slate-100">
+                <div class="conv-head">
                     <span>Foto</span>
                     <span>Pedido / produto</span>
                     <span>Campanha</span>
                     <span>Status</span>
-                    <span class="text-right">Comissão</span>
+                    <span class="conv-money">Comissão</span>
                 </div>`);
             for (const { conversion, order } of visibleOrders) {
                 const st = conversionOrderStatus({ conversion, order });
@@ -1890,13 +1962,11 @@
                     const meta = conversionStatusMeta(st);
                     const count = orders.filter((row) => conversionOrderStatus(row) === st).length;
                     parts.push(`
-                        <div class="flex items-center gap-2 pt-2 pb-1">
-                            <span class="w-1.5 h-4 rounded-full ${meta.bar}"></span>
-                            <h5 class="text-[10px] font-black uppercase tracking-wide text-slate-700">
-                                <i class="fas ${meta.icon} mr-1"></i>${escapeHtml(meta.label)}
-                            </h5>
-                            <span class="text-[10px] font-bold text-slate-400">${count}</span>
-                            <span class="flex-1 border-t border-slate-100"></span>
+                        <div class="conv-group">
+                            <span class="w-1.5 h-3 rounded-full ${meta.bar}"></span>
+                            <i class="fas ${meta.icon}"></i>
+                            <span>${escapeHtml(meta.label)}</span>
+                            <span class="text-slate-400 font-bold">${count}</span>
                         </div>`);
                     lastStatus = st;
                 }
@@ -1916,21 +1986,18 @@
                 const moneyVal = commissionNumber(item.itemTotalCommission || conversion.totalCommission)
                     .toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
                 parts.push(`
-                    <article class="grid grid-cols-1 md:grid-cols-[72px_1fr_110px_100px_90px] gap-2 items-center border border-slate-200 rounded-lg p-2 text-xs hover:bg-slate-50">
-                        <img src="${image}" alt="" class="w-14 h-14 rounded-md object-cover bg-slate-100 border border-slate-100"
+                    <article class="conv-row">
+                        <img src="${image}" alt="" class="conv-thumb"
                             onerror="this.onerror=null;this.src='https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee'">
                         <div class="min-w-0">
-                            <p class="font-semibold text-slate-800 line-clamp-1">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
+                            <p class="font-semibold text-slate-800 truncate">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
                             <p class="text-[10px] text-slate-500 truncate">
                                 Pedido ${escapeHtml(String(order.orderId || "—"))}
                                 · ${escapeHtml(conversionDate(conversion.purchaseTime))}
                                 · ${escapeHtml(String(item.shopName || "Loja"))}
                             </p>
-                            <p class="text-[9px] text-slate-400 font-mono truncate" title="${escapeAttr(String(conversion.utmContent || ""))}">
-                                ${escapeHtml(parsed.channel || "—")} / ${escapeHtml(parsed.campaign || "—")} / ${escapeHtml(parsed.product || "—")}
-                            </p>
                         </div>
-                        <div class="text-[10px] text-slate-600">
+                        <div class="min-w-0 text-[10px] text-slate-600">
                             <p class="font-bold text-slate-800 truncate">${escapeHtml(parsed.campaign || "—")}</p>
                             <p class="text-slate-400 truncate">${escapeHtml(parsed.channel || "—")}</p>
                         </div>
@@ -1938,9 +2005,7 @@
                             <span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${meta.chip}">${escapeHtml(meta.label)}</span>
                             <p class="text-[9px] font-bold mt-0.5 ${moneyKind.className}">${escapeHtml(moneyKind.label)}</p>
                         </div>
-                        <div class="text-right">
-                            <p class="font-black ${moneyClass} whitespace-nowrap">${moneyVal}</p>
-                        </div>
+                        <div class="conv-money ${moneyClass}">${moneyVal}</div>
                     </article>`);
             }
 
@@ -2903,7 +2968,10 @@
             const countEl = document.getElementById('admin-selected-count');
             const n = adminSelectedIds.size;
             if (countEl) countEl.textContent = String(n);
-            if (bar) bar.classList.toggle('hidden', n === 0);
+            if (bar) {
+                bar.classList.toggle('hidden', n === 0);
+                bar.style.display = n === 0 ? 'none' : 'flex';
+            }
         }
 
         function toggleAdminProductSelect(id, checked) {
@@ -3125,11 +3193,17 @@
         }
 
         function openNewProductForm() {
-            document.getElementById('new-product-form-card').classList.remove('hidden');
+            const el = document.getElementById('new-product-form-card');
+            if (!el) return;
+            el.classList.remove('hidden');
+            el.style.display = 'block';
         }
 
         function closeNewProductForm() {
-            document.getElementById('new-product-form-card').classList.add('hidden');
+            const el = document.getElementById('new-product-form-card');
+            if (!el) return;
+            el.classList.add('hidden');
+            el.style.display = 'none';
         }
 
         async function saveNewProduct() {
@@ -3971,6 +4045,8 @@
             }
             updateExplorerKwCount();
             updateExplorerModeHint();
+            switchAdminView("catalogo");
+            switchCatalogTab("explorer");
             document.getElementById('admin-keyword')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             showToast('Keywords no Explorador — clique Pré-visualizar', 'success');
         }
@@ -4023,6 +4099,8 @@
             if (rc) rc.checked = true;
             updateExplorerKwCount();
             updateExplorerModeHint();
+            switchAdminView("catalogo");
+            switchCatalogTab("explorer");
             document.getElementById('admin-keyword')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             showToast(`${kws.length} keywords de ${cat.label} no Explorador`, 'success');
         }
@@ -4070,7 +4148,8 @@
         }
 
     window.__AM_ADMIN = {
-        initAdminUi, switchAdminView, toggleAdminSidebar,
+        initAdminUi, switchAdminView, toggleAdminSidebar, toggleMobileSidebar,
+        setPreviewDevice, switchCatalogTab,
         submitAdminLogin, logoutAdmin, checkAdminSession,
         adminFetch, renderConsoleProducts, loadAdminStats,
         loadAutoStatus, loadShortlinkStatus, loadConversions,
@@ -4078,6 +4157,9 @@
     };
     // Expõe handlers usados por onclick no HTML do painel
     const exposeMap = {
+        switchAdminView, toggleAdminSidebar, toggleMobileSidebar, setPreviewDevice,
+        switchCatalogTab, updateExplorerKwCount, updateExplorerModeHint,
+        submitAdminLogin, logoutAdmin,
         syncAllCategories, syncCategory, applyExplorerPreset, runExplorerSearch,
         saveExplorerSelection, cancelExplorerSearch, toggleExplorerSelectAll, onExplorerItemToggle,
         saveCurrentCampaign, deleteSavedCampaign, loadSavedCampaignIntoEditor, copyCampaignLink,

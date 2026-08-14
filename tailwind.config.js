@@ -3,6 +3,7 @@ module.exports = {
   content: [
     "./uploads/painel_e_vitrine_afiliado_mestre.html",
     "./uploads/storefront.js",
+    "./uploads/admin.js",
   ],
   theme: {
     extend: {
