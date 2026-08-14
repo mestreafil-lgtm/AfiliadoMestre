@@ -738,7 +738,8 @@ async function fetchConversionReport({
     `limit: ${safeLimit}`,
   ];
   if (validStatuses.has(String(orderStatus).toUpperCase())) {
-    args.push(`orderStatus: ${JSON.stringify(String(orderStatus).toUpperCase())}`);
+    // DisplayOrderStatus é enum GraphQL — literal sem aspas ("PENDING" vira String e a API rejeita).
+    args.push(`orderStatus: ${String(orderStatus).toUpperCase()}`);
   }
   if (scrollId) args.push(`scrollId: ${JSON.stringify(String(scrollId))}`);
 

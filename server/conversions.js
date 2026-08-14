@@ -87,6 +87,7 @@ function flattenConversionNode(node, { validated = false } = {}) {
     utm_content: node.utmContent || null,
     ...subs,
     validated: !!validated,
+    updated_at: new Date().toISOString(),
   };
 
   const orders = Array.isArray(node.orders) ? node.orders : [];
@@ -99,7 +100,7 @@ function flattenConversionNode(node, { validated = false } = {}) {
   const order = orders[0];
   const item = order.items[0];
   base.order_id = order.orderId || null;
-  base.order_status = order.orderStatus || null;
+  base.order_status = String(order.orderStatus || "").trim().toUpperCase() || null;
   base.shop_type = toNumOrNull(order.shopType);
   base.shop_id = toNumOrNull(item.shopId);
   base.shop_name = item.shopName || null;
@@ -133,7 +134,7 @@ async function upsertConversions(rows = []) {
   for (let i = 0; i < unique.length; i += CHUNK) {
     const slice = unique.slice(i, i + CHUNK);
     try {
-      const out = await supabaseRequest("/conversions", {
+      const out = await supabaseRequest("/conversions?on_conflict=conversion_id", {
         method: "POST",
         body: slice,
         prefer: "resolution=merge-duplicates,return=minimal",
@@ -147,24 +148,13 @@ async function upsertConversions(rows = []) {
   return saved;
 }
 
-/**
- * Puxa conversionReport paginando com scrollId (janela 30s entre requests).
- * Persiste em conversions. Retorna resumo.
- */
-async function pullConversionReport({
-  sinceMin = 60 * 48,        // últimos 48h por padrão
+async function pullConversionReportOnce({
   purchaseTimeStart,
   purchaseTimeEnd,
   orderStatus = "",
-  maxPages = 40,
+  maxPages = 20,
   limit = 50,
 } = {}) {
-  const now = Math.floor(Date.now() / 1000);
-  const start = purchaseTimeStart != null
-    ? Number(purchaseTimeStart)
-    : now - Math.max(60, Number(sinceMin) * 60);
-  const end = purchaseTimeEnd != null ? Number(purchaseTimeEnd) : now;
-
   let scrollId = "";
   let pages = 0;
   let totalNodes = 0;
@@ -175,8 +165,8 @@ async function pullConversionReport({
     let page;
     try {
       page = await fetchConversionReport({
-        purchaseTimeStart: start,
-        purchaseTimeEnd: end,
+        purchaseTimeStart,
+        purchaseTimeEnd,
         orderStatus,
         limit,
         scrollId,
@@ -200,8 +190,7 @@ async function pullConversionReport({
     const hasNext = !!page.pageInfo?.hasNextPage && nextScroll && nextScroll !== scrollId;
     if (!hasNext) break;
     scrollId = nextScroll;
-    // Janela do scrollId é 30s — pausa curta é ok, longa mata o cursor.
-    await sleep(500);
+    await sleep(200);
   }
 
   return {
@@ -209,9 +198,73 @@ async function pullConversionReport({
     pages,
     totalNodes,
     saved,
+    ms: Date.now() - started,
+  };
+}
+
+/**
+ * Puxa conversionReport da Shopee e grava/atualiza no Supabase.
+ * Percorre cada status (PENDING/COMPLETED/CANCELLED/UNPAID) para o merge
+ * atualizar Pedido pendente → concluído/cancelado, não só inserir novos.
+ */
+async function pullConversionReport({
+  sinceMin = 60 * 48,
+  purchaseTimeStart,
+  purchaseTimeEnd,
+  orderStatus = "",
+  maxPages = 40,
+  limit = 50,
+} = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const start = purchaseTimeStart != null
+    ? Number(purchaseTimeStart)
+    : now - Math.max(60, Number(sinceMin) * 60);
+  const end = purchaseTimeEnd != null ? Number(purchaseTimeEnd) : now;
+  const started = Date.now();
+  const requested = String(orderStatus || "").trim().toUpperCase();
+  const statuses = ["UNPAID", "PENDING", "COMPLETED", "CANCELLED"].includes(requested)
+    ? [requested]
+    : ["PENDING", "UNPAID", "COMPLETED", "CANCELLED"];
+  const pagesPerStatus = Math.max(6, Math.ceil(Number(maxPages) / statuses.length));
+
+  let pages = 0;
+  let totalNodes = 0;
+  let saved = 0;
+  const byStatus = {};
+  let rateLimited = false;
+
+  for (const st of statuses) {
+    const part = await pullConversionReportOnce({
+      purchaseTimeStart: start,
+      purchaseTimeEnd: end,
+      orderStatus: st,
+      maxPages: pagesPerStatus,
+      limit,
+    });
+    pages += part.pages || 0;
+    totalNodes += part.totalNodes || 0;
+    saved += part.saved || 0;
+    byStatus[st] = {
+      pages: part.pages || 0,
+      nodes: part.totalNodes || 0,
+      saved: part.saved || 0,
+    };
+    if (part.rateLimited) {
+      rateLimited = true;
+      break;
+    }
+  }
+
+  return {
+    ok: true,
+    pages,
+    totalNodes,
+    saved,
+    byStatus,
     windowStart: unixToIso(start),
     windowEnd: unixToIso(end),
     ms: Date.now() - started,
+    rateLimited,
   };
 }
 
@@ -308,32 +361,55 @@ async function summary({ from, to, days = 30, onlyMeuSite = true } = {}) {
   const list = Array.isArray(rows) ? rows : [];
   let gross = 0;
   let net = 0;
+  let pendingGross = 0;
+  let pendingNet = 0;
   let orders = 0;
+  let completed = 0;
+  let pending = 0;
+  let unpaid = 0;
   let cancelled = 0;
   let fraud = 0;
   let validatedCount = 0;
   let sumTicket = 0;
+  let ticketOrders = 0;
   const byItem = new Map();
   const byShop = new Map();
   const byCampaign = new Map();
 
   for (const r of list) {
+    const status = String(r.order_status || "").toUpperCase();
     const g = Number(r.total_commission) || 0;
     const n = Number(r.net_commission) || 0;
-    gross += g;
-    net += n;
     orders += 1;
     if (r.validated) validatedCount += 1;
-    if (String(r.order_status).toUpperCase() === "CANCELLED") cancelled += 1;
+    if (status === "CANCELLED") cancelled += 1;
+    else if (status === "COMPLETED") completed += 1;
+    else if (status === "UNPAID") unpaid += 1;
+    else if (status === "PENDING") pending += 1;
     if (String(r.fraud_status).toUpperCase() === "FRAUD") fraud += 1;
-    const ticket = Number(r.actual_amount) || Number(r.item_price) || 0;
-    sumTicket += ticket;
 
+    // Comissão "real" do card = só Concluído. Pendente/Não pago = estimativa à parte.
+    // Cancelado não entra em nenhum dos dois.
+    if (status === "COMPLETED") {
+      gross += g;
+      net += n;
+      const ticket = Number(r.actual_amount) || Number(r.item_price) || 0;
+      sumTicket += ticket;
+      ticketOrders += 1;
+    } else if (status === "PENDING" || status === "UNPAID") {
+      pendingGross += g;
+      pendingNet += n;
+    }
+
+    // Tops: ignora cancelados (não poluem ranking com R$ 0 / lixo).
+    if (status === "CANCELLED") continue;
+    const moneyG = g;
+    const moneyN = n;
     if (r.item_id) {
       const key = String(r.item_id);
       const prev = byItem.get(key) || { itemId: r.item_id, itemName: r.item_name, gross: 0, net: 0, orders: 0 };
-      prev.gross += g;
-      prev.net += n;
+      prev.gross += moneyG;
+      prev.net += moneyN;
       prev.orders += 1;
       if (r.item_name && !prev.itemName) prev.itemName = r.item_name;
       byItem.set(key, prev);
@@ -341,8 +417,8 @@ async function summary({ from, to, days = 30, onlyMeuSite = true } = {}) {
     if (r.shop_id) {
       const key = String(r.shop_id);
       const prev = byShop.get(key) || { shopId: r.shop_id, shopName: r.shop_name, gross: 0, net: 0, orders: 0 };
-      prev.gross += g;
-      prev.net += n;
+      prev.gross += moneyG;
+      prev.net += moneyN;
       prev.orders += 1;
       if (r.shop_name && !prev.shopName) prev.shopName = r.shop_name;
       byShop.set(key, prev);
@@ -350,8 +426,8 @@ async function summary({ from, to, days = 30, onlyMeuSite = true } = {}) {
     if (r.sub_id3) {
       const key = String(r.sub_id3);
       const prev = byCampaign.get(key) || { campaign: r.sub_id3, gross: 0, net: 0, orders: 0 };
-      prev.gross += g;
-      prev.net += n;
+      prev.gross += moneyG;
+      prev.net += moneyN;
       prev.orders += 1;
       byCampaign.set(key, prev);
     }
@@ -368,14 +444,22 @@ async function summary({ from, to, days = 30, onlyMeuSite = true } = {}) {
     siteSubId: SITE_SUBID,
     totals: {
       orders,
-      gross: Math.round(gross * 100) / 100,
-      net: Math.round(net * 100) / 100,
-      avgTicket: orders ? Math.round((sumTicket / orders) * 100) / 100 : 0,
+      completed,
+      pending,
+      unpaid,
       cancelled,
       fraud,
       validated: validatedCount,
+      // Confirmada (COMPLETED)
+      gross: Math.round(gross * 100) / 100,
+      net: Math.round(net * 100) / 100,
+      // Estimada (PENDING + UNPAID)
+      pendingGross: Math.round(pendingGross * 100) / 100,
+      pendingNet: Math.round(pendingNet * 100) / 100,
+      avgTicket: ticketOrders ? Math.round((sumTicket / ticketOrders) * 100) / 100 : 0,
       cancelledPct: orders ? Math.round((cancelled / orders) * 1000) / 10 : 0,
       fraudPct: orders ? Math.round((fraud / orders) * 1000) / 10 : 0,
+      completedPct: orders ? Math.round((completed / orders) * 1000) / 10 : 0,
     },
     topItems,
     topShops,
@@ -541,7 +625,7 @@ async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
   const { fromIso, toIso } = windowFromParams({ days });
   const statusFilter = String(status || "").trim().toUpperCase();
   let path =
-    `/conversions?select=conversion_id,purchase_time,order_id,order_status,fraud_status,shop_id,shop_name,item_id,item_name,item_price,actual_amount,qty,total_commission,net_commission,seller_commission,shopee_commission_capped,utm_content,sub_id1,sub_id2,sub_id3,sub_id4,sub_id5` +
+    `/conversions?select=conversion_id,purchase_time,order_id,order_status,fraud_status,shop_id,shop_name,item_id,item_name,item_price,actual_amount,qty,total_commission,net_commission,seller_commission,shopee_commission_capped,utm_content,sub_id1,sub_id2,sub_id3,sub_id4,sub_id5,updated_at` +
     `&is_meu_site=is.true` +
     `&purchase_time=gte.${encodeURIComponent(fromIso)}` +
     `&purchase_time=lte.${encodeURIComponent(toIso)}` +
@@ -578,6 +662,7 @@ async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
       sellerCommission: Number(r.seller_commission) || 0,
       shopeeCommissionCapped: Number(r.shopee_commission_capped) || 0,
       source: "db",
+      updatedAt: r.updated_at || null,
       orders: [
         {
           orderId: r.order_id,

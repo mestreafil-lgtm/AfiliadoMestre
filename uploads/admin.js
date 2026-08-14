@@ -79,14 +79,24 @@
     const ADMIN_USER_KEY = "afiliada_mestre_admin_user";
     let adminAuthReady = false;
     let adminLoggedIn = false;
-    const CONVERSION_PAGE_SIZE = 20;
+    let CONVERSION_PAGE_SIZE = 20;
     const CONVERSIONS_PULL_THROTTLE_MS = 5 * 60 * 1000;
     const CONVERSIONS_PULL_KEY = "am_last_conv_pull_ms";
+    const CONVERSION_STATUS_ORDER = ["PENDING", "UNPAID", "COMPLETED", "CANCELLED"];
+    const CONVERSION_STATUS_META = {
+        PENDING: { label: "Pendente", icon: "fa-clock", chip: "bg-amber-50 text-amber-700 border-amber-200", tab: "border-amber-300 bg-amber-50 text-amber-800", bar: "bg-amber-400" },
+        UNPAID: { label: "Não pago", icon: "fa-ban", chip: "bg-slate-100 text-slate-600 border-slate-200", tab: "border-slate-300 bg-slate-50 text-slate-700", bar: "bg-slate-400" },
+        COMPLETED: { label: "Concluído", icon: "fa-circle-check", chip: "bg-emerald-50 text-emerald-700 border-emerald-200", tab: "border-emerald-300 bg-emerald-50 text-emerald-800", bar: "bg-emerald-500" },
+        CANCELLED: { label: "Cancelado", icon: "fa-circle-xmark", chip: "bg-red-50 text-red-600 border-red-200", tab: "border-red-300 bg-red-50 text-red-700", bar: "bg-red-500" },
+    };
     let conversionScrollId = "";
     let conversionRows = [];
     let conversionPage = 1;
     let conversionHasNextRemote = false;
     let conversionPullBusy = false;
+    let conversionStatusFilter = "";
+    let conversionSearchTerm = "";
+    let conversionSearchTimer = null;
     let campaignSelectedProducts = [];
     let adminPage = 0;
     let adminPageSize = 24;
@@ -1596,125 +1606,293 @@
         }
 
         function conversionStatusLabel(status) {
-            const labels = {
-                COMPLETED: 'Concluído',
-                PENDING: 'Pendente',
-                CANCELLED: 'Cancelado',
-                UNPAID: 'Não pago',
+            const key = String(status || "").toUpperCase();
+            return CONVERSION_STATUS_META[key]?.label || status || "—";
+        }
+
+        function conversionStatusMeta(status) {
+            const key = String(status || "").toUpperCase();
+            return CONVERSION_STATUS_META[key] || {
+                label: conversionStatusLabel(status) || "Outro",
+                icon: "fa-circle",
+                chip: "bg-slate-100 text-slate-600 border-slate-200",
+                tab: "border-slate-300 bg-slate-50 text-slate-700",
+                bar: "bg-slate-300",
             };
-            return labels[String(status || '').toUpperCase()] || status || '—';
+        }
+
+        function conversionOrderStatus(row) {
+            return String(row?.order?.orderStatus || "").toUpperCase() || "UNKNOWN";
+        }
+
+        function listConversionOrders(rows = conversionRows) {
+            return (rows || []).flatMap((c) =>
+                (Array.isArray(c.orders) ? c.orders : []).map((order) => ({ conversion: c, order }))
+            );
+        }
+
+        function filteredConversionOrders() {
+            const status = String(conversionStatusFilter || "").toUpperCase();
+            const term = String(conversionSearchTerm || "").trim().toLowerCase();
+            let orders = listConversionOrders();
+            if (status) {
+                orders = orders.filter((row) => conversionOrderStatus(row) === status);
+            }
+            if (term) {
+                orders = orders.filter(({ conversion, order }) => {
+                    const items = Array.isArray(order.items) ? order.items : [];
+                    const hay = [
+                        order.orderId,
+                        conversion.utmContent,
+                        conversion.conversionId,
+                        ...items.map((i) => i.itemName),
+                        ...items.map((i) => i.itemId),
+                        ...items.map((i) => i.shopName),
+                    ].map((v) => String(v || "").toLowerCase()).join(" ");
+                    return hay.includes(term);
+                });
+            }
+            if (!status) {
+                const rank = (st) => {
+                    const i = CONVERSION_STATUS_ORDER.indexOf(st);
+                    return i >= 0 ? i : CONVERSION_STATUS_ORDER.length;
+                };
+                orders.sort((a, b) => {
+                    const d = rank(conversionOrderStatus(a)) - rank(conversionOrderStatus(b));
+                    if (d) return d;
+                    return (Number(b.conversion.purchaseTime) || 0) - (Number(a.conversion.purchaseTime) || 0);
+                });
+            }
+            return orders;
+        }
+
+        function setConversionStatusFilter(status) {
+            conversionStatusFilter = String(status || "").toUpperCase();
+            conversionPage = 1;
+            const hidden = document.getElementById("conversion-status");
+            if (hidden) hidden.value = conversionStatusFilter;
+            renderConversions();
+        }
+
+        function onConversionSearch() {
+            clearTimeout(conversionSearchTimer);
+            conversionSearchTimer = setTimeout(() => {
+                conversionSearchTerm = document.getElementById("conversion-search")?.value || "";
+                conversionPage = 1;
+                renderConversions();
+            }, 180);
+        }
+
+        function onConversionPageSizeChange() {
+            const n = Number(document.getElementById("conversion-page-size")?.value) || 20;
+            CONVERSION_PAGE_SIZE = Math.min(Math.max(n, 5), 100);
+            conversionPage = 1;
+            renderConversions();
+        }
+
+        function goToConversionPage(page) {
+            conversionPage = Math.max(1, Number(page) || 1);
+            renderConversions();
+            document.getElementById("conversion-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        function renderConversionStatusTabs(allOrders, filteredCount) {
+            const tabs = document.getElementById("conversion-status-tabs");
+            if (!tabs) return;
+            const counts = { ALL: allOrders.length };
+            for (const key of CONVERSION_STATUS_ORDER) counts[key] = 0;
+            for (const row of allOrders) {
+                const st = conversionOrderStatus(row);
+                counts[st] = (counts[st] || 0) + 1;
+            }
+            const items = [
+                { key: "", label: "Todos", count: counts.ALL, icon: "fa-layer-group" },
+                ...CONVERSION_STATUS_ORDER.map((key) => ({
+                    key,
+                    label: CONVERSION_STATUS_META[key].label,
+                    count: counts[key] || 0,
+                    icon: CONVERSION_STATUS_META[key].icon,
+                })),
+            ];
+            tabs.innerHTML = items.map((item) => {
+                const active = String(conversionStatusFilter || "") === item.key;
+                const meta = item.key ? CONVERSION_STATUS_META[item.key] : null;
+                const cls = active
+                    ? (meta ? meta.tab : "border-slate-800 bg-slate-800 text-white")
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
+                return `<button type="button" onclick="setConversionStatusFilter('${item.key}')"
+                    class="px-2.5 py-1.5 rounded-lg border text-[10px] font-bold ${cls}">
+                    <i class="fas ${item.icon} mr-1"></i>${escapeHtml(item.label)}
+                    <span class="ml-1 opacity-80">${item.count}</span>
+                </button>`;
+            }).join("");
+        }
+
+        function renderConversionPageButtons(totalPages) {
+            const box = document.getElementById("conversion-page-buttons");
+            if (!box) return;
+            if (totalPages <= 1) {
+                box.innerHTML = "";
+                return;
+            }
+            const pages = [];
+            const cur = conversionPage;
+            const add = (n) => { if (!pages.includes(n) && n >= 1 && n <= totalPages) pages.push(n); };
+            add(1);
+            add(totalPages);
+            for (let i = cur - 2; i <= cur + 2; i++) add(i);
+            pages.sort((a, b) => a - b);
+            let html = "";
+            let prev = 0;
+            for (const n of pages) {
+                if (prev && n - prev > 1) html += `<span class="px-1 text-slate-400 text-[10px]">…</span>`;
+                const active = n === cur;
+                html += `<button type="button" onclick="goToConversionPage(${n})"
+                    class="min-w-[2rem] px-2 py-1 rounded-md text-[10px] font-bold ${active ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}">${n}</button>`;
+                prev = n;
+            }
+            box.innerHTML = html;
         }
 
         function renderConversions() {
-            const list = document.getElementById('conversion-list');
+            const list = document.getElementById("conversion-list");
             if (!list) return;
 
-            const orders = conversionRows.flatMap(c =>
-                (Array.isArray(c.orders) ? c.orders : []).map(order => ({ conversion: c, order }))
-            );
-            const totalLoadedPages = Math.max(1, Math.ceil(orders.length / CONVERSION_PAGE_SIZE));
+            const allOrders = listConversionOrders();
+            const orders = filteredConversionOrders();
+            const pageSize = CONVERSION_PAGE_SIZE;
+            const totalLoadedPages = Math.max(1, Math.ceil(orders.length / pageSize) || 1);
             conversionPage = Math.min(Math.max(conversionPage, 1), totalLoadedPages);
-            const pageStart = (conversionPage - 1) * CONVERSION_PAGE_SIZE;
-            const visibleOrders = orders.slice(pageStart, pageStart + CONVERSION_PAGE_SIZE);
+            const pageStart = (conversionPage - 1) * pageSize;
+            const visibleOrders = orders.slice(pageStart, pageStart + pageSize);
             const subIds = new Set(
-                conversionRows.map(c => String(c.utmContent || '').trim()).filter(Boolean)
+                conversionRows.map((c) => String(c.utmContent || "").trim()).filter(Boolean)
             );
-            const commission = conversionRows.reduce((sum, c) => sum + commissionNumber(c.totalCommission), 0);
+            const scoped = conversionStatusFilter || conversionSearchTerm ? orders : allOrders;
+            const commission = scoped.reduce((sum, row) => sum + commissionNumber(row.conversion.totalCommission), 0);
 
-            document.getElementById('conversion-total').textContent = String(conversionRows.length);
-            document.getElementById('conversion-orders').textContent = String(orders.length);
-            const commissionText = commission.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('conversion-commission').textContent = commissionText;
-            document.getElementById('conversion-subids').textContent = String(subIds.size);
-            const dashTotal = document.getElementById('dash-conversion-total');
-            const dashComm = document.getElementById('dash-conversion-commission');
+            document.getElementById("conversion-total").textContent = String(conversionRows.length);
+            document.getElementById("conversion-orders").textContent = String(allOrders.length);
+            const commissionText = commission.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            document.getElementById("conversion-commission").textContent = commissionText;
+            document.getElementById("conversion-subids").textContent = String(subIds.size);
+            const dashTotal = document.getElementById("dash-conversion-total");
+            const dashComm = document.getElementById("dash-conversion-commission");
             if (dashTotal) dashTotal.textContent = String(conversionRows.length);
-            if (dashComm) dashComm.textContent = commissionText;
+            if (dashComm) dashComm.textContent = commission.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-            if (!orders.length) {
-                document.getElementById('conversion-pagination')?.classList.add('hidden');
+            renderConversionStatusTabs(allOrders, orders.length);
+
+            if (!allOrders.length) {
+                document.getElementById("conversion-pagination")?.classList.add("hidden");
                 list.innerHTML = `
                     <div class="py-8 text-center text-slate-400 text-xs space-y-2">
                         <i class="fas fa-chart-line text-2xl mb-2 block"></i>
                         <p class="font-bold text-slate-600">Nenhuma venda deste site ainda</p>
                         <p>O painel só mostra pedidos com Sub ID <strong>afiliadamestre</strong> (slot 1).</p>
-                        <p>Vendas de Stories, Pin e outras campanhas da Shopee ficam de fora — isso é esperado.</p>
-                        <p class="text-slate-500">Clique em Atualizar para puxar da Shopee; o cron também sincroniza sozinho.</p>
+                        <p class="text-slate-500">Clique em Atualizar Shopee para puxar e gravar no banco; o cron também sincroniza sozinho.</p>
                     </div>`;
                 return;
             }
 
-            list.innerHTML = visibleOrders.map(({ conversion, order }) => {
+            if (!orders.length) {
+                document.getElementById("conversion-pagination")?.classList.add("hidden");
+                list.innerHTML = `
+                    <div class="py-8 text-center text-slate-400 text-xs space-y-2">
+                        <i class="fas fa-filter text-2xl mb-2 block"></i>
+                        <p class="font-bold text-slate-600">Nenhum pedido neste filtro</p>
+                        <p>Troque o status ou limpe a busca.</p>
+                    </div>`;
+                return;
+            }
+
+            const parts = [];
+            let lastStatus = null;
+            for (const { conversion, order } of visibleOrders) {
+                const st = conversionOrderStatus({ conversion, order });
+                if (!conversionStatusFilter && st !== lastStatus) {
+                    const meta = conversionStatusMeta(st);
+                    const count = orders.filter((row) => conversionOrderStatus(row) === st).length;
+                    parts.push(`
+                        <div class="flex items-center gap-2 pt-1">
+                            <span class="w-1.5 h-5 rounded-full ${meta.bar}"></span>
+                            <h5 class="text-[11px] font-black uppercase tracking-wide text-slate-700">
+                                <i class="fas ${meta.icon} mr-1"></i>${escapeHtml(meta.label)}
+                            </h5>
+                            <span class="text-[10px] font-bold text-slate-400">${count}</span>
+                            <span class="flex-1 border-t border-slate-100"></span>
+                        </div>`);
+                    lastStatus = st;
+                }
                 const items = Array.isArray(order.items) ? order.items : [];
-                const status = conversionStatusLabel(order.orderStatus);
-                const statusClass = order.orderStatus === 'COMPLETED'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : order.orderStatus === 'CANCELLED'
-                        ? 'bg-red-50 text-red-600'
-                        : 'bg-amber-50 text-amber-700';
-                return `
+                const meta = conversionStatusMeta(st);
+                const parsed = parseUtmContent(conversion.utmContent);
+                parts.push(`
                     <article class="border border-slate-200 rounded-xl p-3 text-xs">
                         <div class="flex flex-wrap justify-between gap-2 mb-3">
                             <div>
-                                <p class="font-bold text-slate-800">Pedido ${escapeHtml(String(order.orderId || '—'))}</p>
+                                <p class="font-bold text-slate-800">Pedido ${escapeHtml(String(order.orderId || "—"))}</p>
                                 <p class="text-[10px] text-slate-400">${escapeHtml(conversionDate(conversion.purchaseTime))}</p>
                             </div>
-                            <span class="self-start px-2 py-1 rounded-md text-[9px] font-bold ${statusClass}">${escapeHtml(status)}</span>
+                            <span class="self-start px-2 py-1 rounded-md text-[9px] font-bold border ${meta.chip}">
+                                <i class="fas ${meta.icon} mr-1"></i>${escapeHtml(meta.label)}
+                            </span>
                         </div>
                         <div class="bg-orange-50 border border-orange-100 rounded-lg p-2 mb-3">
                             <p class="text-[9px] uppercase font-black text-shopee-orange mb-1">Rastreio da venda</p>
-                            ${(() => {
-                                const parsed = parseUtmContent(conversion.utmContent);
-                                if (!parsed.raw.length) {
-                                    return `<p class="font-mono text-[10px] text-slate-500">Sem Sub ID informado</p>`;
-                                }
-                                return `
+                            ${!parsed.raw.length
+                                ? `<p class="font-mono text-[10px] text-slate-500">Sem Sub ID informado</p>`
+                                : `
                                 <div class="grid grid-cols-2 gap-1.5 text-[10px]">
-                                    <div><span class="text-slate-400">Site</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.site || '—')}</span></div>
-                                    <div><span class="text-slate-400">Canal</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.channel || '—')}</span></div>
-                                    <div><span class="text-slate-400">Campanha</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.campaign || '—')}</span></div>
-                                    <div><span class="text-slate-400">Categoria</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.category || '—')}</span></div>
-                                    <div class="col-span-2"><span class="text-slate-400">Produto</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.product || '—')}</span></div>
+                                    <div><span class="text-slate-400">Site</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.site || "—")}</span></div>
+                                    <div><span class="text-slate-400">Canal</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.channel || "—")}</span></div>
+                                    <div><span class="text-slate-400">Campanha</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.campaign || "—")}</span></div>
+                                    <div><span class="text-slate-400">Categoria</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.category || "—")}</span></div>
+                                    <div class="col-span-2"><span class="text-slate-400">Produto</span><br><span class="font-bold text-slate-800">${escapeHtml(parsed.product || "—")}</span></div>
                                 </div>
-                                <p class="font-mono text-[9px] text-slate-400 mt-2 break-all">${escapeHtml(String(conversion.utmContent))}</p>`;
-                            })()}
+                                <p class="font-mono text-[9px] text-slate-400 mt-2 break-all">${escapeHtml(String(conversion.utmContent || ""))}</p>`}
                         </div>
                         <div class="space-y-2">
-                            ${items.map(item => {
-                                const category = AM.categories.find(c => c.id === item.category);
-                                const categoryLabel = category?.label || (item.category === 'todos' ? 'Categoria não identificada' : item.category);
+                            ${items.map((item) => {
+                                const category = AM.categories.find((c) => c.id === item.category);
+                                const categoryLabel = category?.label || (item.category === "todos" ? "Categoria não identificada" : item.category);
                                 const image = item.imageUrl
                                     ? escapeAttr(item.imageUrl)
-                                    : 'https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee';
+                                    : "https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee";
                                 return `
                                 <div class="flex items-center justify-between gap-3 border-t border-slate-100 pt-2">
                                     <img src="${image}" alt="" class="w-12 h-12 rounded-lg object-cover bg-slate-100 border border-slate-100 shrink-0"
                                         onerror="this.onerror=null;this.src='https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee'">
                                     <div class="min-w-0 flex-1">
-                                        <p class="font-semibold text-slate-700 line-clamp-2">${escapeHtml(String(item.itemName || `Item ${item.itemId || ''}`))}</p>
+                                        <p class="font-semibold text-slate-700 line-clamp-2">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
                                         <div class="flex flex-wrap items-center gap-1 mt-1">
-                                            <span class="bg-orange-50 text-shopee-orange rounded px-1.5 py-0.5 text-[8px] font-bold uppercase">${escapeHtml(String(categoryLabel))}</span>
-                                            <span class="text-[9px] text-slate-400">${escapeHtml(String(item.shopName || 'Loja Shopee'))} · Qtd. ${Number(item.qty) || 1}</span>
+                                            <span class="bg-orange-50 text-shopee-orange rounded px-1.5 py-0.5 text-[8px] font-bold uppercase">${escapeHtml(String(categoryLabel || "—"))}</span>
+                                            <span class="text-[9px] text-slate-400">${escapeHtml(String(item.shopName || "Loja Shopee"))} · Qtd. ${Number(item.qty) || 1}</span>
                                         </div>
                                     </div>
                                     <span class="font-bold text-emerald-600 whitespace-nowrap">
-                                        ${commissionNumber(item.itemTotalCommission).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        ${commissionNumber(item.itemTotalCommission).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                                     </span>
                                 </div>`;
-                            }).join('') || '<p class="text-slate-400 text-[10px]">Itens não detalhados pela Shopee.</p>'}
+                            }).join("") || '<p class="text-slate-400 text-[10px]">Itens não detalhados pela Shopee.</p>'}
                         </div>
-                    </article>`;
-            }).join('');
+                    </article>`);
+            }
 
-            const pagination = document.getElementById('conversion-pagination');
-            const prev = document.getElementById('conversion-prev');
-            const next = document.getElementById('conversion-next');
-            pagination?.classList.toggle('hidden', orders.length <= CONVERSION_PAGE_SIZE && !conversionHasNextRemote);
+            list.innerHTML = parts.join("");
+
+            const pagination = document.getElementById("conversion-pagination");
+            const prev = document.getElementById("conversion-prev");
+            const next = document.getElementById("conversion-next");
+            pagination?.classList.toggle("hidden", orders.length <= pageSize);
             if (prev) prev.disabled = conversionPage <= 1;
-            if (next) next.disabled = conversionPage >= totalLoadedPages && !conversionHasNextRemote;
-            const pageInfo = document.getElementById('conversion-page-info');
+            if (next) next.disabled = conversionPage >= totalLoadedPages;
+            renderConversionPageButtons(totalLoadedPages);
+            const pageInfo = document.getElementById("conversion-page-info");
             if (pageInfo) {
-                pageInfo.textContent = `Página ${conversionPage} de ${totalLoadedPages}${conversionHasNextRemote ? '+' : ''}`;
+                const from = pageStart + 1;
+                const to = Math.min(pageStart + pageSize, orders.length);
+                pageInfo.textContent = `${from}–${to} de ${orders.length} · pág. ${conversionPage}/${totalLoadedPages}`;
             }
         }
 
@@ -1838,7 +2016,12 @@
             if (conversionPullBusy) return { skipped: true, busy: true };
             conversionPullBusy = true;
             try {
-                const res = await adminFetch(`${API_BASE}/api/cron/conversions?sinceMin=2880`);
+                const days = Number(document.getElementById("conversion-days")?.value
+                    || document.getElementById("ms-days")?.value
+                    || document.getElementById("camp-perf-days")?.value
+                    || 30);
+                const sinceMin = Math.min(Math.max(days * 24 * 60, 60 * 48), 60 * 24 * 90);
+                const res = await adminFetch(`${API_BASE}/api/cron/conversions?sinceMin=${sinceMin}`);
                 const data = await res.json();
                 if (!res.ok || !data?.ok) {
                     throw new Error(data?.error || `HTTP ${res.status}`);
@@ -2188,7 +2371,12 @@
                 const t = data.totals || {};
                 setText("ms-net", BRL(t.net));
                 setText("ms-gross", BRL(t.gross));
+                setText("ms-pending-net", BRL(t.pendingNet));
                 setText("ms-orders", String(t.orders || 0));
+                setText(
+                    "ms-orders-break",
+                    `${t.completed || 0} concl. · ${t.pending || 0} pend. · ${t.cancelled || 0} cancel.`
+                );
                 setText("ms-ticket", BRL(t.avgTicket));
                 setText("ms-cancel-pct", PCT(t.cancelledPct));
                 setText("ms-fraud-pct", PCT(t.fraudPct));
@@ -2480,20 +2668,22 @@
             }
             try {
                 if (reset && (pull || forcePull)) {
-                    list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Atualizando conversões da Shopee…</div>';
+                    list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Atualizando conversões da Shopee e gravando no banco…</div>';
                     const pulled = await ensureConversionsFresh({ force: !!forcePull });
                     if (pulled?.ok && pulled.result && Number(pulled.result.saved) > 0) {
-                        showToast(`Shopee: ${pulled.result.saved} conversão(ões) salvas`, 'success');
+                        const by = pulled.result.byStatus || {};
+                        const bits = Object.entries(by)
+                            .filter(([, v]) => Number(v.saved) > 0)
+                            .map(([k, v]) => `${conversionStatusLabel(k)} ${v.saved}`);
+                        showToast(`Shopee → banco: ${pulled.result.saved} atualizada(s)${bits.length ? ` (${bits.join(', ')})` : ''}`, 'success');
                     } else if (pulled?.error && !pulled.skipped) {
                         showToast(`Pull Shopee: ${pulled.error} — mostrando o que já está no banco`, 'warning');
                     }
                 }
                 list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando do banco…</div>';
                 const days = document.getElementById('conversion-days')?.value || '30';
-                const status = document.getElementById('conversion-status')?.value || '';
-                // Mesma fonte do Meu Site / Campanhas — não usa /api/conversions ao vivo.
+                // Sem filtro de status no servidor: as abas filtram no cliente e mostram os totais.
                 const params = new URLSearchParams({ days: String(days) });
-                if (status) params.set('status', status);
                 const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Não foi possível consultar as conversões');
@@ -2512,22 +2702,13 @@
 
         function previousConversionPage() {
             if (conversionPage <= 1) return;
-            conversionPage -= 1;
-            renderConversions();
-            document.getElementById('conversion-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            goToConversionPage(conversionPage - 1);
         }
 
         function nextConversionPage() {
-            const orderCount = conversionRows.reduce(
-                (total, conversion) => total + (Array.isArray(conversion.orders) ? conversion.orders.length : 0),
-                0
-            );
-            const totalLoadedPages = Math.max(1, Math.ceil(orderCount / CONVERSION_PAGE_SIZE));
-            if (conversionPage < totalLoadedPages) {
-                conversionPage += 1;
-                renderConversions();
-                document.getElementById('conversion-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            const total = filteredConversionOrders().length;
+            const totalLoadedPages = Math.max(1, Math.ceil(total / CONVERSION_PAGE_SIZE));
+            if (conversionPage < totalLoadedPages) goToConversionPage(conversionPage + 1);
         }
 
         function parseCommissionPct(value) {
@@ -3837,6 +4018,7 @@
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
         loadConversions, previousConversionPage, nextConversionPage,
+        setConversionStatusFilter, onConversionSearch, onConversionPageSizeChange, goToConversionPage,
         onAdminSearch, onAdminFiltersChange, onAdminPageSizeChange, clearAdminFilters,
         toggleAdminProductSelect, toggleSelectAdminPage, selectAllFilteredProducts, clearAdminProductSelection,
         addSelectedProductsToCampaign, adminPrevPage, adminNextPage, removeProductFromDatabase,

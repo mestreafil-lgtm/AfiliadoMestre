@@ -1577,24 +1577,18 @@
                     <h4 class="font-bold text-xs text-slate-700 uppercase flex items-center gap-1.5">
                         <i class="fas fa-chart-line text-shopee-orange"></i> Conversões por Sub ID
                     </h4>
-                    <p class="text-[10px] text-slate-400 mt-1">Vendas do site no banco (Sub ID <strong>afiliadamestre</strong>). Ao abrir ou atualizar, puxa a Shopee automaticamente (máx. a cada 5 min).</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Vendas do site no banco (Sub ID <strong>afiliadamestre</strong>). Status vem da Shopee e é atualizado no Supabase a cada pull.</p>
                 </div>
-                <div class="flex items-center gap-2 text-xs">
+                <div class="flex flex-wrap items-center gap-2 text-xs">
                     <select id="conversion-days" onchange="loadConversions({reset:true,pull:false})" class="p-2 border rounded-lg">
                         <option value="7">Últimos 7 dias</option>
                         <option value="30" selected>Últimos 30 dias</option>
                         <option value="60">Últimos 60 dias</option>
                         <option value="90">Últimos 90 dias</option>
                     </select>
-                    <select id="conversion-status" onchange="loadConversions({reset:true,pull:false})" class="p-2 border rounded-lg">
-                        <option value="">Todos os status</option>
-                        <option value="PENDING">Pendente</option>
-                        <option value="COMPLETED">Concluído</option>
-                        <option value="CANCELLED">Cancelado</option>
-                        <option value="UNPAID">Não pago</option>
-                    </select>
+                    <input type="hidden" id="conversion-status" value="">
                     <button onclick="loadConversions({reset:true,forcePull:true})" class="px-3 py-2 rounded-lg bg-shopee-orange text-white text-[11px] font-bold">
-                        Atualizar
+                        <i class="fas fa-cloud-arrow-down mr-1"></i> Atualizar Shopee
                     </button>
                     <button onclick="prioritizeConversionWinners()" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700">
                         <i class="fas fa-bolt mr-1"></i> Priorizar no sync
@@ -1622,17 +1616,34 @@
                     <p id="conversion-subids" class="text-xl font-black text-shopee-orange">0</p>
                 </div>
             </div>
-            <div id="conversion-list" class="p-4 space-y-3">
-                <div class="py-8 text-center text-slate-400 text-xs">Clique em “Atualizar relatório” para carregar.</div>
+            <div class="px-4 pt-3 pb-2 border-b border-slate-100 flex flex-wrap items-center gap-2">
+                <div id="conversion-status-tabs" class="flex flex-wrap gap-1.5 flex-1"></div>
+                <input id="conversion-search" type="search" placeholder="Buscar pedido, produto ou Sub ID"
+                    oninput="onConversionSearch()"
+                    class="w-full sm:w-56 p-2 border rounded-lg text-[11px]">
             </div>
-            <div id="conversion-pagination" class="hidden p-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                <button id="conversion-prev" onclick="previousConversionPage()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
-                    <i class="fas fa-chevron-left mr-1"></i> Anterior
-                </button>
+            <div id="conversion-list" class="p-4 space-y-3">
+                <div class="py-8 text-center text-slate-400 text-xs">Clique em “Atualizar Shopee” para carregar.</div>
+            </div>
+            <div id="conversion-pagination" class="hidden p-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                    <span>Por página</span>
+                    <select id="conversion-page-size" onchange="onConversionPageSizeChange()" class="p-1.5 border rounded-lg text-[11px]">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button id="conversion-prev" onclick="previousConversionPage()" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-1"></i> Anterior
+                    </button>
+                    <div id="conversion-page-buttons" class="hidden sm:flex items-center gap-1"></div>
+                    <button id="conversion-next" onclick="nextConversionPage()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                        Próxima <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
                 <span id="conversion-page-info" class="text-[11px] font-semibold text-slate-500">Página 1</span>
-                <button id="conversion-next" onclick="nextConversionPage()" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed">
-                    Próxima <i class="fas fa-chevron-right ml-1"></i>
-                </button>
             </div>
         </div>
         </section>
@@ -1672,24 +1683,29 @@
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 border-b border-slate-100">
                     <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                        <p class="text-[9px] uppercase font-bold text-emerald-700">Comissão líquida</p>
+                        <p class="text-[9px] uppercase font-bold text-emerald-700">Comissão confirmada</p>
                         <p id="ms-net" class="text-xl font-black text-emerald-700">R$ 0,00</p>
-                        <p class="text-[10px] text-emerald-600 mt-0.5">após MCN fee</p>
+                        <p class="text-[10px] text-emerald-600 mt-0.5">só status Concluído · após MCN</p>
                     </div>
-                    <div class="bg-slate-50 rounded-lg p-3">
-                        <p class="text-[9px] uppercase font-bold text-slate-400">Comissão bruta</p>
-                        <p id="ms-gross" class="text-lg font-black text-slate-800">R$ 0,00</p>
+                    <div class="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                        <p class="text-[9px] uppercase font-bold text-amber-700">Comissão estimada</p>
+                        <p id="ms-pending-net" class="text-lg font-black text-amber-700">R$ 0,00</p>
+                        <p class="text-[10px] text-amber-600 mt-0.5">Pendente + Não pago</p>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-3">
                         <p class="text-[9px] uppercase font-bold text-slate-400">Pedidos</p>
                         <p id="ms-orders" class="text-xl font-black text-slate-800">0</p>
-                        <p class="text-[10px] text-slate-500 mt-0.5">ticket médio: <span id="ms-ticket">R$ 0,00</span></p>
+                        <p class="text-[10px] text-slate-500 mt-0.5" id="ms-orders-break">—</p>
                     </div>
                     <div class="bg-slate-50 rounded-lg p-3">
                         <p class="text-[9px] uppercase font-bold text-slate-400">Saúde</p>
                         <p id="ms-health" class="text-sm font-black text-slate-800">—</p>
                         <p class="text-[10px] text-slate-500 mt-0.5"><span id="ms-cancel-pct">0%</span> cancel · <span id="ms-fraud-pct">0%</span> fraude</p>
                     </div>
+                </div>
+                <div class="px-4 pb-3 text-[10px] text-slate-500 border-b border-slate-100">
+                    Bruta confirmada: <span id="ms-gross" class="font-semibold text-slate-700">R$ 0,00</span>
+                    · ticket médio (concluídos): <span id="ms-ticket" class="font-semibold text-slate-700">R$ 0,00</span>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
