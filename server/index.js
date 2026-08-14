@@ -1467,6 +1467,23 @@ app.get("/api/admin/meu-site/summary", requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * Admin — desempenho por campanha a partir do banco (mesma fonte do Meu Site).
+ * Evita o /api/conversions ao vivo, que pagina misturado e perde vendas do site.
+ */
+app.get("/api/admin/campanhas/performance", requireAdmin, async (req, res) => {
+  try {
+    const { campaignPerformanceFromDb } = require("./conversions");
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const status = String(req.query.status || "").trim();
+    const result = await campaignPerformanceFromDb({ days, status });
+    res.json(result);
+  } catch (err) {
+    console.error("[/api/admin/campanhas/performance]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 /** Admin — reprocessa sub_ids de ofertas antigas sem SITE_SUBID no slot 1. */
 app.post("/api/admin/meu-site/reprocess-subids", requireAdmin, async (req, res) => {
   try {

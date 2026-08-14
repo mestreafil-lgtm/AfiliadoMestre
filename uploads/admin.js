@@ -1830,31 +1830,22 @@
                 campaignPerfSelected = '';
                 closeCampaignPerfDetail();
             }
-            list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Consultando vendas na Shopee…</div>';
+            list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando vendas do banco…</div>';
             try {
                 await syncSavedCampaigns();
                 const days = document.getElementById('camp-perf-days')?.value || '30';
                 const status = document.getElementById('camp-perf-status')?.value || '';
-                let scrollId = '';
-                let hasNext = true;
-                let pages = 0;
-                const maxPages = 6; // até ~300 conversões do site
-                const all = [];
-                while (hasNext && pages < maxPages) {
-                    const data = await fetchConversionBatch({ days, status, scrollId });
-                    const received = Array.isArray(data.conversions) ? data.conversions : [];
-                    all.push(...received);
-                    scrollId = data.pageInfo?.scrollId || '';
-                    hasNext = Boolean(data.pageInfo?.hasNextPage && scrollId && received.length);
-                    pages += 1;
-                    if (!received.length) break;
-                }
-                campaignPerfRows = all;
+                // Mesma fonte do "Meu Site": conversions no Supabase (sub_id3),
+                // não o scroll ao vivo da Shopee — aquele mistura tudo e perde vendas.
+                const params = new URLSearchParams({ days: String(days) });
+                if (status) params.set('status', status);
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                campaignPerfRows = Array.isArray(data.conversions) ? data.conversions : [];
                 renderCampaignPerformance();
-                if (!all.length && !campaignSavedList.length) {
+                if (!campaignPerfRows.length && !campaignSavedList.length) {
                     showToast('Nenhuma venda deste site no período', 'success');
-                } else if (hasNext) {
-                    showToast(`Carregadas ${all.length} conversões (há mais na Shopee — refine o período)`, 'success');
                 }
             } catch (err) {
                 // A lista de campanhas não depende da Shopee: mostra o que já foi salvo
@@ -2209,6 +2200,7 @@
                 const r = data.result || {};
                 showToast(`Salvo ${r.saved || 0} conversão(ões) (${r.pages || 0} páginas)`, "success");
                 loadMeuSiteSummary();
+                loadCampaignPerformance({ reset: true });
             } catch (err) { showToast("Erro: " + err.message, "error"); }
         }
 

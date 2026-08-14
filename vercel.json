@@ -9,5 +9,11 @@
   ],
   "routes": [
     { "src": "/(.*)", "dest": "/server/index.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/conversions",
+      "schedule": "0 9 * * *"
+    }
   ]
 }

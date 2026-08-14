@@ -50,6 +50,9 @@ const config = {
   requestGapMs: clampNum(process.env.AUTO_SYNC_GAP_MS, 400, 100, 5000),
   shortlinkBackfillPerRun: clampNum(process.env.AUTO_SYNC_SHORTLINKS, 50, 0, 200),
   refreshTopPerRun: clampNum(process.env.AUTO_SYNC_REFRESH_TOP, 40, 0, 80),
+  // Puxa conversionReport sozinho (independente do AUTO_SYNC de produtos).
+  conversionsPullHours: clampNum(process.env.CONVERSIONS_PULL_HOURS, 24, 1, 168),
+  conversionsSinceMin: clampNum(process.env.CONVERSIONS_SINCE_MIN, 60 * 48, 60, 60 * 24 * 30),
   femalePercent: FEMALE_PERCENT,
   minCommissionPct: MIN_COMMISSION_PCT,
 };
@@ -59,6 +62,9 @@ const state = {
   lastRunAt: null,
   nextRunAt: null,
   lastPruneAt: null,
+  lastConversionsPullAt: null,
+  nextConversionsPullAt: null,
+  lastConversionsResult: null,
   cursor: 0,
   rotationCursor: 0,
   queue: [],
@@ -72,6 +78,7 @@ const state = {
 };
 
 let timer = null;
+let conversionsTimer = null;
 
 function credsReady() {
   const shopee = !!(process.env.SHOPEE_APP_ID && process.env.SHOPEE_SECRET);
@@ -375,6 +382,8 @@ function getStatus() {
     pruneDays: config.pruneDays,
     shortlinkBackfillPerRun: config.shortlinkBackfillPerRun,
     refreshTopPerRun: config.refreshTopPerRun,
+    conversionsPullHours: config.conversionsPullHours,
+    conversionsSinceMin: config.conversionsSinceMin,
     minCommissionPct: config.minCommissionPct,
     femalePercentTarget: config.femalePercent,
     feedMode: "coverage-95-5",
@@ -388,6 +397,9 @@ function getStatus() {
     lastRunAt: state.lastRunAt,
     nextRunAt: state.nextRunAt,
     lastPruneAt: state.lastPruneAt,
+    lastConversionsPullAt: state.lastConversionsPullAt,
+    nextConversionsPullAt: state.nextConversionsPullAt,
+    lastConversionsResult: state.lastConversionsResult,
     lastError: state.lastError,
     lastResult: state.lastResult,
     modes: BIASED_ROTATION,
@@ -412,15 +424,78 @@ function scheduleNext() {
   if (typeof timer.unref === "function") timer.unref();
 }
 
+/**
+ * Puxa conversionReport da Shopee e grava no banco.
+ * Roda sozinho (mesmo com AUTO_SYNC=0), pra Meu Site / Campanhas atualizarem.
+ */
+async function pullConversionsOnce({ manual = false } = {}) {
+  if (!credsReady()) {
+    return { ok: false, skipped: "creds" };
+  }
+  try {
+    const { pullConversionReport } = require("./conversions");
+    const result = await pullConversionReport({ sinceMin: config.conversionsSinceMin });
+    state.lastConversionsPullAt = new Date().toISOString();
+    state.lastConversionsResult = {
+      ok: true,
+      manual,
+      saved: result.saved || 0,
+      pages: result.pages || 0,
+      totalNodes: result.totalNodes || 0,
+      rateLimited: !!result.rateLimited,
+      ms: result.ms || 0,
+    };
+    console.log(
+      `[autosync] conversions saved=${result.saved || 0} pages=${result.pages || 0}` +
+        (result.rateLimited ? " rateLimited" : "")
+    );
+    return state.lastConversionsResult;
+  } catch (err) {
+    state.lastConversionsResult = { ok: false, manual, error: err.message };
+    console.warn("[autosync] conversions falhou:", err.message);
+    throw err;
+  } finally {
+    scheduleConversionsPull();
+  }
+}
+
+function scheduleConversionsPull() {
+  if (conversionsTimer) clearTimeout(conversionsTimer);
+  conversionsTimer = null;
+  if (config.conversionsPullHours <= 0) {
+    state.nextConversionsPullAt = null;
+    return;
+  }
+  const ms = config.conversionsPullHours * 3600 * 1000;
+  state.nextConversionsPullAt = new Date(Date.now() + ms).toISOString();
+  conversionsTimer = setTimeout(() => {
+    pullConversionsOnce().catch(() => {});
+  }, ms);
+  if (typeof conversionsTimer.unref === "function") conversionsTimer.unref();
+}
+
 function start() {
   if (!config.enabled) {
     console.log("[autosync] pausado (AUTO_SYNC=0)");
-    return;
+  } else {
+    console.log(
+      `[autosync] ativo a cada ${config.intervalMin}min · batch=${config.batch} · refreshTop=${config.refreshTopPerRun} · minComm=${config.minCommissionPct}%`
+    );
+    scheduleNext();
   }
-  console.log(
-    `[autosync] ativo a cada ${config.intervalMin}min · batch=${config.batch} · refreshTop=${config.refreshTopPerRun} · minComm=${config.minCommissionPct}%`
-  );
-  scheduleNext();
+  // Conversões: agenda diária mesmo com AUTO_SYNC=0.
+  if (config.conversionsPullHours > 0) {
+    console.log(
+      `[autosync] conversions a cada ${config.conversionsPullHours}h (janela ${Math.round(config.conversionsSinceMin / 60)}h)`
+    );
+    // Primeira puxada após ~2 min do boot (não bloqueia startup / cold start).
+    const bootDelay = Math.min(120000, config.conversionsPullHours * 3600 * 1000);
+    state.nextConversionsPullAt = new Date(Date.now() + bootDelay).toISOString();
+    conversionsTimer = setTimeout(() => {
+      pullConversionsOnce().catch(() => {});
+    }, bootDelay);
+    if (typeof conversionsTimer.unref === "function") conversionsTimer.unref();
+  }
 }
 
 module.exports = {
@@ -428,6 +503,7 @@ module.exports = {
   start,
   runOnce,
   runTopPerformance,
+  pullConversionsOnce,
   getStatus,
   prioritizeJobs,
   ensureQueue,

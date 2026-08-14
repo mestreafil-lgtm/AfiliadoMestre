@@ -532,12 +532,94 @@ function decodeSubIdsFromUrl(url) {
   }
 }
 
+/**
+ * Desempenho de campanhas a partir do banco (mesma fonte do Meu Site).
+ * Devolve nós no formato que o painel já espera (utmContent + orders/items),
+ * pra não divergir do summary que lê sub_id3 direto da tabela.
+ */
+async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
+  const { fromIso, toIso } = windowFromParams({ days });
+  const statusFilter = String(status || "").trim().toUpperCase();
+  let path =
+    `/conversions?select=conversion_id,purchase_time,order_id,order_status,fraud_status,shop_id,shop_name,item_id,item_name,item_price,actual_amount,qty,total_commission,net_commission,seller_commission,shopee_commission_capped,utm_content,sub_id1,sub_id2,sub_id3,sub_id4,sub_id5` +
+    `&is_meu_site=is.true` +
+    `&purchase_time=gte.${encodeURIComponent(fromIso)}` +
+    `&purchase_time=lte.${encodeURIComponent(toIso)}` +
+    `&order=purchase_time.desc&limit=5000`;
+  if (statusFilter) {
+    path += `&order_status=eq.${encodeURIComponent(statusFilter)}`;
+  }
+
+  let rows = [];
+  try {
+    const out = await supabaseRequest(path, { method: "GET", useService: true });
+    rows = Array.isArray(out) ? out : [];
+  } catch (err) {
+    const e = new Error(err.message || "Falha ao ler conversions");
+    e.status = err.status || 500;
+    throw e;
+  }
+
+  const conversions = rows.map((r) => {
+    const purchaseUnix = r.purchase_time
+      ? Math.floor(new Date(r.purchase_time).getTime() / 1000)
+      : 0;
+    const utm =
+      r.utm_content ||
+      [r.sub_id1, r.sub_id2, r.sub_id3, r.sub_id4, r.sub_id5]
+        .map((s) => (s == null ? "" : String(s)))
+        .join("-");
+    return {
+      conversionId: r.conversion_id,
+      purchaseTime: purchaseUnix,
+      utmContent: utm,
+      totalCommission: Number(r.total_commission) || 0,
+      netCommission: Number(r.net_commission) || 0,
+      sellerCommission: Number(r.seller_commission) || 0,
+      shopeeCommissionCapped: Number(r.shopee_commission_capped) || 0,
+      source: "db",
+      orders: [
+        {
+          orderId: r.order_id,
+          orderStatus: r.order_status || "UNKNOWN",
+          items: [
+            {
+              itemId: r.item_id,
+              itemName: r.item_name || (r.item_id ? `Item ${r.item_id}` : "Item"),
+              shopId: r.shop_id,
+              shopName: r.shop_name || "",
+              itemPrice: Number(r.item_price) || 0,
+              actualAmount: Number(r.actual_amount) || 0,
+              qty: Number(r.qty) || 1,
+              itemTotalCommission: Number(r.net_commission) || Number(r.total_commission) || 0,
+              fraudStatus: r.fraud_status || null,
+              imageUrl: "",
+            },
+          ],
+        },
+      ],
+    };
+  });
+
+  return {
+    ok: true,
+    source: "db",
+    days: Number(days) || 30,
+    window: { from: fromIso, to: toIso },
+    count: conversions.length,
+    conversions,
+    pageInfo: { hasNextPage: false, scrollId: "" },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 module.exports = {
   parseUtmSubIds,
   flattenConversionNode,
   pullConversionReport,
   pullValidatedReport,
   summary,
+  campaignPerformanceFromDb,
   topSignalsFromMySite,
   reprocessSubIds,
   decodeSubIdsFromUrl,
