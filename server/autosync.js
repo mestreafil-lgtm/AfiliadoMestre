@@ -50,8 +50,10 @@ const config = {
   requestGapMs: clampNum(process.env.AUTO_SYNC_GAP_MS, 400, 100, 5000),
   shortlinkBackfillPerRun: clampNum(process.env.AUTO_SYNC_SHORTLINKS, 50, 0, 200),
   refreshTopPerRun: clampNum(process.env.AUTO_SYNC_REFRESH_TOP, 40, 0, 80),
-  // Puxa conversionReport sozinho (independente do AUTO_SYNC de produtos).
-  conversionsPullHours: clampNum(process.env.CONVERSIONS_PULL_HOURS, 24, 1, 168),
+  // Puxa conversionReport sozinho só se CONVERSIONS_PULL_HOURS > 0.
+  // No seu setup o Google Cloud Scheduler já bate em /api/cron/conversions —
+  // deixe 0 pra não duplicar. Em servidor long-running dá pra ligar de novo.
+  conversionsPullHours: clampNum(process.env.CONVERSIONS_PULL_HOURS, 0, 0, 168),
   conversionsSinceMin: clampNum(process.env.CONVERSIONS_SINCE_MIN, 60 * 48, 60, 60 * 24 * 30),
   femalePercent: FEMALE_PERCENT,
   minCommissionPct: MIN_COMMISSION_PCT,
