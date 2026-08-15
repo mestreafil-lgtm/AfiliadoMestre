@@ -1076,7 +1076,7 @@
             const basePath = productId ? `/p/${encodeURIComponent(String(productId))}` : '/';
             const url = new URL(location.origin + basePath);
             url.searchParams.set('utm_source', sanitizeSubId(channel || CAMPAIGN_CHANNEL, CAMPAIGN_CHANNEL));
-            url.searchParams.set('utm_campaign', sanitizeSubId(campaign, 'vitrine'));
+            url.searchParams.set('utm_campaign', sanitizeSubId(campaign, ''));
             url.searchParams.set('utm_medium', 'social');
             return url.toString();
         }
@@ -1090,14 +1090,7 @@
         }
 
         function getCampaignSlug() {
-            const hidden = String(document.getElementById('campaign-link-name')?.value || '').trim();
-            if (hidden) return sanitizeSubId(hidden, 'vitrine');
-            return sanitizeSubId(getCampaignTitle(), 'vitrine');
-        }
-
-        function lockCampaignSlug(slug) {
-            const el = document.getElementById('campaign-link-name');
-            if (el) el.value = slug;
+            return sanitizeSubId(document.getElementById('campaign-link-name')?.value || '', '');
         }
 
         function getCampaignSelectedProducts() {
@@ -1344,18 +1337,65 @@
          * A Shopee só aceita letras e números nos Sub IDs. Mostra o nome final
          * para o admin não achar que "ads_vestidos" chega assim no relatório.
          */
+        function isCampaignSlugLocked() {
+            const el = document.getElementById('campaign-link-name');
+            return Boolean(el?.readOnly || el?.disabled);
+        }
+
+        function lockCampaignSlug(slug, { freeze = false } = {}) {
+            const el = document.getElementById('campaign-link-name');
+            if (!el) return;
+            el.value = slug;
+            if (freeze || campaignEditingId) {
+                el.readOnly = true;
+                el.style.background = '#e2e8f0';
+                el.title = 'O nome da Sub ID não muda depois de Obter Link';
+            }
+        }
+
+        function unlockCampaignSlugField() {
+            const el = document.getElementById('campaign-link-name');
+            if (!el) return;
+            el.readOnly = false;
+            el.style.background = '#f8fafc';
+            el.title = '';
+        }
+
+        function resetCampaignForm() {
+            campaignEditingId = '';
+            campaignSelectedProducts = [];
+            campaignShopeeLinks = {};
+            campaignShopeeKey = '';
+            const titleEl = document.getElementById('campaign-link-title');
+            const nameEl = document.getElementById('campaign-link-name');
+            if (titleEl) titleEl.value = '';
+            if (nameEl) nameEl.value = '';
+            unlockCampaignSlugField();
+            setCampaignProductStatus('');
+            clearCampaignProductSearch();
+            renderCampaignSelectedProducts();
+            updateCampaignLinkPreview();
+        }
+
         function renderCampaignNameHint(rawName) {
             const el = document.getElementById('campaign-name-normalized');
             if (!el) return;
+            const typed = String(document.getElementById('campaign-link-name')?.value || '').trim();
             const slug = getCampaignSlug();
-            const locked = Boolean(String(document.getElementById('campaign-link-name')?.value || '').trim());
-            if (!slug || slug === 'vitrine') {
-                el.textContent = 'O Sub ID é gerado na primeira vez que você clicar em Obter Link.';
+            if (!typed) {
+                el.textContent = 'Você escreve a Sub ID. A Shopee só aceita letras e números.';
                 return;
             }
-            el.innerHTML = locked
-                ? `Sub ID travado: <span class="font-mono font-bold text-slate-700">${escapeHtml(slug)}</span> — o título pode mudar, o Sub ID não`
-                : `Sub ID será <span class="font-mono font-bold text-slate-700">${escapeHtml(slug)}</span>`;
+            if (!slug) {
+                el.textContent = 'Use pelo menos uma letra ou número.';
+                return;
+            }
+            const typedClean = typed.toLowerCase().replace(/[^a-z0-9]/g, '');
+            el.innerHTML = typedClean !== slug
+                ? `Shopee grava: <span class="font-mono font-bold text-slate-700">${escapeHtml(slug)}</span>`
+                : (isCampaignSlugLocked()
+                    ? `Sub ID desta campanha: <span class="font-mono font-bold text-slate-700">${escapeHtml(slug)}</span>`
+                    : '');
         }
 
         function currentCampaignSignature() {
@@ -1382,6 +1422,11 @@
             if (!selected.length) {
                 el.innerHTML = `<p class="text-[10px] text-slate-400">Converta um produto para gerar o link do popup.</p>`;
                 updateSubIdPreview(channel, campaign, null);
+                return;
+            }
+            if (!campaign) {
+                el.innerHTML = `<p class="text-[10px] text-slate-400">Preencha a Sub ID da campanha para ver o link.</p>`;
+                updateSubIdPreview(channel, '', selected[0]);
                 return;
             }
 
@@ -1421,7 +1466,7 @@
             const preview = document.getElementById('subid-preview');
             if (!preview) return;
             const ch = sanitizeSubId(channel || CAMPAIGN_CHANNEL, CAMPAIGN_CHANNEL);
-            const camp = sanitizeSubId(campaign || getCampaignSlug(), 'vitrine');
+            const camp = sanitizeSubId(campaign || getCampaignSlug(), '') || 'SUBID';
             const cat = product?.category || 'moda';
             const pid = product?.id ? `p${product.id}` : 'pID';
             const ids = [SITE_SUBID, `${ch}_social`, camp, sanitizeSubId(cat, 'geral'), sanitizeSubId(pid, 'produto')];
@@ -1458,21 +1503,30 @@
                 showToast('Converta pelo menos um produto', 'error');
                 return;
             }
-            let title = getCampaignTitle();
+            const title = getCampaignTitle();
             if (!title) {
-                title = String(prompt('Nome da campanha:') || '').trim();
-                if (!title) {
-                    showToast('Informe o título da campanha', 'error');
-                    return;
-                }
-                const titleEl = document.getElementById('campaign-link-title');
-                if (titleEl) titleEl.value = title;
+                showToast('Escreva o título da campanha', 'error');
+                document.getElementById('campaign-link-title')?.focus();
+                return;
             }
-            const existingSlug = String(document.getElementById('campaign-link-name')?.value || '').trim();
-            const slug = existingSlug
-                ? sanitizeSubId(existingSlug, 'vitrine')
-                : sanitizeSubId(title, 'vitrine');
-            lockCampaignSlug(slug);
+            const typedSlug = String(document.getElementById('campaign-link-name')?.value || '').trim();
+            if (!typedSlug) {
+                showToast('Escreva a Sub ID da campanha', 'error');
+                document.getElementById('campaign-link-name')?.focus();
+                return;
+            }
+            const prev = campaignEditingId
+                ? readSavedCampaigns().find(c => String(c.id) === String(campaignEditingId))
+                : null;
+            const slug = (isCampaignSlugLocked() && prev?.campaign)
+                ? sanitizeSubId(prev.campaign, '')
+                : sanitizeSubId(typedSlug, '');
+            if (!slug) {
+                showToast('A Sub ID precisa ter letras ou números', 'error');
+                document.getElementById('campaign-link-name')?.focus();
+                return;
+            }
+            lockCampaignSlug(slug, { freeze: true });
             const channel = getCampaignChannel();
             const mapped = products.map(p => ({
                 id: p.id,
@@ -1497,9 +1551,6 @@
                     `p${p.id}`,
                 ],
             }));
-            const prev = campaignEditingId
-                ? readSavedCampaigns().find(c => String(c.id) === String(campaignEditingId))
-                : null;
             const entry = {
                 id: prev?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 channel,
@@ -1632,9 +1683,8 @@
             if (!entry) return;
             campaignEditingId = String(entry.id);
             const titleEl = document.getElementById('campaign-link-title');
-            const name = document.getElementById('campaign-link-name');
             if (titleEl) titleEl.value = entry.title || entry.campaign || '';
-            if (name) name.value = entry.campaign || '';
+            lockCampaignSlug(entry.campaign || '', { freeze: true });
             campaignSelectedProducts = Array.isArray(entry.products) ? [...entry.products] : [];
             switchAdminView('campanhas');
             renderCampaignSelectedProducts();
@@ -4216,7 +4266,7 @@
         saveCurrentCampaign, deleteSavedCampaign, loadSavedCampaignIntoEditor, copyCampaignLink,
         copySavedCampaignLinks, addProductToCampaign, removeProductFromCampaign, addCampaignProductById,
         convertCampaignProduct, obterCampaignLink, renameSavedCampaign, renderSavedCampaignsList,
-        pickCampaignCatalogProduct,
+        pickCampaignCatalogProduct, resetCampaignForm,
         renderCampaignProductPicker, resolveCampaignProductById, clearCampaignProductSearch,
         onCampaignProductSearchKey, syncSavedCampaigns,
         generateCampaignShopeeLinks, copyCampaignShopeeLinks,

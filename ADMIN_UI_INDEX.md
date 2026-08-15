@@ -308,7 +308,7 @@ Critério: mesma loja+nome OU mesmo item/link; mantém melhor (shortlink + comis
 
 **Ao abrir:** `renderCampaignSelectedProducts()` · `updateCampaignLinkPreview()` · `syncSavedCampaigns()` → `renderSavedCampaignsList()`
 
-Layout: formulário à esquerda · lista salva `#campaigns-saved-list` à direita (`#campaigns-section`). Sem select de canal. Slot 2 do Sub ID é fixo `ads` (`CAMPAIGN_CHANNEL`).
+Layout: formulário único (sem coluna “Salvas Campanhas”). Sem select de canal. Slot 2 do Sub ID é fixo `ads` (`CAMPAIGN_CHANNEL`).
 
 ### I.1 Formulário
 | ID | Campo |
@@ -317,22 +317,22 @@ Layout: formulário à esquerda · lista salva `#campaigns-saved-list` à direit
 | `#campaign-product-status` | status afiliado / shortlink pendente |
 | `#campaign-product-picker` | sugestões (foto) + “Converter pela API de afiliado” |
 | `#campaign-selected-products` | produtos convertidos |
-| `#campaign-link-title` | título visível (renomeável; não altera Sub ID) |
-| `#campaign-link-name` | slug Sub ID **hidden** — gerado 1× no primeiro Obter Link, imutável |
-| `#campaign-name-normalized` | hint “Sub ID travado / será …” |
+| `#campaign-link-title` | Título da campanha (você escreve; independente da Sub ID) |
+| `#campaign-link-name` | **Sub ID da campanha** (você escreve; não é gerada do título). Shopee só aceita a-z0-9 |
+| `#campaign-name-normalized` | hint da forma sanitizada |
 | `#campaign-link-preview` | URL `/p/{id}?utm_source=ads&utm_campaign={slug}&utm_medium=social` |
 | `#subid-preview` | `afiliadamestre \| ads_social \| {slug} \| {categoria} \| p{id}` |
 
-Botões: **Converter** `convertCampaignProduct()` → `POST /api/admin/campanha/produto` · **Obter Link** `obterCampaignLink()` (copia `/p/id` + UTMs e salva) · Escolher da lista (vai Produtos).
+Botões: **Converter** `convertCampaignProduct()` → `POST /api/admin/campanha/produto` · **Obter Link** `obterCampaignLink()` (copia `/p/id` + UTMs e salva) · **Limpar** `resetCampaignForm()` · Escolher da lista (vai Produtos) · Desempenho.
 
-**Não existem:** Canal Facebook/Instagram, Gerar Shopee, Copiar Shopee, Copiar anúncio, Salvar campanha (o Obter Link já salva).
+**Não existem:** Canal Facebook/Instagram, Gerar Shopee, Copiar Shopee, Copiar anúncio, Salvar campanha, lista lateral “Salvas Campanhas”.
 
 **Picker item:** foto 32×32 + nome. Catálogo **com** afiliado: adiciona direto. **Sem** afiliado ou link/ID colado: API `productOfferV2` (`offer_link` + tenta `shope.ee` + publica na vitrine).  
 **Selecionado:** foto 40×40 + nome + status afiliado + remover.  
 **Preview:** 1 link do site por produto (popup + Pixel). Sem produto = “Converta um produto…”.
 
-### I.2 Lista salva (`#campaigns-saved-list`)
-Cards: título · slug · N produtos · **Copiar link** · **Renomear** (só título) · **Editar** (carrega no form; Sub ID permanece).
+### I.2 Campanhas salvas
+Aparecem em **Desempenho de campanhas** (`#admin-view-campanha-desempenho`): Copiar link · Renomear (só título) · Editar · Apagar.
 
 **Slots Sub ID (fixos):**
 1. `afiliadamestre` (site)  
