@@ -2774,7 +2774,6 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
   var checkoutPayload = Object.assign({ num_items: 1 }, payload);
   var backHref = ${JSON.stringify(backHref)};
   var buyHref = ${JSON.stringify(buyHref)};
-  var going = false;
   function goVitrine(){
     if (backHref) location.href = backHref;
   }
@@ -2799,44 +2798,31 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       (new Image(1, 1)).src = 'https://www.facebook.com/tr?' + q;
     } catch (e) {}
   }
-  function track(ev, data){
-    var p = data || payload;
+  function trackCheckout(){
+    ping('AddToCart', checkoutPayload);
+    ping('InitiateCheckout', checkoutPayload);
     try {
       if (typeof fbq === 'function') {
-        fbq('track', ev, p);
-        return;
+        fbq('track', 'AddToCart', checkoutPayload);
+        fbq('track', 'InitiateCheckout', checkoutPayload);
       }
     } catch (e) {}
-    ping(ev, p);
-  }
-  function trackCheckout(){
-    if (inAppBrowser()) {
-      ping('AddToCart', checkoutPayload);
-      ping('InitiateCheckout', checkoutPayload);
-      return;
-    }
-    track('AddToCart', checkoutPayload);
-    track('InitiateCheckout', checkoutPayload);
-  }
-  function goBuy(){
-    if (!buyHref || buyHref === '#') return;
-    if (inAppBrowser()) {
-      location.href = buyHref;
-      return;
-    }
-    var w = window.open(buyHref, '_blank');
-    if (!w) location.href = buyHref;
   }
   var btnBuy = document.getElementById('btn-buy');
   var btnClose = document.getElementById('btn-close');
   var btnMore  = document.getElementById('btn-more');
   var overlay  = document.getElementById('overlay');
   if (btnBuy) btnBuy.addEventListener('click', function(e){
-    e.preventDefault();
-    if (going) return;
-    going = true;
+    var href = btnBuy.getAttribute('href') || buyHref;
     trackCheckout();
-    setTimeout(goBuy, 500);
+    if (!href || href === '#') {
+      e.preventDefault();
+      return;
+    }
+    if (inAppBrowser()) {
+      e.preventDefault();
+      location.href = href;
+    }
   });
   if (btnClose) btnClose.addEventListener('click', function(e){
     e.preventDefault();
