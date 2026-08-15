@@ -298,6 +298,10 @@
           background: #ee4d2d;
           box-shadow: 0 0 0 4px rgba(238,77,45,.2);
         }
+        #nav-catalogo-submenu { display: none; padding: 0 0 8px 0; }
+        #nav-catalogo-submenu.open { display: block; }
+        #nav-catalogo-chevron { transition: transform .15s ease; flex-shrink: 0; opacity: .7; }
+        #nav-catalogo-toggle[aria-expanded="true"] #nav-catalogo-chevron { transform: rotate(90deg); }
         /* Lista de conversões — grid estável (não depende do purge do Tailwind) */
         #admin-panel-root #conversion-list { padding: 0; }
         #admin-panel-root #conversion-list .conv-head,
@@ -1071,11 +1075,22 @@
       
         <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Gestão de catálogo</div>
         
-          <button type="button" id="nav-catalogo" data-admin-view="catalogo" onclick="switchAdminView('catalogo')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+          <button type="button" id="nav-catalogo-toggle" onclick="toggleCatalogoSubmenu()" aria-expanded="false" class="nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Catálogo & Sync</span>
-            
+            <span style="flex:1">Catálogo</span>
+            <svg id="nav-catalogo-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
           </button>
+          <div id="nav-catalogo-submenu">
+            <button type="button" id="nav-catalogo-explorador" data-admin-view="catalogo-explorador" onclick="switchAdminView('catalogo-explorador')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Buscar na Shopee</button>
+            <button type="button" id="nav-catalogo-lojas" data-admin-view="catalogo-lojas" onclick="switchAdminView('catalogo-lojas')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Lojas afiliadas</button>
+            <button type="button" id="nav-catalogo-ofertas" data-admin-view="catalogo-ofertas" onclick="switchAdminView('catalogo-ofertas')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Ofertas oficiais</button>
+            <button type="button" id="nav-catalogo-cobertura" data-admin-view="catalogo-cobertura" onclick="switchAdminView('catalogo-cobertura')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Completar vitrine</button>
+            <button type="button" id="nav-catalogo-money" data-admin-view="catalogo-money" onclick="switchAdminView('catalogo-money')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Mais dinheiro</button>
+            <button type="button" id="nav-catalogo-sync" data-admin-view="catalogo-sync" onclick="switchAdminView('catalogo-sync')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Atualizar catálogo</button>
+            <button type="button" id="nav-catalogo-feeds" data-admin-view="catalogo-feeds" onclick="switchAdminView('catalogo-feeds')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Atualizações em lote</button>
+            <button type="button" id="nav-catalogo-shortlinks" data-admin-view="catalogo-shortlinks" onclick="switchAdminView('catalogo-shortlinks')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Links curtos</button>
+            <button type="button" id="nav-catalogo-saude" data-admin-view="catalogo-saude" onclick="switchAdminView('catalogo-saude')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Saúde da Shopee</button>
+          </div>
           <button type="button" id="nav-produtos" data-admin-view="produtos" onclick="switchAdminView('produtos')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
             <span style="flex:1">Produtos</span>
@@ -1110,14 +1125,6 @@
           <button type="button" id="nav-meu-site" data-admin-view="meu-site" onclick="switchAdminView('meu-site')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
             <span style="flex:1">Meu Site (vendas)</span>
-            
-          </button>
-      
-        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Sistema</div>
-        
-          <button type="button" id="nav-ferramentas" data-admin-view="ferramentas" onclick="switchAdminView('ferramentas')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
-            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Ferramentas & feeds</span>
             
           </button>
       
@@ -1302,34 +1309,28 @@
         </div>
       </section>
 
-      <!-- ============ VIEW: CATÁLOGO & SYNC ============ -->
-      <section id="admin-view-catalogo" class="admin-view">
-        <!-- Tab strip -->
-        <div id="catalog-tabs" style="display:flex;gap:4px;background:#e2e8f0;padding:4px;border-radius:12px;margin-bottom:20px;overflow-x:auto">
-          <button type="button" data-tab="explorer" onclick="switchCatalogTab('explorer')" class="tab cat-tab active" style="border:0;padding:9px 16px;border-radius:9px;font-size:12.5px;cursor:pointer;white-space:nowrap">Explorador</button>
-          <button type="button" data-tab="coverage" onclick="switchCatalogTab('coverage')" class="tab cat-tab" style="border:0;padding:9px 16px;border-radius:9px;font-size:12.5px;cursor:pointer;background:transparent;color:#475569;white-space:nowrap">Cobertura &amp; Shortlinks</button>
-          <button type="button" data-tab="money" onclick="switchCatalogTab('money')" class="tab cat-tab" style="border:0;padding:9px 16px;border-radius:9px;font-size:12.5px;cursor:pointer;background:transparent;color:#475569;white-space:nowrap">Mais dinheiro agora</button>
-          <button type="button" data-tab="system" onclick="switchCatalogTab('system')" class="tab cat-tab" style="border:0;padding:9px 16px;border-radius:9px;font-size:12.5px;cursor:pointer;background:transparent;color:#475569;white-space:nowrap">Categorias · Ofertas · Sync</button>
-        </div>
-        <!-- F.6 Explorador (default tab) -->
-        <div id="cat-panel-explorer" style="display:block">
+      <!-- ============ VIEW: BUSCAR NA SHOPEE ============ -->
+      <section id="admin-view-catalogo-explorador" class="admin-view">
+        <div id="cat-panel-explorer">
           <div class="am-card am-section">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:8px">
               <div>
-                <h2 style="margin:0;font-size:15px;font-weight:700">Explorador Shopee</h2>
-                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Buscar, filtrar e importar produtos da API oficial</p>
+                <h2 style="margin:0;font-size:15px;font-weight:700">Buscar na Shopee</h2>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Pré-visualiza só produtos novos. O que já está na vitrine não aparece na lista.</p>
               </div>
               <span id="explorer-mode-hint" style="font-size:11px;color:#ea580c;font-weight:600;padding:4px 10px;background:#fff7ed;border-radius:999px">Modo: MAIS VENDIDOS</span>
             </div>
 
             <!-- Presets -->
             <div id="explorer-presets" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px dashed #e2e8f0">
+              <button type="button" data-preset="female_9" onclick="applyExplorerPreset('female_9')" class="chip explorer-preset">Feminino 9%</button>
               <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="chip explorer-preset">Feminino + comissão</button>
               <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="chip explorer-preset active">Mais vendidos</button>
-              <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Top performance</button>
+              <button type="button" data-preset="diverse_5" onclick="applyExplorerPreset('diverse_5')" class="chip explorer-preset">Diverso 5%</button>
+              <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Mais vendidos na Shopee</button>
               <button type="button" data-preset="commission" onclick="applyExplorerPreset('commission')" class="chip explorer-preset">Maior comissão</button>
-              <button type="button" data-preset="collection" onclick="applyExplorerPreset('collection')" class="chip explorer-preset">Coleção (matchId)</button>
-              <button type="button" data-preset="shop" onclick="applyExplorerPreset('shop')" class="chip explorer-preset">Loja (shopId)</button>
+              <button type="button" data-preset="collection" onclick="applyExplorerPreset('collection')" class="chip explorer-preset">Coleção</button>
+              <button type="button" data-preset="shop" onclick="applyExplorerPreset('shop')" class="chip explorer-preset">Loja</button>
               <button type="button" data-preset="rated" onclick="applyExplorerPreset('rated')" class="chip explorer-preset">Bem avaliados</button>
               <button type="button" data-preset="budget" onclick="applyExplorerPreset('budget')" class="chip explorer-preset">Custo-benefício</button>
             </div>
@@ -1337,30 +1338,30 @@
             <!-- Filter grid -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">
               <div style="grid-column:1 / -1">
-                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Keywords</label>
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Palavras-chave</label>
                 <textarea id="admin-keyword" oninput="updateExplorerKwCount()" placeholder="ex: vestido longo feminino, kit skincare, perfume feminino" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;min-height:60px;resize:vertical;background:#f8fafc">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino</textarea>
                 <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave</div>
               </div>
               <div>
                 <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo de lista</label>
                 <select id="admin-list-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
-                  <option value="0">0 — Recomendados</option>
-                  <option value="1" selected>1 — Maior comissão</option>
-                  <option value="2">2 — Top performance</option>
-                  <option value="3">3 — Landing categoria</option>
-                  <option value="4">4 — Detalhe categoria</option>
-                  <option value="5">5 — Detalhe loja</option>
-                  <option value="6">6 — Detalhe coleção</option>
+                  <option value="0">Recomendados</option>
+                  <option value="1" selected>Maior comissão</option>
+                  <option value="2">Mais vendidos na Shopee</option>
+                  <option value="3">Categoria (página)</option>
+                  <option value="4">Categoria (detalhe)</option>
+                  <option value="5">Loja</option>
+                  <option value="6">Coleção</option>
                 </select>
               </div>
               <div>
                 <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenação</label>
                 <select id="admin-sort-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
-                  <option value="1">1 — Relevância</option>
-                  <option value="2">2 — Mais vendidos</option>
-                  <option value="3">3 — Maior preço</option>
-                  <option value="4">4 — Menor preço</option>
-                  <option value="5" selected>5 — Maior comissão</option>
+                  <option value="1">Relevância</option>
+                  <option value="2">Mais vendidos</option>
+                  <option value="3">Maior preço</option>
+                  <option value="4">Menor preço</option>
+                  <option value="5" selected>Maior comissão</option>
                 </select>
               </div>
               <div>
@@ -1382,12 +1383,12 @@
                 </select>
               </div>
               <div>
-                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Match ID</label>
-                <input id="admin-match-id" type="number" min="1" placeholder="collection/cat" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">ID da coleção ou categoria</label>
+                <input id="admin-match-id" type="number" min="1" placeholder="Cole o ID da oferta oficial" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
               </div>
               <div>
-                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Shop ID</label>
-                <input id="admin-shop-id" type="number" min="1" placeholder="ID da loja" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">ID da loja</label>
+                <input id="admin-shop-id" type="number" min="1" placeholder="ID da loja Shopee" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
               </div>
               <div>
                 <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Comissão mín. %</label>
@@ -1441,18 +1442,62 @@
               <div id="explorer-status" style="font-size:11.5px;color:#64748b">Pronto para buscar</div>
             </div>
             <div id="explorer-preview" style="max-height:520px;overflow-y:auto">
-              <div style="text-align:center;padding:40px 16px;color:#94a3b8;font-size:12px">Escolha um preset ou digite keywords e clique em <strong>Pré-visualizar</strong>.</div>
+              <div style="text-align:center;padding:40px 16px;color:#94a3b8;font-size:12px">Escolha um atalho ou digite palavras-chave e clique em <strong>Pré-visualizar</strong>. Só entram produtos que ainda não estão na vitrine.</div>
             </div>
             <div id="explorer-pagination"></div>
           </div>
         </div>
+      </section>
 
-        <!-- F.1 Cobertura -->
-        <div id="cat-panel-coverage" style="display:none">
+      <!-- Lojas afiliadas -->
+      <section id="admin-view-catalogo-lojas" class="admin-view">
+        <div class="am-card am-section">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Lojas afiliadas</h2>
+              <p style="margin:2px 0 0;font-size:12px;color:#64748b">Busque a loja e pré-visualize os produtos. O que já está na vitrine não entra na lista.</p>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 180px auto;gap:8px;align-items:end;margin-bottom:14px">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da loja</label>
+              <input id="shops-keyword" type="text" placeholder="ex: Nike, O Boticário" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo</label>
+              <select id="shops-type" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                <option value="">Todas</option>
+                <option value="1">Loja oficial</option>
+                <option value="2">Loja estrela</option>
+              </select>
+            </div>
+            <button type="button" onclick="loadAffiliateShops()" class="btn-primary" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Buscar lojas</button>
+          </div>
+          <div id="shops-preview" style="font-size:12px;color:#64748b">Digite o nome e busque. Depois clique em Pré-visualizar produtos da loja.</div>
+        </div>
+      </section>
+
+      <!-- Ofertas oficiais -->
+      <section id="admin-view-catalogo-ofertas" class="admin-view">
+        <div class="am-card am-section">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Ofertas oficiais Shopee</h2>
+              <p style="margin:2px 0 0;font-size:12px;color:#64748b">Coleções e categorias oficiais. Pré-visualizar mostra só o que ainda não está na vitrine.</p>
+            </div>
+            <button type="button" onclick="loadOfficialShopeeOffers()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar</button>
+          </div>
+          <div id="official-offers-box"></div>
+        </div>
+      </section>
+
+      <!-- Completar vitrine -->
+      <section id="admin-view-catalogo-cobertura" class="admin-view">
+        <div id="cat-panel-coverage">
           <div class="am-card am-section">
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px">
               <div>
-                <h2 style="margin:0;font-size:15px;font-weight:700">Cobertura feminina 95/5</h2>
+                <h2 style="margin:0;font-size:15px;font-weight:700">Completar a vitrine (95% feminino)</h2>
                 <p id="coverage-status-line" style="margin:2px 0 0;font-size:12px;color:#64748b">Carregando cobertura…</p>
               </div>
               <div style="display:flex;gap:8px">
@@ -1462,29 +1507,17 @@
             </div>
             <div id="coverage-table" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;font-size:12px;color:#64748b;padding:16px">—</div>
           </div>
-
-          <!-- F.2 Shortlinks -->
-          <div class="am-card">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-              <div>
-                <h2 style="margin:0;font-size:15px;font-weight:700">Links curtos pré-gerados</h2>
-                <p id="shortlink-status-line" style="margin:2px 0 0;font-size:12px;color:#64748b">Verificando…</p>
-              </div>
-              <button type="button" id="btn-shortlink-backfill" onclick="runShortlinkBackfill()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Gerar tudo que falta</button>
-            </div>
-            <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden">
-              <div id="shortlink-status-bar" style="width:0%;height:100%;background:#94a3b8;border-radius:999px"></div>
-            </div>
-          </div>
         </div>
+      </section>
 
-        <!-- F.3 Money queue -->
-        <div id="cat-panel-money" style="display:none">
+      <!-- Mais dinheiro -->
+      <section id="admin-view-catalogo-money" class="admin-view">
+        <div id="cat-panel-money">
           <div class="am-card" style="padding:0;overflow:hidden">
             <div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
               <div>
                 <h2 style="margin:0;font-size:15px;font-weight:700">Mais dinheiro agora</h2>
-                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Top 20 femininos por score (comissão × vendas × nota)</p>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Top 20 femininos por comissão × vendas × nota. Só gera link curto do que já está na vitrine.</p>
               </div>
               <div style="display:flex;gap:8px">
                 <button type="button" onclick="renderMoneyQueue()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Recalcular</button>
@@ -1494,31 +1527,20 @@
             <div id="money-queue-box" style="padding:18px;font-size:12px;color:#64748b">Clique em Recalcular para listar os produtos com maior potencial de comissão.</div>
           </div>
         </div>
+      </section>
 
-        <!-- F.4 / F.5 / F.7 / F.8 Sistema -->
-        <div id="cat-panel-system" style="display:none">
+      <!-- Atualizar catálogo -->
+      <section id="admin-view-catalogo-sync" class="admin-view">
+        <div id="cat-panel-system">
           <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:0">
-            <!-- Categorias vitrine -->
             <div class="am-card">
               <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Categorias da vitrine</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Mapa servidor: categoria + subs + counts</p>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Toque numa subcategoria para buscar na Shopee. Produtos já na vitrine não entram na prévia.</p>
               <div id="admin-categories-panel" style="display:flex;flex-direction:column;gap:8px"></div>
             </div>
-            <!-- Ofertas oficiais -->
             <div class="am-card">
-              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
-                <div>
-                  <h2 style="margin:0;font-size:15px;font-weight:700">Ofertas oficiais Shopee</h2>
-                  <p style="margin:2px 0 0;font-size:12px;color:#64748b">shopeeOfferV2 · distinto de campanhas</p>
-                </div>
-                <button onclick="loadOfficialShopeeOffers()" class="btn-ghost" style="padding:6px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Atualizar</button>
-              </div>
-              <div id="official-offers-box"></div>
-            </div>
-            <!-- Sync categoria -->
-            <div class="am-card">
-              <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Sync por categoria</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Selecione uma categoria e o nº de páginas</p>
+              <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Atualizar por categoria</h2>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Busca ofertas novas desta categoria. Não duplica o que já está publicado.</p>
               <div style="display:grid;grid-template-columns:1fr 100px;gap:8px">
                 <select id="admin-cat-sync" style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"></select>
                 <select id="admin-cat-pages" style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
@@ -1528,24 +1550,40 @@
               </select>
               </div>
               <div style="display:flex;gap:8px;margin-top:10px">
-                <button id="btn-sync-cat" onclick="adminSyncCategory()" class="btn-primary" style="flex:1;padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Sincronizar</button>
-                <button type="button" onclick="applyExplorerPreset('bestsellers'); const sel=document.getElementById('admin-cat-sync'); if(sel?.value){ const opt=sel.options[sel.selectedIndex]; document.getElementById('admin-keyword').value = (opt?.text||'').replace(/\s*\(\d+\)\s*$/,'').trim(); }" class="btn-ghost" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Usar no Explorador</button>
+                <button id="btn-sync-cat" onclick="adminSyncCategory()" class="btn-primary" style="flex:1;padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar categoria</button>
+                <button type="button" onclick="previewCategoryInExplorer()" class="btn-ghost" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Pré-visualizar</button>
               </div>
               <div id="cat-sync-status" style="margin-top:10px;font-size:11.5px;color:#64748b"></div>
             </div>
-            <!-- Alimentação automática -->
             <div class="am-card">
               <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
                 <h2 style="margin:0;font-size:15px;font-weight:700">Alimentação automática</h2>
                 <span id="auto-enabled-badge" style="font-size:10px;padding:3px 9px;background:#ecfdf5;color:#059669;border-radius:999px;font-weight:700">ATIVO</span>
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-                <button onclick="runAutoSyncNow()" class="btn-dark" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Sync agora</button>
+                <button onclick="runAutoSyncNow()" class="btn-dark" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Atualizar agora</button>
                 <button onclick="runTopPerformanceNow()" class="btn-ghost" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Destaques</button>
                 <button onclick="resetVitrineAndRefill()" class="btn-ghost" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Resetar e reencher</button>
               </div>
               <div id="auto-status-box" style="background:#0b1220;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;border-radius:8px;min-height:80px;line-height:1.6">Carregando status…</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Links curtos -->
+      <section id="admin-view-catalogo-shortlinks" class="admin-view">
+        <div class="am-card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Links curtos</h2>
+              <p id="shortlink-status-line" style="margin:2px 0 0;font-size:12px;color:#64748b">Verificando…</p>
+            </div>
+            <button type="button" id="btn-shortlink-backfill" onclick="runShortlinkBackfill()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Gerar o que falta</button>
+          </div>
+          <p style="margin:0 0 12px;font-size:12px;color:#64748b">Atualiza só produtos que já estão na vitrine e ainda não têm link curto.</p>
+          <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden">
+            <div id="shortlink-status-bar" style="width:0%;height:100%;background:#94a3b8;border-radius:999px"></div>
           </div>
         </div>
       </section>
@@ -1925,62 +1963,57 @@
         </div>
       </section>
 
-      <!-- ============ VIEW: FERRAMENTAS ============ -->
-      <section id="admin-view-ferramentas" class="admin-view">
+      <!-- Atualizações em lote -->
+      <section id="admin-view-catalogo-feeds" class="admin-view">
         <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:0">
-
-          <!-- Feed inventory -->
           <div class="am-card" style="padding:20px">
-            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Inventário de feeds</h2>
-            <p style="margin:0 0 14px;font-size:12px;color:#64748b">listItemFeeds — histórico de execuções</p>
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Histórico de atualizações</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Veja as últimas atualizações completas ou só do que mudou.</p>
             <div style="display:flex;gap:8px;margin-bottom:14px">
-              <select id="feed-inventory-mode" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"><option value="">Todos</option><option value="FULL">Completo</option><option value="DELTA">Incremental</option></select>
+              <select id="feed-inventory-mode" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"><option value="">Todas</option><option value="FULL">Atualização completa</option><option value="DELTA">Só o que mudou</option></select>
               <button type="button" onclick="loadFeedInventory()" class="btn-primary" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Carregar</button>
             </div>
             <div id="feed-inventory-result"></div>
           </div>
-
-          <!-- Run feed -->
           <div class="am-card" style="padding:20px">
-            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Executar feed</h2>
-            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Rodar feed FULL ou DELTA agora</p>
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Rodar atualização</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Completa relê o catálogo. Incremental puxa só o que mudou. Não duplica o que já está na vitrine.</p>
             <div style="display:flex;gap:8px;margin-bottom:14px">
-              <button onclick="runFeed('feed-full')" class="btn-dark" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Feed Completo</button>
-              <button onclick="runFeed('feed-delta')" class="btn-primary" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Feed Incremental</button>
+              <button onclick="runFeed('feed-full')" class="btn-dark" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualização completa</button>
+              <button onclick="runFeed('feed-delta')" class="btn-primary" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Só o que mudou</button>
             </div>
             <div id="feed-result" style="padding:12px;background:#0b1220;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:8px;min-height:60px">Aguardando execução…</div>
           </div>
+        </div>
+      </section>
 
-          <!-- Reverify metrics -->
+      <!-- Saúde da Shopee -->
+      <section id="admin-view-catalogo-saude" class="admin-view">
+        <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:0">
           <div class="am-card" style="padding:20px">
-            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Reverify métricas</h2>
-            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Atualiza sales/rating/comissão % no banco</p>
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Atualizar preços e comissão</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Atualiza vendas, nota e comissão dos produtos que já estão na vitrine.</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-              <div><label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase">Batch</label><input id="refresh-metrics-batch" type="number" value="60" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/></div>
-              <div><label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase">Stale (h)</label><input id="refresh-metrics-stale" type="number" value="12" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/></div>
+              <div><label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase">Quantidade</label><input id="refresh-metrics-batch" type="number" value="60" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/></div>
+              <div><label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase">Horas sem atualizar</label><input id="refresh-metrics-stale" type="number" value="12" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/></div>
             </div>
-            <button onclick="runRefreshMetrics()" class="btn-primary" style="width:100%;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Rodar reverify</button>
+            <button onclick="runRefreshMetrics()" class="btn-primary" style="width:100%;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar preços e comissão</button>
           </div>
-
-          <!-- Diagnostic -->
           <div class="am-card" style="padding:20px">
-            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Saúde da API Shopee</h2>
-            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Últimas chamadas GraphQL</p>
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Saúde da Shopee</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Últimas consultas à Shopee — para ver se a conexão está ok.</p>
             <button onclick="loadShopeeHealth()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;margin-bottom:12px">Atualizar</button>
             <div id="shopee-health-result"></div>
           </div>
-
-          <!-- Validated commission -->
           <div class="am-card" style="padding:20px">
-            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Comissão validada</h2>
-            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Consultar validatedReport por ID</p>
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Comissão já paga</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Consulte pelo ID do pedido na Shopee.</p>
             <div style="display:flex;gap:8px">
-              <input id="validated-id" type="text" placeholder="Item/Order ID" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
-              <button onclick="loadValidatedReport()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Consultar</button>
+              <input id="validated-id" type="text" placeholder="ID do pedido" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
+              <button onclick="loadValidatedReport()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Consultar comissão paga</button>
             </div>
             <div id="validated-result" style="margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;font-size:11.5px;color:#64748b;min-height:60px">Nenhuma consulta</div>
           </div>
-
         </div>
       </section>
 

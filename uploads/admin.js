@@ -33,9 +33,17 @@
     const sortByMoney = (...a) => AM.sortByMoney(...a);
 
     const EXPLORER_PRESETS = {
+        female_9: {
+            listType: 1, sortType: 5, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 9,
+            keywords: "vestido longo feminino, kit skincare, bolsa transversal feminina, conjunto fitness feminino, perfume feminino, sandalia feminina, lingerie feminina, colageno hidrolisado",
+        },
         female_money: {
             listType: 1, sortType: 5, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 5,
             keywords: "vestido longo feminino, kit skincare, bolsa transversal feminina, conjunto fitness feminino, perfume feminino, sandalia feminina, lingerie feminina, colageno hidrolisado",
+        },
+        diverse_5: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 30, requireCommission: true, minCommissionPct: 5,
+            keywords: "organizador cozinha, tapete pet, lampada led, cabo usb, suporte celular, caixa organizadora",
         },
         bestsellers: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 50, requireCommission: true, minCommissionPct: 0,
@@ -67,9 +75,25 @@
         },
     };
     const LIST_TYPE_LABELS_UI = {
-        0: "Recomendados", 1: "Maior comissão", 2: "Top performance",
-        3: "Landing categoria", 4: "Detalhe categoria", 5: "Detalhe loja", 6: "Detalhe coleção",
+        0: "Recomendados", 1: "Maior comissão", 2: "Mais vendidos na Shopee",
+        3: "Categoria", 4: "Categoria detalhe", 5: "Loja", 6: "Coleção",
     };
+    const EXPLORER_PRESET_LABELS = {
+        female_9: "Feminino 9%",
+        female_money: "Feminino + comissão",
+        diverse_5: "Diverso 5%",
+        bestsellers: "Mais vendidos",
+        topperf: "Mais vendidos na Shopee",
+        commission: "Maior comissão",
+        collection: "Coleção",
+        shop: "Loja",
+        rated: "Bem avaliados",
+        budget: "Custo-benefício",
+    };
+    const CATALOGO_VIEWS = new Set([
+        "catalogo-explorador", "catalogo-lojas", "catalogo-ofertas", "catalogo-cobertura",
+        "catalogo-money", "catalogo-sync", "catalogo-feeds", "catalogo-shortlinks", "catalogo-saude",
+    ]);
     const SORT_TYPE_LABELS_UI = {
         1: "Relevância", 2: "Mais vendidos", 3: "Maior preço", 4: "Menor preço", 5: "Maior comissão",
     };
@@ -107,6 +131,7 @@
     let explorerProducts = [];
     let explorerSelected = new Set();
     let explorerBusy = false;
+    let explorerSkippedExisting = 0;
     let adminSearchTerm = "";
     let adminFilterCategory = "";
     let adminFilterType = "";
@@ -126,14 +151,23 @@
     const ADMIN_VIEWS = {
         dashboard: { title: "Dashboard", subtitle: "Visão geral da operação de afiliados" },
         "vitrine-preview": { title: "Preview Index", subtitle: "Vitrine pública ao vivo — desktop, tablet e mobile" },
-        catalogo: { title: "Catálogo & Sync", subtitle: "Sincronize ofertas da Shopee" },
+        catalogo: { title: "Buscar na Shopee", subtitle: "Pré-visualiza só o que ainda não está na vitrine" },
+        "catalogo-explorador": { title: "Buscar na Shopee", subtitle: "Pré-visualiza só o que ainda não está na vitrine" },
+        "catalogo-lojas": { title: "Lojas afiliadas", subtitle: "Busque a loja e pré-visualize produtos novos" },
+        "catalogo-ofertas": { title: "Ofertas oficiais", subtitle: "Coleções da Shopee — só o que falta na vitrine" },
+        "catalogo-cobertura": { title: "Completar vitrine", subtitle: "Preenche lacunas sem duplicar o que já está publicado" },
+        "catalogo-money": { title: "Mais dinheiro", subtitle: "Produtos da vitrine com maior potencial de comissão" },
+        "catalogo-sync": { title: "Atualizar catálogo", subtitle: "Atualiza categorias. Não duplica o que já existe" },
+        "catalogo-feeds": { title: "Atualizações em lote", subtitle: "Atualização completa ou só o que mudou" },
+        "catalogo-shortlinks": { title: "Links curtos", subtitle: "Gera o link curto que falta nos produtos da vitrine" },
+        "catalogo-saude": { title: "Saúde da Shopee", subtitle: "Preços, comissão e conexão com a Shopee" },
         produtos: { title: "Produtos", subtitle: "Gerencie o catálogo da vitrine" },
         duplicados: { title: "Remover duplicados", subtitle: "Limpe itens repetidos" },
         campanhas: { title: "Campanhas", subtitle: "Converta o produto e obtenha o link do popup com Pixel" },
         "campanha-desempenho": { title: "Desempenho de campanhas", subtitle: "Resultados por Sub ID" },
         desempenho: { title: "Desempenho geral", subtitle: "Conversões e comissões por Sub ID" },
         "meu-site": { title: "Meu Site", subtitle: "Vendas atribuídas à vitrine pública" },
-        ferramentas: { title: "Ferramentas", subtitle: "Feed, reverify e utilitários" },
+        ferramentas: { title: "Atualizações em lote", subtitle: "Atualização completa ou só o que mudou" },
     };
 
         function getAdminToken() {
@@ -368,6 +402,8 @@
                 "campanhas-desempenho": "campanha-desempenho",
                 preview: "vitrine-preview",
                 "preview-index": "vitrine-preview",
+                catalogo: "catalogo-explorador",
+                ferramentas: "catalogo-feeds",
             };
             if (legacyMap[view]) view = legacyMap[view];
             if (!ADMIN_VIEWS[view]) view = "dashboard";
@@ -409,37 +445,23 @@
             });
         }
 
+        function toggleCatalogoSubmenu(forceOpen) {
+            const sub = document.getElementById("nav-catalogo-submenu");
+            const toggle = document.getElementById("nav-catalogo-toggle");
+            if (!sub) return;
+            const open = forceOpen === undefined ? !sub.classList.contains("open") : !!forceOpen;
+            sub.classList.toggle("open", open);
+            if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+
         function switchCatalogTab(tab) {
-            const tabs = ["explorer", "coverage", "money", "system"];
-            const key = tabs.includes(tab) ? tab : "explorer";
-            document.querySelectorAll("#catalog-tabs .cat-tab, #catalog-tabs [data-tab]").forEach((btn) => {
-                const on = btn.dataset.tab === key;
-                btn.classList.toggle("active", on);
-                if (on) {
-                    btn.style.background = "#fff";
-                    btn.style.color = "#0f172a";
-                    btn.style.fontWeight = "600";
-                } else {
-                    btn.style.background = "transparent";
-                    btn.style.color = "#475569";
-                    btn.style.fontWeight = "500";
-                }
-            });
-            tabs.forEach((t) => {
-                const panel = document.getElementById("cat-panel-" + t);
-                if (panel) panel.style.display = t === key ? "block" : "none";
-            });
-            if (key === "coverage") {
-                loadCoverageReport();
-                loadShortlinkStatus();
-            } else if (key === "money") {
-                renderMoneyQueue();
-            } else if (key === "system") {
-                populateAdminCategorySelect();
-                renderAdminCategoriesPanel();
-                loadAutoStatus();
-                loadOfficialShopeeOffers();
-            }
+            const map = {
+                explorer: "catalogo-explorador",
+                coverage: "catalogo-cobertura",
+                money: "catalogo-money",
+                system: "catalogo-sync",
+            };
+            switchAdminView(map[tab] || "catalogo-explorador");
         }
 
         function switchAdminView(view, opts = {}) {
@@ -447,6 +469,8 @@
                 navigateTo(`/admin/${view || "dashboard"}`);
                 return;
             }
+            if (view === "catalogo") view = "catalogo-explorador";
+            if (view === "ferramentas") view = "catalogo-feeds";
             if (!ADMIN_VIEWS[view]) view = "dashboard";
 
             document.querySelectorAll(".admin-view").forEach(el => el.classList.remove("active"));
@@ -456,6 +480,7 @@
             document.querySelectorAll(".admin-nav-item[data-admin-view], .nav-item[data-admin-view]").forEach(btn => {
                 btn.classList.toggle("active", btn.dataset.adminView === view);
             });
+            toggleCatalogoSubmenu(CATALOGO_VIEWS.has(view));
 
             const meta = ADMIN_VIEWS[view];
             const titleEl = document.getElementById("admin-page-title");
@@ -481,12 +506,30 @@
                     iframe.src = "/";
                 }
                 setPreviewDevice("desktop");
-            } else if (view === "catalogo") {
+            } else if (view === "catalogo-explorador") {
                 populateAdminCategorySelect();
+                updateExplorerKwCount();
+                updateExplorerModeHint();
+            } else if (view === "catalogo-lojas") {
+                if (!document.getElementById("shops-preview")?.dataset.loaded) {
+                    loadAffiliateShops();
+                }
+            } else if (view === "catalogo-ofertas") {
+                loadOfficialShopeeOffers();
+            } else if (view === "catalogo-cobertura") {
+                loadCoverageReport();
+            } else if (view === "catalogo-money") {
+                renderMoneyQueue();
+            } else if (view === "catalogo-sync") {
+                populateAdminCategorySelect();
+                renderAdminCategoriesPanel();
                 loadAutoStatus();
+            } else if (view === "catalogo-shortlinks") {
                 loadShortlinkStatus();
-                applyExplorerPreset('bestsellers');
-                switchCatalogTab("explorer");
+            } else if (view === "catalogo-feeds") {
+                loadFeedInventory();
+            } else if (view === "catalogo-saude") {
+                loadShopeeHealth();
             } else if (view === "produtos") {
                 adminPage = 1;
                 populateAdminProductCategoryFilter();
@@ -508,10 +551,6 @@
                 loadConversions({ reset: true, pull: true });
             } else if (view === "meu-site") {
                 loadMeuSiteSummary({ pull: true });
-            } else if (view === "ferramentas") {
-                // Inventário de feeds é barato (1 request), útil na abertura.
-                loadFeedInventory();
-                loadShopeeHealth();
             }
         }
 
@@ -582,13 +621,13 @@
             let extra = "";
             if ([3, 4, 6].includes(lt)) {
                 extra = matchId
-                    ? ` · matchId <strong class="text-slate-700">${escapeHtml(matchId)}</strong>`
-                    : ` · <span class="text-amber-700 font-bold">informe matchId</span> (coleção/categoria oficial)`;
+                    ? ` · coleção/categoria <strong class="text-slate-700">${escapeHtml(matchId)}</strong>`
+                    : ` · <span class="text-amber-700 font-bold">informe o ID da coleção ou categoria</span>`;
             }
             if (lt === 5) {
                 extra = shopId
-                    ? ` · shopId <strong class="text-slate-700">${escapeHtml(shopId)}</strong>`
-                    : ` · <span class="text-amber-700 font-bold">informe shopId</span>`;
+                    ? ` · loja <strong class="text-slate-700">${escapeHtml(shopId)}</strong>`
+                    : ` · <span class="text-amber-700 font-bold">informe o ID da loja</span>`;
             }
             hint.innerHTML = `Modo: <strong class="text-slate-700">${LIST_TYPE_LABELS_UI[lt] || lt}</strong> · ordenado por <strong class="text-slate-700">${SORT_TYPE_LABELS_UI[st] || st}</strong>${extra}`;
         }
@@ -615,9 +654,9 @@
             });
             updateExplorerKwCount();
             updateExplorerModeHint();
-            if (p.matchIdHint) showToast("Cole o collectionId/categoryId no campo matchId (Ofertas oficiais)", "info");
-            else if (p.shopIdHint) showToast("Cole o shopId da loja no campo shopId", "info");
-            else showToast(`Preset: ${name}`, "success");
+            if (p.matchIdHint) showToast("Cole o ID da coleção ou categoria (Ofertas oficiais)", "info");
+            else if (p.shopIdHint) showToast("Cole o ID da loja Shopee", "info");
+            else showToast(`Atalho: ${EXPLORER_PRESET_LABELS[name] || name}`, "success");
         }
 
         function getExplorerFormParams() {
@@ -699,12 +738,33 @@
             setExplorerStatus("info", "Busca cancelada. Os resultados já obtidos foram mantidos.");
         }
 
+        function productItemId(p) {
+            return String(p?.itemId || p?.item_id || p?.id || "");
+        }
+
+        function filterProductsNotInVitrine(products) {
+            const existing = new Set();
+            for (const p of AM.productsDatabase || []) {
+                const id = productItemId(p);
+                if (id) existing.add(id);
+            }
+            const fresh = [];
+            let skippedExisting = 0;
+            for (const p of products || []) {
+                const id = productItemId(p);
+                if (id && existing.has(id)) skippedExisting += 1;
+                else fresh.push(p);
+            }
+            return { products: fresh, skippedExisting };
+        }
+
         function renderExplorerPreview(products, meta = {}) {
             const box = document.getElementById("explorer-preview");
             if (!box) return;
             const sorted = sortByMoney(Array.isArray(products) ? products : []);
             explorerProducts = sorted;
-            explorerSelected = new Set(explorerProducts.map((p) => String(p.itemId || p.id)));
+            explorerSkippedExisting = Number(meta.skippedExisting) || 0;
+            explorerSelected = new Set(explorerProducts.map((p) => productItemId(p)));
             const selAll = document.getElementById("explorer-select-all");
             if (selAll) selAll.checked = explorerProducts.length > 0;
 
@@ -712,8 +772,9 @@
                 box.innerHTML = `
                     <div class="text-center py-8 text-slate-400 text-[11px]">
                         <i class="fas fa-inbox text-2xl text-slate-300 mb-2 block"></i>
-                        Nenhum produto na prévia.
-                        ${meta.rateLimited ? "<br><strong class='text-orange-700'>Possível rate-limit da Shopee — aguarde e tente de novo.</strong>" : ""}
+                        Nenhum produto novo na prévia.
+                        ${explorerSkippedExisting ? `<br><strong class="text-slate-600">${explorerSkippedExisting} já estavam na vitrine</strong> e foram ocultos.` : ""}
+                        ${meta.rateLimited ? "<br><strong class='text-orange-700'>Possível limite da Shopee — aguarde e tente de novo.</strong>" : ""}
                         ${meta.filteredOut ? `<br>${meta.filteredOut} itens filtrados pelos critérios de qualidade.` : ""}
                     </div>`;
                 updateExplorerSelectionMeta();
@@ -777,7 +838,10 @@
         function updateExplorerSelectionMeta() {
             const meta = document.getElementById("explorer-selection-meta");
             const btn = document.getElementById("btn-explorer-save");
-            if (meta) meta.textContent = `${explorerSelected.size} selecionados · ${explorerProducts.length} na prévia`;
+            if (meta) {
+                const skip = explorerSkippedExisting ? ` · ${explorerSkippedExisting} já na vitrine` : "";
+                meta.textContent = `${explorerSelected.size} selecionados · ${explorerProducts.length} novos na prévia${skip}`;
+            }
             if (btn) btn.disabled = explorerSelected.size === 0;
         }
 
@@ -787,18 +851,18 @@
             const needsMatch = [3, 4, 6].includes(params.listType);
             const needsShop = params.listType === 5;
             if (needsMatch && !params.matchId) {
-                setExplorerStatus("error", "listType 3/4/6 exige <strong>matchId</strong> (collectionId ou categoryId das Ofertas oficiais).");
-                showToast("Informe o matchId", "error");
+                setExplorerStatus("error", "Este tipo de busca exige o <strong>ID da coleção ou categoria</strong> (em Ofertas oficiais).");
+                showToast("Informe o ID da coleção ou categoria", "error");
                 return;
             }
             if (needsShop && !params.shopId) {
-                setExplorerStatus("error", "listType 5 exige <strong>shopId</strong> da loja Shopee.");
-                showToast("Informe o shopId", "error");
+                setExplorerStatus("error", "Este tipo de busca exige o <strong>ID da loja</strong>.");
+                showToast("Informe o ID da loja", "error");
                 return;
             }
             if (!params.keywords.length && !params.matchId && !params.shopId) {
-                setExplorerStatus("error", "Informe keyword(s), matchId ou shopId.");
-                showToast("Digite uma keyword ou ID", "error");
+                setExplorerStatus("error", "Informe palavras-chave, ID da coleção/categoria ou ID da loja.");
+                showToast("Digite uma palavra-chave ou ID", "error");
                 return;
             }
 
@@ -844,14 +908,20 @@
                     return;
                 }
                 setExplorerProgress(true, 100, "Pronto");
-                renderExplorerPreview(data.products || [], data);
+                let products = data.products || [];
+                const extra = filterProductsNotInVitrine(products);
+                products = extra.products;
+                const skipped = extra.skippedExisting || Number(data.skippedExisting) || 0;
+                renderExplorerPreview(products, { ...data, skippedExisting: skipped });
                 const savedBit = sync && data.saved ? ` · <strong>${data.saved} salvos</strong>` : "";
+                const skipBit = skipped ? ` · <strong>${skipped} já estavam na vitrine</strong>` : "";
                 setExplorerStatus(
-                    data.count ? "success" : "empty",
-                    `${data.count || 0} produtos · ${modeLabel}${data.filteredOut ? ` · ${data.filteredOut} filtrados` : ""}${savedBit}${data.rateLimited ? " · rate-limit" : ""}`
+                    products.length ? "success" : "empty",
+                    `${products.length} novos · ${modeLabel}${skipBit}${data.filteredOut ? ` · ${data.filteredOut} filtrados` : ""}${savedBit}${data.rateLimited ? " · limite da Shopee" : ""}`
                 );
+                if (skipped && !sync) showToast(`${products.length} novos · ${skipped} já estavam na vitrine`, products.length ? "success" : "info");
                 if (sync && data.saved) {
-                    showToast(`Salvos ${data.saved} com shortlink`, "success");
+                    showToast(`${data.saved} novos · ${skipped || data.skippedExisting || 0} já estavam`, "success");
                     await loadOffersFromSupabase({ silent: true, reset: true });
                     loadShortlinkStatus();
                     renderMoneyQueue();
@@ -3634,10 +3704,10 @@
             if (!box) return;
             box.innerHTML = '<p class="text-slate-400"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando oficiais…</p>';
             try {
-                const res = await fetch(`${API_BASE}/api/campanhas?limit=20`);
+                const res = await adminFetch(`${API_BASE}/api/admin/shopee/campaigns?limit=20`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-                const items = data.campaigns || data.offers || data.nodes || [];
+                const items = data.nodes || data.campaigns || data.offers || [];
                 if (!items.length) {
                     box.innerHTML = '<p class="text-slate-400">Nenhuma oferta oficial retornada agora.</p>';
                     return;
@@ -3646,22 +3716,20 @@
                 box.innerHTML = `
                     <div class="flex justify-between items-center mb-2">
                         <span class="font-bold text-slate-700">${items.length} ofertas</span>
-                        <button type="button" onclick="importOfficialShopeeOffers()" class="px-3 py-1.5 rounded-lg bg-shopee-orange text-white text-[10px] font-bold">Importar todas</button>
                     </div>
-                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="space-y-2 max-h-[520px] overflow-y-auto">
                         ${items.slice(0, 20).map((c, i) => {
                             const collectionId = c.collectionId || c.collection_id || '';
                             const categoryId = c.categoryId || c.category_id || '';
                             const match = collectionId || categoryId;
-                            const lt = collectionId ? 6 : 4;
                             return `
                             <div class="border border-slate-100 rounded-lg p-2 flex gap-2">
                                 <img src="${escapeHtml(c.imageUrl || c.image || '')}" class="w-10 h-10 rounded object-cover bg-slate-100" onerror="this.style.display='none'">
                                 <div class="min-w-0 flex-1">
-                                    <p class="font-bold text-slate-800 text-[11px] line-clamp-2">${escapeHtml(c.title || c.productName || c.name || 'Oferta')}</p>
-                                    <p class="text-[10px] text-slate-400">${match ? `ID ${escapeHtml(String(match))} · listType ${lt}` : 'sem matchId'}</p>
+                                    <p class="font-bold text-slate-800 text-[11px] line-clamp-2">${escapeHtml(c.offerName || c.title || c.productName || c.name || 'Oferta')}</p>
+                                    <p class="text-[10px] text-slate-400">${match ? `ID ${escapeHtml(String(match))}` : 'sem ID de coleção'}${c.commissionRate ? ` · ${escapeHtml(String(c.commissionRate))}` : ''}</p>
                                 </div>
-                                ${match ? `<button type="button" onclick="useOfficialInExplorer(${i})" class="shrink-0 px-2 py-1 rounded bg-slate-800 text-white text-[10px] font-bold">Explorador</button>` : ''}
+                                ${match ? `<button type="button" onclick="useOfficialInExplorer(${i})" class="shrink-0 px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold">Pré-visualizar</button>` : ''}
                             </div>`;
                         }).join('')}
                     </div>`;
@@ -3676,21 +3744,24 @@
             const collectionId = c.collectionId || c.collection_id;
             const categoryId = c.categoryId || c.category_id;
             const match = collectionId || categoryId;
-            if (!match) return showToast('Oferta sem collectionId/categoryId', 'error');
+            if (!match) return showToast('Oferta sem ID de coleção ou categoria', 'error');
             const matchEl = document.getElementById('admin-match-id');
             const lt = document.getElementById('admin-list-type');
             const st = document.getElementById('admin-sort-type');
             const kw = document.getElementById('admin-keyword');
             const rc = document.getElementById('admin-require-commission');
+            const shopEl = document.getElementById('admin-shop-id');
             if (matchEl) matchEl.value = String(match);
             if (lt) lt.value = collectionId ? '6' : '4';
             if (st) st.value = '5';
             if (kw) kw.value = '';
             if (rc) rc.checked = true;
+            if (shopEl) shopEl.value = '';
             updateExplorerKwCount();
             updateExplorerModeHint();
-            document.getElementById('admin-match-id')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast('matchId no Explorador — clique Pré-visualizar', 'success');
+            switchAdminView("catalogo-explorador");
+            showToast("Pré-visualizando a coleção — só o que ainda não está na vitrine", "info");
+            runExplorerSearch({ sync: false });
         }
 
         async function importOfficialShopeeOffers() {
@@ -4146,10 +4217,10 @@
             }
             updateExplorerKwCount();
             updateExplorerModeHint();
-            switchAdminView("catalogo");
-            switchCatalogTab("explorer");
+            switchAdminView("catalogo-explorador");
             document.getElementById('admin-keyword')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast('Keywords no Explorador — clique Pré-visualizar', 'success');
+            showToast('Pré-visualizando — só produtos novos', 'success');
+            runExplorerSearch({ sync: false });
         }
 
         async function moneyQueueShortlinkTop() {
@@ -4200,10 +4271,103 @@
             if (rc) rc.checked = true;
             updateExplorerKwCount();
             updateExplorerModeHint();
-            switchAdminView("catalogo");
-            switchCatalogTab("explorer");
+            switchAdminView("catalogo-explorador");
             document.getElementById('admin-keyword')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast(`${kws.length} keywords de ${cat.label} no Explorador`, 'success');
+            showToast(`${kws.length} palavras-chave de ${cat.label} — pré-visualizando`, 'success');
+            runExplorerSearch({ sync: false });
+        }
+
+        function shopTypeLabel(t) {
+            const n = Number(t);
+            if (n === 1) return "Loja oficial";
+            if (n === 2) return "Loja estrela";
+            if (n === 3) return "Internacional";
+            return "Loja";
+        }
+
+        async function loadAffiliateShops() {
+            const box = document.getElementById("shops-preview");
+            if (!box) return;
+            const keyword = String(document.getElementById("shops-keyword")?.value || "").trim();
+            const shopType = String(document.getElementById("shops-type")?.value || "").trim();
+            box.innerHTML = '<p class="text-slate-400"><i class="fas fa-spinner fa-spin mr-1"></i> Buscando lojas…</p>';
+            try {
+                const qs = new URLSearchParams({ limit: "20", sortType: "2" });
+                if (keyword) qs.set("keyword", keyword);
+                if (shopType) qs.set("shopType", shopType);
+                const res = await adminFetch(`${API_BASE}/api/admin/shopee/shops?${qs}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                const items = data.nodes || [];
+                box.dataset.loaded = "1";
+                if (!items.length) {
+                    box.innerHTML = '<p class="text-slate-400">Nenhuma loja encontrada. Tente outro nome.</p>';
+                    return;
+                }
+                window.__affiliateShops = items;
+                box.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-slate-700">${items.length} lojas</span>
+                    </div>
+                    <div class="space-y-2">
+                        ${items.map((s, i) => {
+                            const id = s.shopId || s.shop_id || "";
+                            const comm = s.commissionRate != null ? String(s.commissionRate) : "—";
+                            return `
+                            <div class="border border-slate-100 rounded-lg p-2 flex gap-2 items-center">
+                                <img src="${escapeHtml(s.imageUrl || s.image || "")}" class="w-10 h-10 rounded object-cover bg-slate-100" onerror="this.style.display='none'">
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-bold text-slate-800 text-[12px] truncate">${escapeHtml(s.shopName || s.shop_name || "Loja")}</p>
+                                    <p class="text-[10px] text-slate-400">${escapeHtml(shopTypeLabel(s.shopType))} · comissão ${escapeHtml(comm)}${id ? ` · ID ${escapeHtml(String(id))}` : ""}</p>
+                                </div>
+                                ${id ? `<button type="button" onclick="previewShopInExplorer('${String(id).replace(/'/g, "")}')" class="shrink-0 px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold">Pré-visualizar</button>` : ""}
+                            </div>`;
+                        }).join("")}
+                    </div>`;
+            } catch (err) {
+                box.innerHTML = `<p class="text-red-600">Falha: ${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        function previewShopInExplorer(shopId) {
+            const shopEl = document.getElementById("admin-shop-id");
+            const lt = document.getElementById("admin-list-type");
+            const st = document.getElementById("admin-sort-type");
+            const kw = document.getElementById("admin-keyword");
+            const rc = document.getElementById("admin-require-commission");
+            const mc = document.getElementById("admin-min-commission");
+            if (shopEl) shopEl.value = String(shopId || "");
+            if (lt) lt.value = "5";
+            if (st) st.value = "5";
+            if (kw) kw.value = "";
+            const matchEl = document.getElementById("admin-match-id");
+            if (matchEl) matchEl.value = "";
+            if (rc) rc.checked = true;
+            if (mc) mc.value = "9";
+            updateExplorerKwCount();
+            updateExplorerModeHint();
+            switchAdminView("catalogo-explorador");
+            showToast("Pré-visualizando produtos da loja — só os novos", "info");
+            runExplorerSearch({ sync: false });
+        }
+
+        function previewCategoryInExplorer() {
+            const sel = document.getElementById("admin-cat-sync");
+            const label = sel?.value
+                ? String(sel.options[sel.selectedIndex]?.text || "").replace(/\s*\(\d+\)\s*$/, "").trim()
+                : "";
+            applyExplorerPreset("bestsellers");
+            const matchEl = document.getElementById("admin-match-id");
+            const shopEl = document.getElementById("admin-shop-id");
+            if (matchEl) matchEl.value = "";
+            if (shopEl) shopEl.value = "";
+            if (label) {
+                const kwEl = document.getElementById("admin-keyword");
+                if (kwEl) kwEl.value = label;
+                updateExplorerKwCount();
+            }
+            switchAdminView("catalogo-explorador");
+            runExplorerSearch({ sync: false });
         }
 
         function copyTextToClipboard(text, successMsg) {
@@ -4236,8 +4400,8 @@
                         <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                             <span class="font-bold text-slate-700">${fem ? '♀' : '·'} ${escapeHtml(c.label)} <span class="text-slate-400 font-normal">${c.count || 0}</span></span>
                             <div class="flex gap-1">
-                                <button type="button" onclick="loadCategoryKeywordsToExplorer('${c.id}')" class="px-2 py-1 rounded bg-pink-50 text-pink-700 text-[10px] font-bold hover:bg-pink-100">Keywords → Explorador</button>
-                                <button type="button" onclick="document.getElementById('admin-cat-sync').value='${c.id}'; adminSyncCategory()" class="px-2 py-1 rounded bg-slate-800 text-white text-[10px] font-bold hover:bg-slate-700">Sync</button>
+                                <button type="button" onclick="loadCategoryKeywordsToExplorer('${c.id}')" class="px-2 py-1 rounded bg-pink-50 text-pink-700 text-[10px] font-bold hover:bg-pink-100">Pré-visualizar</button>
+                                <button type="button" onclick="document.getElementById('admin-cat-sync').value='${c.id}'; adminSyncCategory()" class="px-2 py-1 rounded bg-slate-800 text-white text-[10px] font-bold hover:bg-slate-700">Atualizar</button>
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-1">${subs || '<span class="text-slate-400">Sem subs</span>'}</div>
@@ -4282,6 +4446,8 @@
         updateSingleAffiliateLink, openNewProductForm, closeNewProductForm, saveNewProduct,
         runShortlinkBackfill, runAutoSyncNow, runTopPerformanceNow, adminSyncCategory,
         loadOfficialShopeeOffers, useOfficialInExplorer, importOfficialShopeeOffers,
+        loadAffiliateShops, previewShopInExplorer, previewCategoryInExplorer,
+        toggleCatalogoSubmenu,
         loadCoverageReport, runCoverageFill, scanCatalogDuplicates, removeCatalogDuplicates,
         scanWeakOffers, purgeWeakOffers, refreshTopOffers, prioritizeConversionWinners,
         loadConversionSummary, moneyQueueFind, moneyQueueMakeShortlink, moneyQueueCopyLink,

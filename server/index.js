@@ -555,6 +555,25 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
       ofertasCache.clear();
     }
 
+    let products = Array.isArray(batch.products) ? batch.products : [];
+    const previewIds = products
+      .map((p) => Number(p.itemId ?? p.id))
+      .filter((n) => Number.isSafeInteger(n) && n > 0);
+    if (previewIds.length) {
+      const existingRows = await getOffersByItemIds(previewIds, { full: false });
+      const existing = new Set((existingRows || []).map((r) => String(r.item_id)));
+      const fresh = [];
+      let hidden = 0;
+      for (const p of products) {
+        const id = String(p.itemId ?? p.id ?? "");
+        if (id && existing.has(id)) hidden += 1;
+        else fresh.push(p);
+      }
+      products = fresh;
+      if (!sync) skippedExisting = hidden;
+      else if (!skippedExisting) skippedExisting = hidden;
+    }
+
     const failures = (batch.report || []).filter((r) => !r.ok);
     const rateLimited = failures.some((r) => r.status === 429 || /rate|limit|too many/i.test(r.error || ""));
 
@@ -567,16 +586,17 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
       sortType: batch.sortType,
       listTypeLabel: batch.listTypeLabel,
       sortTypeLabel: batch.sortTypeLabel,
-      count: batch.count,
+      count: products.length,
+      found: batch.count,
       filteredOut: batch.filteredOut,
       hasNextPage: batch.hasNextPage,
       saved,
       skippedExisting,
       shortlinks,
       rateLimited,
-      empty: batch.count === 0,
+      empty: products.length === 0,
       report: batch.report,
-      products: batch.products,
+      products,
     });
   } catch (err) {
     console.error("[/api/ofertas/batch]", err.message);
