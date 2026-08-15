@@ -348,18 +348,21 @@
         // Meta Pixel — eventos da vitrine (nunca no /admin)
         let lastPixelPagePath = null;
         function amPixelTrack(eventName, params) {
-            if (window.self !== window.top) return;
+            try { if (window.self !== window.top) return; } catch (_) { return; }
             if (isAdminMode()) return;
             if (typeof fbq !== "function") return;
             try { fbq("track", eventName, params || {}); } catch (_) {}
         }
         function amPixelCheckout(p) {
-            const payload = amPixelProductPayload(p);
+            const payload = Object.assign({ num_items: 1 }, amPixelProductPayload(p));
             amPixelTrack("AddToCart", payload);
             amPixelTrack("InitiateCheckout", payload);
         }
+        function amPixelFlush(ms) {
+            return new Promise((resolve) => setTimeout(resolve, Number(ms) > 0 ? Number(ms) : 450));
+        }
         function amPixelPageView() {
-            if (window.self !== window.top) return;
+            try { if (window.self !== window.top) return; } catch (_) { return; }
             if (isAdminMode()) return;
             const path = pathClean() + (window.location.search || "");
             // 1ª chamada: o snippet do HTML já enviou PageView — só memoriza o path.
@@ -2604,6 +2607,7 @@ async function loadOffersFromSupabase(opts = {}) {
         async function openAffiliateInNewTab(p, { labelEl = null } = {}) {
             if (!p) return;
             amPixelCheckout(p);
+            await amPixelFlush(450);
             // Abre direto apenas quando o link em cache já tem os Sub IDs deste
             // visitante. Caso contrário a aba nasce vazia: se ela abrisse no link
             // cacheado, a Shopee registraria o clique com a atribuição de outra
@@ -2645,12 +2649,16 @@ async function loadOffersFromSupabase(opts = {}) {
             if (!p) return true;
             const label = document.getElementById('modal-buy-label');
             const btn = document.getElementById('modal-buy-btn');
+            if (event) event.preventDefault();
             if (hasMatchingTrackedLink(p) && p.shortLink) {
                 amPixelCheckout(p);
                 if (btn) btn.href = p.shortLink;
-                return true;
+                await amPixelFlush(450);
+                const href = p.shortLink;
+                const tab = window.open(href, '_blank');
+                if (!tab) window.location.href = href;
+                return false;
             }
-            event.preventDefault();
             await openAffiliateInNewTab(p, { labelEl: label });
             return false;
         }
