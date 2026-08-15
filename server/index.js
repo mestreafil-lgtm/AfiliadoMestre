@@ -2854,6 +2854,22 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
   });
 })();
 </script>
+<!-- Cloudflare Web Analytics: depois do Pixel; só conta visita -->
+<script>
+(function(){
+  function loadCf(){
+    if (document.querySelector('script[data-cf-beacon]')) return;
+    var s = document.createElement('script');
+    s.type = 'module';
+    s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    s.setAttribute('data-cf-beacon', '{"token": "6006928dd14c407285f05f287c812513"}');
+    document.body.appendChild(s);
+  }
+  if (document.readyState === 'complete') loadCf();
+  else window.addEventListener('load', loadCf, { once: true });
+})();
+</script>
+<!-- End Cloudflare Web Analytics -->
 </body>
 </html>`;
 }

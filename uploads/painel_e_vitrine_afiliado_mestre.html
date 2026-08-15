@@ -2124,6 +2124,24 @@
 
     <!-- JAVASCRIPT APP ARCHITECTURE -->
     <script src="/uploads/storefront.min.js" defer></script>
+    <!-- Cloudflare Web Analytics: só visita, depois do Pixel (head). Não mexe no Facebook. -->
+    <script>
+    (function(){
+      try { if (window.self !== window.top) return; } catch (e) { return; }
+      if (/^\/admin(\/|$)/.test(location.pathname) || /[?&](admin=|mode=admin)/.test(location.search)) return;
+      function loadCf(){
+        if (document.querySelector('script[data-cf-beacon]')) return;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        s.setAttribute('data-cf-beacon', '{"token": "6006928dd14c407285f05f287c812513"}');
+        document.body.appendChild(s);
+      }
+      if (document.readyState === 'complete') loadCf();
+      else window.addEventListener('load', loadCf, { once: true });
+    })();
+    </script>
+    <!-- End Cloudflare Web Analytics -->
 
 </body>
 </html>
