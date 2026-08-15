@@ -2663,8 +2663,10 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   'https://connect.facebook.net/pt_BR/fbevents.js');
   fbq('init', '2217009299032183');
   var payload = ${pixelPayload};
+  var checkoutPayload = Object.assign({ num_items: 1 }, payload);
   fbq('track', 'PageView');
   fbq('track', 'ViewContent', payload);
+  fbq('track', 'InitiateCheckout', checkoutPayload);
 })();
 </script>
 <noscript><img height="1" width="1" style="display:none"
@@ -2799,13 +2801,9 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
     } catch (e) {}
   }
   function trackCheckout(){
-    ping('AddToCart', checkoutPayload);
     ping('InitiateCheckout', checkoutPayload);
     try {
-      if (typeof fbq === 'function') {
-        fbq('track', 'AddToCart', checkoutPayload);
-        fbq('track', 'InitiateCheckout', checkoutPayload);
-      }
+      if (typeof fbq === 'function') fbq('track', 'InitiateCheckout', checkoutPayload);
     } catch (e) {}
   }
   var btnBuy = document.getElementById('btn-buy');
