@@ -348,11 +348,18 @@
         // Meta Pixel — eventos da vitrine (nunca no /admin)
         let lastPixelPagePath = null;
         function amPixelTrack(eventName, params) {
+            if (window.self !== window.top) return;
             if (isAdminMode()) return;
             if (typeof fbq !== "function") return;
             try { fbq("track", eventName, params || {}); } catch (_) {}
         }
+        function amPixelCheckout(p) {
+            const payload = amPixelProductPayload(p);
+            amPixelTrack("AddToCart", payload);
+            amPixelTrack("InitiateCheckout", payload);
+        }
         function amPixelPageView() {
+            if (window.self !== window.top) return;
             if (isAdminMode()) return;
             const path = pathClean() + (window.location.search || "");
             // 1ª chamada: o snippet do HTML já enviou PageView — só memoriza o path.
@@ -2596,7 +2603,7 @@ async function loadOffersFromSupabase(opts = {}) {
         /** Abre aba em sync (anti popup-blocker) e navega quando o shortlink chegar. */
         async function openAffiliateInNewTab(p, { labelEl = null } = {}) {
             if (!p) return;
-            amPixelTrack("InitiateCheckout", amPixelProductPayload(p));
+            amPixelCheckout(p);
             // Abre direto apenas quando o link em cache já tem os Sub IDs deste
             // visitante. Caso contrário a aba nasce vazia: se ela abrisse no link
             // cacheado, a Shopee registraria o clique com a atribuição de outra
@@ -2639,7 +2646,7 @@ async function loadOffersFromSupabase(opts = {}) {
             const label = document.getElementById('modal-buy-label');
             const btn = document.getElementById('modal-buy-btn');
             if (hasMatchingTrackedLink(p) && p.shortLink) {
-                amPixelTrack("InitiateCheckout", amPixelProductPayload(p));
+                amPixelCheckout(p);
                 if (btn) btn.href = p.shortLink;
                 return true;
             }

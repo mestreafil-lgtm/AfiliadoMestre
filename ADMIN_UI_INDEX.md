@@ -304,39 +304,40 @@ Critério: mesma loja+nome OU mesmo item/link; mantém melhor (shortlink + comis
 
 ---
 
-## I. Página 6 — CRIAR CAMPANHA  `/admin/campanhas`  `#admin-view-campanhas`
+## I. Página 6 — CAMPANHAS  `/admin/campanhas`  `#admin-view-campanhas`
 
-**Ao abrir:** `renderCampaignSelectedProducts()` · `updateCampaignLinkPreview()` · `syncSavedCampaigns()`
+**Ao abrir:** `renderCampaignSelectedProducts()` · `updateCampaignLinkPreview()` · `syncSavedCampaigns()` → `renderSavedCampaignsList()`
+
+Layout: formulário à esquerda · lista salva `#campaigns-saved-list` à direita (`#campaigns-section`). Sem select de canal. Slot 2 do Sub ID é fixo `ads` (`CAMPAIGN_CHANNEL`).
 
 ### I.1 Formulário
 | ID | Campo |
 |----|-------|
-| `#campaign-link-channel` | facebook, instagram, whatsapp, tiktok, stories, google, email, organico |
-| `#campaign-link-name` | nome campanha (slot 3) |
-| `#campaign-name-normalized` | hint |
-| `#campaign-product-search` | busca ID / URL / nome |
-| `#campaign-product-status` | |
-| `#campaign-product-picker` | sugestões |
-| `#campaign-selected-products` | chips selecionados |
-| `#campaign-link-preview` | links gerados |
-| `#subid-preview` | string dos 5 slots |
+| `#campaign-product-search` | nome **ou** colar link/ID Shopee (Enter = Converter) |
+| `#campaign-product-status` | status afiliado / shortlink pendente |
+| `#campaign-product-picker` | sugestões (foto) + “Converter pela API de afiliado” |
+| `#campaign-selected-products` | produtos convertidos |
+| `#campaign-link-title` | título visível (renomeável; não altera Sub ID) |
+| `#campaign-link-name` | slug Sub ID **hidden** — gerado 1× no primeiro Obter Link, imutável |
+| `#campaign-name-normalized` | hint “Sub ID travado / será …” |
+| `#campaign-link-preview` | URL `/p/{id}?utm_source=ads&utm_campaign={slug}&utm_medium=social` |
+| `#subid-preview` | `afiliadamestre \| ads_social \| {slug} \| {categoria} \| p{id}` |
 
-Botões: Buscar `addCampaignProductById()` · Escolher na lista (vai Produtos) · Copiar anúncio `copyCampaignLink()` · Gerar Shopee `generateCampaignShopeeLinks()` · Copiar Shopee `copyCampaignShopeeLinks()` · Salvar `saveCurrentCampaign()`
+Botões: **Converter** `convertCampaignProduct()` → `POST /api/admin/campanha/produto` · **Obter Link** `obterCampaignLink()` (copia `/p/id` + UTMs e salva) · Escolher da lista (vai Produtos).
 
-**Picker item:** foto 32×32 + nome  
-**Selecionado:** foto 40×40 + nome + remover  
-**Preview de link:** foto 36×36 por produto
+**Não existem:** Canal Facebook/Instagram, Gerar Shopee, Copiar Shopee, Copiar anúncio, Salvar campanha (o Obter Link já salva).
 
-Sem produtos = link da vitrine. Com produtos = 1 link por item.
+**Picker item:** foto 32×32 + nome. Catálogo **com** afiliado: adiciona direto. **Sem** afiliado ou link/ID colado: API `productOfferV2` (`offer_link` + tenta `shope.ee` + publica na vitrine).  
+**Selecionado:** foto 40×40 + nome + status afiliado + remover.  
+**Preview:** 1 link do site por produto (popup + Pixel). Sem produto = “Converta um produto…”.
 
-### I.2 Como anunciar no Facebook/Meta (`#campaigns-section`)
-Checklist 5 passos + botão “Ver campanhas e desempenho”.  
-Campanhas salvas **não têm lista nesta página** — aparecem em Desempenho campanhas.
+### I.2 Lista salva (`#campaigns-saved-list`)
+Cards: título · slug · N produtos · **Copiar link** · **Renomear** (só título) · **Editar** (carrega no form; Sub ID permanece).
 
 **Slots Sub ID (fixos):**
 1. `afiliadamestre` (site)  
-2. canal  
-3. campanha  
+2. `ads_social` (canal fixo, sem picker)  
+3. slug da campanha (imutável depois do 1º Obter Link)  
 4. categoria (no clique)  
 5. produto `p`+ID (no clique)
 
@@ -357,11 +358,11 @@ Nova campanha · `#camp-perf-days` 7/30/60/90 · `#camp-perf-status` Todos/PENDI
 **Card de campanha (com fotos):**
 ```
 [stack até 3 thumbs 48×48 +N]  nome  [Ativa | Sem vendas | Fora do painel]
-                               canal · N produtos · data criação
+                               N produtos · data criação
                                1º produto +N
                                Canais · status dos pedidos · última venda
                                R$ comissão · N pedidos · conv · itens
-                               [Copiar anúncio] [Copiar Shopee] [Editar] [Apagar]
+                               [Copiar link] [Renomear] [Editar] [Apagar]
                                “Ver detalhes →”
 ```
 Clique no card → `openCampaignPerfDetail(key)`

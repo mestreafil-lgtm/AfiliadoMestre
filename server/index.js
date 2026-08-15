@@ -2583,6 +2583,19 @@ function buildBenefitItemsSSR(product, shopName) {
   return items;
 }
 
+function pixelProductJsonSSR(product) {
+  const value = Number(product.newPrice);
+  const payload = {
+    content_ids: [String(product.id || "")],
+    content_name: String(product.title || "").slice(0, 150),
+    content_type: "product",
+    content_category: String(product.category || ""),
+    currency: "BRL",
+  };
+  if (Number.isFinite(value) && value > 0) payload.value = value;
+  return JSON.stringify(payload).replace(/</g, "\\u003c");
+}
+
 function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtml, shopName, priceNewFmt }) {
   const title = escapeHtmlSSR(product.title || "Oferta Shopee");
   const image = escapeHtmlSSR(product.image || "");
@@ -2594,6 +2607,8 @@ function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtm
   const benefitsHtml = benefits.map((t) =>
     `<li><span class="check" aria-hidden="true">✓</span><span>${t}</span></li>`
   ).join("");
+  const pixelPayload = pixelProductJsonSSR(product);
+  const backHrefSafe = escapeHtmlSSR(backHref);
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -2606,6 +2621,8 @@ function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtm
 <meta property="og:title" content="${title}">
 <meta property="og:image" content="${image}">
 <meta property="og:type" content="product">
+<link rel="preconnect" href="https://connect.facebook.net">
+<link rel="preconnect" href="https://www.facebook.com">
 <link rel="preconnect" href="https://shope.ee">
 <link rel="preconnect" href="https://s.shopee.com.br">
 <link rel="preconnect" href="https://cf.shopee.com.br">
@@ -2613,6 +2630,26 @@ function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtm
 <link rel="dns-prefetch" href="https://shopee.com.br">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
 ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
+<script>
+(function(){
+  if (window.self !== window.top) return;
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/pt_BR/fbevents.js');
+  fbq('init', '2217009299032183');
+  var payload = ${pixelPayload};
+  fbq('track', 'PageView');
+  fbq('track', 'ViewContent', payload);
+})();
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=2217009299032183&ev=PageView&noscript=1"
+alt="" /></noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--orange:#ee4d2d;--orange-hover:#d33b1c;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f1f5f9;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
@@ -2649,7 +2686,7 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
 .cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;background:var(--orange);color:#fff;text-align:center;padding:12px 16px;border-radius:12px;font-weight:800;font-size:15px;text-decoration:none;letter-spacing:.02em;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .cta:hover{background:var(--orange-hover)}
 .cta:active{transform:translateY(1px)}
-.more{display:block;width:100%;margin-top:8px;padding:8px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:center}
+.more{display:block;width:100%;margin-top:8px;padding:8px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none}
 .more:hover{color:var(--orange)}
 .foot{padding:4px 16px 12px;font-size:10px;color:#94a3b8;text-align:center;line-height:1.45}
 @media (min-width:560px){
@@ -2671,7 +2708,7 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
 </style>
 </head>
 <body>
-<iframe class="store-bg" src="${escapeHtmlSSR(backHref)}" title="Vitrine Afiliada Mestre" loading="eager" referrerpolicy="no-referrer"></iframe>
+<iframe class="store-bg" src="${backHrefSafe}" title="Vitrine Afiliada Mestre" loading="eager" referrerpolicy="no-referrer"></iframe>
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="p-title">
   <main class="card" role="main">
     <header class="head">
@@ -2679,7 +2716,7 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
         <img src="/uploads/logo.png" alt="Afiliada Mestre" width="112" height="28">
         <span>Oferta selecionada</span>
       </div>
-      <a class="close" href="${backHref}" id="btn-close" aria-label="Fechar">&times;</a>
+      <a class="close" href="${backHrefSafe}" id="btn-close" aria-label="Fechar">&times;</a>
     </header>
     <div class="scroll">
       <div class="img-wrap">
@@ -2705,25 +2742,42 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       <p class="foot">Nenhum pagamento neste site. A compra é finalizada com segurança na Shopee.</p>
     </div>
     <div class="cta-bar">
-      <a class="cta" href="${escapeHtmlSSR(buyHref)}" target="_blank" rel="nofollow sponsored noopener">Comprar na Shopee</a>
-      <button type="button" class="more" id="btn-more">Ver mais ofertas</button>
+      <a class="cta" id="btn-buy" href="${escapeHtmlSSR(buyHref)}" target="_blank" rel="nofollow sponsored noopener">Comprar na Shopee</a>
+      <a class="more" id="btn-more" href="${backHrefSafe}">Ver mais ofertas</a>
     </div>
   </main>
 </div>
 <script>
 (function(){
-  function closeOverlay(){
-    var ov = document.getElementById('overlay');
-    if (ov) ov.style.display = 'none';
-    document.body.style.overflow = 'auto';
+  var payload = ${pixelPayload};
+  var backHref = ${JSON.stringify(backHref)};
+  function goVitrine(){
+    if (backHref) location.href = backHref;
   }
+  function trackCheckout(){
+    if (typeof fbq !== 'function') return;
+    fbq('track', 'AddToCart', payload);
+    fbq('track', 'InitiateCheckout', payload);
+  }
+  var btnBuy = document.getElementById('btn-buy');
   var btnClose = document.getElementById('btn-close');
   var btnMore  = document.getElementById('btn-more');
   var overlay  = document.getElementById('overlay');
-  if (btnClose) btnClose.addEventListener('click', function(e){ e.preventDefault(); closeOverlay(); });
-  if (btnMore)  btnMore.addEventListener('click',  function(e){ e.preventDefault(); closeOverlay(); });
-  if (overlay)  overlay.addEventListener('click',  function(e){ if (e.target === overlay) closeOverlay(); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeOverlay(); });
+  if (btnBuy) btnBuy.addEventListener('click', trackCheckout);
+  if (btnClose) btnClose.addEventListener('click', function(e){
+    e.preventDefault();
+    goVitrine();
+  });
+  if (btnMore) btnMore.addEventListener('click', function(e){
+    e.preventDefault();
+    goVitrine();
+  });
+  if (overlay) overlay.addEventListener('click', function(e){
+    if (e.target === overlay) goVitrine();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') goVitrine();
+  });
 })();
 </script>
 </body>

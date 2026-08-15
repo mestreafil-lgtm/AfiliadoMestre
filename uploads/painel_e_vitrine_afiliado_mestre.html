@@ -26,6 +26,7 @@
     <script>
     (function(){
       var p = location.pathname, q = location.search;
+      if (window.self !== window.top) return;
       if (/^\/admin(\/|$)/.test(p) || /[?&](admin=|mode=admin)/.test(q)) return;
       !function(f,b,e,v,n,t,s)
       {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -1685,32 +1686,14 @@
           <div>
             <div class="am-card am-section">
               <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Nova campanha</h2>
-              <p style="margin:0 0 16px;font-size:12px;color:#64748b">Preview de anúncio e links Shopee com Sub ID nos 5 slots</p>
+              <p style="margin:0 0 16px;font-size:12px;color:#64748b">Converta o produto pela API de afiliado e obtenha o link do popup (Pixel).</p>
 
-              <div class="am-form-2col">
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Canal (slot 2)</label>
-                  <select id="campaign-link-channel" onchange="updateCampaignLinkPreview()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
-                  <option value="facebook">Facebook</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="whatsapp">WhatsApp</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="stories">Stories</option>
-                  <option value="google">Google</option>
-                  <option value="email">E-mail</option>
-                  <option value="organico">Orgânico / direto</option>
-                </select>
+              <div>
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Buscar produto ou colar link da Shopee</label>
+                <div style="display:flex;gap:8px;align-items:stretch">
+                  <input id="campaign-product-search" type="search" oninput="renderCampaignProductPicker()" onkeydown="onCampaignProductSearchKey(event)" placeholder="Busque pelo nome ou cole o link / ID da Shopee" style="flex:1;min-width:0;padding:9px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                  <button type="button" onclick="convertCampaignProduct()" class="btn-primary" style="padding:9px 16px;white-space:nowrap">Converter</button>
                 </div>
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome (slot 3)</label>
-                  <input id="campaign-link-name" type="text" value="promo_vitrine" oninput="updateCampaignLinkPreview()" placeholder="ex: ads_vestidos" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc;font-family:inherit"/>
-                  <div id="campaign-name-normalized" style="font-size:10.5px;color:#94a3b8;margin-top:3px;font-family:'JetBrains Mono',monospace">→ promocao_verao_25</div>
-                </div>
-              </div>
-
-              <div style="margin-top:14px">
-                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Buscar produto (ID · URL · nome)</label>
-                <input id="campaign-product-search" type="search" oninput="renderCampaignProductPicker()" onkeydown="onCampaignProductSearchKey(event)" placeholder="Cole o ID, o link da Shopee ou busque pelo nome…" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
                 <div id="campaign-product-status" style="font-size:11px;color:#64748b;margin-top:4px"></div>
                 <div id="campaign-product-picker" style="margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;background:#f8fafc"></div>
               </div>
@@ -1720,17 +1703,20 @@
                 <div id="campaign-selected-products" style="display:flex;flex-direction:column;gap:6px;min-height:60px"></div>
               </div>
 
-              <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">
-                <button onclick="addCampaignProductById()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer">Buscar por ID</button>
-                <button onclick="switchAdminView('produtos')" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer">Escolher da lista</button>
-                <button onclick="copyCampaignLink()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer">Copiar anúncio</button>
-                <button onclick="generateCampaignShopeeLinks()" class="btn-primary" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer">Gerar Shopee</button>
-                <button onclick="copyCampaignShopeeLinks()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer">Copiar Shopee</button>
-                <button onclick="saveCurrentCampaign()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;margin-left:auto">Salvar campanha</button>
+              <div style="margin-top:14px">
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Título da campanha</label>
+                <input id="campaign-link-title" type="text" value="" oninput="updateCampaignLinkPreview()" placeholder="ex: Vestidos verão Ads" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                <input id="campaign-link-name" type="hidden" value=""/>
+                <div id="campaign-name-normalized" style="font-size:10.5px;color:#94a3b8;margin-top:3px;font-family:'JetBrains Mono',monospace"></div>
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
+                <button type="button" onclick="obterCampaignLink()" class="btn-primary" style="padding:10px 18px;font-size:13px">Obter Link</button>
+                <button type="button" onclick="switchAdminView('produtos')" class="btn-ghost" style="padding:8px 14px;font-size:12px">Escolher da lista</button>
               </div>
 
               <div style="margin-top:14px;padding:12px;background:#0b1220;border-radius:9px">
-                <div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Sub ID (5 slots)</div>
+                <div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Sub ID (fixo nesta campanha)</div>
                 <div id="subid-preview" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#f97316;word-break:break-all"></div>
               </div>
               <div id="campaign-link-preview" style="margin-top:8px;padding:12px;background:#f8fafc;border-radius:9px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;word-break:break-all;min-height:40px"></div>
@@ -1738,17 +1724,15 @@
           </div>
 
           <div>
-            <div id="campaigns-section" class="am-sticky-guide" style="background:#0b1220;color:#fff;border-radius:14px;padding:22px">
-              <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:#f97316;text-transform:uppercase;margin-bottom:6px">Guia rápido</div>
-              <h3 style="margin:0 0 14px;font-size:16px;font-weight:700">Como anunciar no Facebook/Meta</h3>
-              <ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px">
-                <li style="display:flex;gap:12px;font-size:12.5px;color:#cbd5e1"><span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#f97316,#ee4d2d);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">1</span><span>Crie a campanha, escolha canal Facebook e os produtos.</span></li>
-                <li style="display:flex;gap:12px;font-size:12.5px;color:#cbd5e1"><span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#f97316,#ee4d2d);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">2</span><span>Salve a campanha e copie o link do anúncio.</span></li>
-                <li style="display:flex;gap:12px;font-size:12.5px;color:#cbd5e1"><span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#f97316,#ee4d2d);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">3</span><span>No Gerenciador Meta → anúncio → destino Tráfego / site.</span></li>
-                <li style="display:flex;gap:12px;font-size:12.5px;color:#cbd5e1"><span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#f97316,#ee4d2d);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">4</span><span>Cole o link gerado em URL do site (não o link cru da Shopee).</span></li>
-                <li style="display:flex;gap:12px;font-size:12.5px;color:#cbd5e1"><span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#f97316,#ee4d2d);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">5</span><span>Publique. Quem clicar e comprar leva seus Sub IDs.</span></li>
-              </ol>
-              <button onclick="switchAdminView('campanha-desempenho')" class="btn-primary" style="width:100%;margin-top:16px;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Ver campanhas e desempenho →</button>
+            <div id="campaigns-section" class="am-sticky-guide" style="background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:14px;padding:18px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:#ea580c;text-transform:uppercase">Salvas</div>
+                  <h3 style="margin:2px 0 0;font-size:15px;font-weight:700">Campanhas</h3>
+                </div>
+                <button type="button" onclick="switchAdminView('campanha-desempenho')" class="btn-ghost" style="padding:6px 10px;font-size:11px">Desempenho</button>
+              </div>
+              <div id="campaigns-saved-list" style="display:flex;flex-direction:column;gap:10px;max-height:min(70vh,640px);overflow-y:auto"></div>
             </div>
           </div>
         </div>
