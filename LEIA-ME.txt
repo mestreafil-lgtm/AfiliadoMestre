@@ -1,27 +1,18 @@
-Afiliado Mestre — setup rápido
-==============================
+Afiliado Mestre
+===============
 
-1) No Supabase → SQL Editor → cole e rode o arquivo:
-   sql/schema.sql
+Pasta do projeto
+  server/    API (Node + Express + Shopee + Supabase)
+  uploads/   Vitrine, painel admin, JS, CSS e logos
 
-2) Neste pasta, no terminal:
-   npm install
-   npm start
+Rodar local
+  npm install
+  npm start
+  http://localhost:3789
 
-3) Abra no navegador:
-   http://localhost:3789
+Produção: Railway (railway.toml). O banco já está no Supabase.
 
-4) No painel (URL com ?admin=1) use:
-   - "Rodar sincronização" / "Popular destaques"
-   - Ofertas vão para a tabela public.ofertas no Supabase
-   - Vitrine lê o cache do banco
-
-5) Se a tabela já existia, rode no Supabase SQL Editor:
-   sql/migration_conversion.sql
-   (cria period_start, period_end, list_type, short_link)
-
-IMPORTANTE
-- SHOPEE_APP_ID / SHOPEE_SECRET ficam só no .env (nunca no HTML)
-- SUPABASE_SERVICE_KEY também só no servidor
-- Botão "Comprar" abre offerLink/shortLink da Shopee
-- A vitrine pública NÃO mostra comissão (só o painel admin)
+Importante
+  Segredos só no .env (SHOPEE_APP_ID, SHOPEE_SECRET, SUPABASE_SERVICE_KEY)
+  O botão Comprar abre o link de afiliado da Shopee
+  Comissão aparece só no painel admin, não na vitrine
