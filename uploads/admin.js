@@ -32,14 +32,50 @@
     const femaleOnly = (...a) => AM.femaleOnly(...a);
     const sortByMoney = (...a) => AM.sortByMoney(...a);
 
+    // Bancos de palavras-chave femininas (nichos que convertem para público 95% feminino).
+    // Cada preset usa até ~25 palavras — assim o admin pode combinar 2 presets sem estourar o cap.
+    const KW_BELEZA = "kit skincare, protetor solar facial, sérum vitamina c, ácido hialurônico, retinol facial, creme antissinais, hidratante facial, água micelar, esfoliante facial, máscara facial, colágeno hidrolisado, colágeno verisol, óleo capilar, ampola capilar, shampoo antiqueda, máscara reconstrução, escova secadora, chapinha profissional, kit maquiagem, base líquida hd, batom líquido matte, blush em creme, iluminador facial, perfume feminino importado, body splash";
+    const KW_MODA = "vestido longo feminino, vestido midi feminino, vestido festa feminino, vestido plus size, vestido tubinho, saia longa feminina, saia jeans, blusa feminina, cropped feminino, camisa social feminina, blazer feminino, casaco feminino, jaqueta jeans feminina, calça pantalona, calça wide leg, short jeans feminino, short cintura alta, macacão feminino longo, conjunto feminino, kimono feminino, moletom feminino oversized, pijama feminino, biquíni feminino, maiô feminino";
+    const KW_FITNESS = "conjunto fitness feminino, legging cintura alta, top fitness feminino, short fitness feminino, macaquinho fitness, cropped fitness, tênis feminino fitness, tênis feminino casual, garrafa térmica água, coqueteleira academia, whey protein, colágeno hidrolisado, cinta modeladora, waist trainer, canga feminina, biquíni sunquíni";
+    const KW_ACESSORIOS = "bolsa feminina, bolsa transversal feminina, bolsa tote feminina, mochila feminina, carteira feminina, sandália feminina, rasteirinha feminina, chinelo slide feminino, óculos de sol feminino, relógio feminino, kit joias, colar feminino, brinco feminino, anel feminino, pulseira feminina, correntinha ouro, piercing fake, presilha cabelo, tiara feminina";
+    const KW_CASA = "organizador cozinha, organizador armário, organizador maquiagem, caixa organizadora, cesto organizador, kit banheiro rose gold, tapete sala, jogo de cama casal, jogo de toalha, cortina sala, almofada decorativa, luminária decorativa, quadro decorativo, espelho decorativo, difusor aromas, vela aromatizada, panela antiaderente, air fryer, sanduicheira";
+    const KW_MAE_BEBE = "roupa bebê menina, kit maternidade, mochila maternidade, saída maternidade, body bebê, macacão bebê, sapatinho bebê, roupinha recém nascido, brinquedo educativo bebê, chocalho bebê, mordedor bebê, mamadeira anticólica, chupeta ortodôntica, fralda descartável";
+    const KW_FEMALE_ELITE = KW_BELEZA + ", " + KW_MODA + ", " + KW_ACESSORIOS;
+
     const EXPLORER_PRESETS = {
-        female_9: {
-            listType: 1, sortType: 5, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 9,
-            keywords: "vestido longo feminino, kit skincare, bolsa transversal feminina, conjunto fitness feminino, perfume feminino, sandalia feminina, lingerie feminina, colageno hidrolisado",
-        },
+        // "Elite" = volume máximo: Recomendados + Vendidos traz até 20/keyword aprovados (testado ~468 únicos com 25 keywords).
+        // listType=1 (comissão) fica reservado ao preset "female_9" para cherry-picking de comissão alta.
         female_money: {
-            listType: 1, sortType: 5, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 5,
-            keywords: "vestido longo feminino, kit skincare, bolsa transversal feminina, conjunto fitness feminino, perfume feminino, sandalia feminina, lingerie feminina, colageno hidrolisado",
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 5,
+            keywords: KW_FEMALE_ELITE,
+        },
+        female_9: {
+            listType: 1, sortType: 5, minRating: 4.0, minSales: 10, requireCommission: true, minCommissionPct: 9,
+            keywords: KW_FEMALE_ELITE,
+        },
+        beleza: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_BELEZA,
+        },
+        moda: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 30, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_MODA,
+        },
+        fitness: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_FITNESS,
+        },
+        acessorios: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_ACESSORIOS,
+        },
+        casa: {
+            listType: 0, sortType: 2, minRating: 4.2, minSales: 30, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_CASA,
+        },
+        mae_bebe: {
+            listType: 0, sortType: 2, minRating: 4.3, minSales: 20, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_MAE_BEBE,
         },
         diverse_5: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 30, requireCommission: true, minCommissionPct: 5,
@@ -47,15 +83,15 @@
         },
         bestsellers: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 50, requireCommission: true, minCommissionPct: 0,
-            keywords: "vestido longo feminino, blusa feminina, tênis feminino, kit skincare, maquiagem",
+            keywords: "vestido longo feminino, blusa feminina, tênis feminino, kit skincare, maquiagem, perfume feminino, bolsa feminina",
         },
         topperf: {
             listType: 2, sortType: 2, minRating: 4.2, minSales: 20, requireCommission: true, minCommissionPct: 3,
-            keywords: "vestido midi feminino, skincare coreano, bolsa feminina, conjunto fitness, perfume feminino",
+            keywords: "vestido midi feminino, skincare coreano, bolsa feminina, conjunto fitness, perfume feminino, batom matte",
         },
         commission: {
             listType: 1, sortType: 5, minRating: 4.0, minSales: 10, requireCommission: true, minCommissionPct: 8,
-            keywords: "perfume feminino, smartwatch feminino, maquiagem, colageno hidrolisado, serum vitamina c",
+            keywords: "perfume feminino, smartwatch feminino, maquiagem, colageno hidrolisado, serum vitamina c, kit skincare",
         },
         collection: {
             listType: 6, sortType: 5, minRating: 4.0, minSales: 0, requireCommission: true, minCommissionPct: 0,
@@ -67,11 +103,11 @@
         },
         rated: {
             listType: 0, sortType: 1, minRating: 4.7, minSales: 30, requireCommission: true, minCommissionPct: 0,
-            keywords: "creme facial, escova secadora, serum vitamina c, batom liquido matte",
+            keywords: "creme facial, escova secadora, serum vitamina c, batom liquido matte, hidratante facial, protetor solar",
         },
         budget: {
             listType: 0, sortType: 4, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 0,
-            keywords: "organizador maquiagem, kit maquiagem, scrunchie, necessaire feminina, caderno aesthetic",
+            keywords: "organizador maquiagem, kit maquiagem, scrunchie, necessaire feminina, caderno aesthetic, presilha cabelo",
         },
     };
     const LIST_TYPE_LABELS_UI = {
@@ -81,6 +117,12 @@
     const EXPLORER_PRESET_LABELS = {
         female_9: "Feminino 9%",
         female_money: "Feminino + comissão",
+        beleza: "Beleza & Skincare",
+        moda: "Moda feminina",
+        fitness: "Fitness feminino",
+        acessorios: "Acessórios femininos",
+        casa: "Casa & Decoração",
+        mae_bebe: "Mãe & Bebê",
         diverse_5: "Diverso 5%",
         bestsellers: "Mais vendidos",
         topperf: "Mais vendidos na Shopee",
@@ -645,14 +687,14 @@
                 .filter(Boolean))];
         }
 
-        const EXPLORER_KW_MAX = 40;
+        const EXPLORER_KW_MAX = 60;
 
         function updateExplorerKwCount() {
             const el = document.getElementById("explorer-kw-count");
             const n = parseExplorerKeywords(document.getElementById("admin-keyword")?.value).length;
             if (el) {
                 const over = n > EXPLORER_KW_MAX;
-                el.textContent = `${n}/${EXPLORER_KW_MAX} palavras-chave${over ? " — só as 40 primeiras serão usadas" : ""}`;
+                el.textContent = `${n}/${EXPLORER_KW_MAX} palavras-chave${over ? ` — só as ${EXPLORER_KW_MAX} primeiras serão usadas` : ""}`;
                 el.style.color = over ? "#dc2626" : "#94a3b8";
             }
             renderExplorerKeywordChips();
@@ -772,8 +814,8 @@
             const mi = document.getElementById("admin-match-id");
             const si = document.getElementById("admin-shop-id");
             if (kw) kw.value = "";
-            if (lt) lt.value = "1";
-            if (st) st.value = "5";
+            if (lt) lt.value = "0";
+            if (st) st.value = "2";
             if (lim) lim.value = "20";
             if (pg) pg.value = "1";
             if (mr) mr.value = "4.0";

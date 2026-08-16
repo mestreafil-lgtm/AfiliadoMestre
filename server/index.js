@@ -512,6 +512,7 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
     const shopId = body.shopId != null ? Number(body.shopId) : null;
     const sync = body.sync === true || body.sync === 1 || body.sync === "1";
     const gapMs = body.gapMs != null ? Number(body.gapMs) : DEFAULT_BATCH_GAP_MS;
+    const concurrency = body.concurrency != null ? Number(body.concurrency) : undefined;
 
     const cleaned = keywords.map((k) => String(k || "").trim()).filter(Boolean);
     const hasMatch = Number.isFinite(matchId) && matchId > 0;
@@ -537,6 +538,7 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
       requireCommission,
       minCommissionPct,
       gapMs,
+      concurrency,
     });
 
     let saved = 0;
@@ -2827,14 +2829,21 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       if (p.content_category) q += '&cd[content_category]=' + encodeURIComponent(p.content_category);
       if (p.num_items != null) q += '&cd[num_items]=' + encodeURIComponent(p.num_items);
       if (p.content_ids) q += '&cd[content_ids]=' + encodeURIComponent(JSON.stringify(p.content_ids));
-      (new Image(1, 1)).src = 'https://www.facebook.com/tr?' + q;
+      var url = 'https://www.facebook.com/tr?' + q;
+      // sendBeacon é fire-and-forget: entrega mesmo se a página já navegou.
+      // Evita bloquear o clique do "Comprar" (INP).
+      if (navigator.sendBeacon) {
+        try { if (navigator.sendBeacon(url)) return; } catch (e) {}
+      }
+      (new Image(1, 1)).src = url;
     } catch (e) {}
   }
   function trackCheckout(){
     ping('InitiateCheckout', checkoutPayload);
-    try {
-      if (typeof fbq === 'function') fbq('track', 'InitiateCheckout', checkoutPayload);
-    } catch (e) {}
+    // setTimeout (macrotask) — queueMicrotask ainda entra no INP, porque roda antes do paint.
+    setTimeout(function(){
+      try { if (typeof fbq === 'function') fbq('track', 'InitiateCheckout', checkoutPayload); } catch (e) {}
+    }, 0);
   }
   var btnBuy = document.getElementById('btn-buy');
   var btnClose = document.getElementById('btn-close');

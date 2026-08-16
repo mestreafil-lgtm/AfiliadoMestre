@@ -1353,14 +1353,20 @@
             <div id="cat-buscar-pane-palavras" class="cat-buscar-pane">
               <!-- Presets -->
               <div id="explorer-presets" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #e2e8f0">
-                <button type="button" data-preset="female_9" onclick="applyExplorerPreset('female_9')" class="chip explorer-preset">Feminino 9%</button>
-                <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="chip explorer-preset">Feminino + comissão</button>
-                <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="chip explorer-preset active">Mais vendidos</button>
-                <button type="button" data-preset="diverse_5" onclick="applyExplorerPreset('diverse_5')" class="chip explorer-preset">Diverso 5%</button>
-                <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Mais vendidos na Shopee</button>
+                <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="chip explorer-preset active" style="background:#fce7f3;color:#9d174d;font-weight:700">♀ Feminino elite</button>
+                <button type="button" data-preset="female_9" onclick="applyExplorerPreset('female_9')" class="chip explorer-preset" style="background:#fce7f3;color:#9d174d">♀ Feminino 9%+</button>
+                <button type="button" data-preset="beleza" onclick="applyExplorerPreset('beleza')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Beleza & Skincare</button>
+                <button type="button" data-preset="moda" onclick="applyExplorerPreset('moda')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Moda feminina</button>
+                <button type="button" data-preset="fitness" onclick="applyExplorerPreset('fitness')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Fitness feminino</button>
+                <button type="button" data-preset="acessorios" onclick="applyExplorerPreset('acessorios')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Acessórios</button>
+                <button type="button" data-preset="mae_bebe" onclick="applyExplorerPreset('mae_bebe')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Mãe & Bebê</button>
+                <button type="button" data-preset="casa" onclick="applyExplorerPreset('casa')" class="chip explorer-preset">Casa & Decoração</button>
+                <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="chip explorer-preset">Mais vendidos</button>
+                <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Top Shopee</button>
                 <button type="button" data-preset="commission" onclick="applyExplorerPreset('commission')" class="chip explorer-preset">Maior comissão</button>
                 <button type="button" data-preset="rated" onclick="applyExplorerPreset('rated')" class="chip explorer-preset">Bem avaliados</button>
                 <button type="button" data-preset="budget" onclick="applyExplorerPreset('budget')" class="chip explorer-preset">Custo-benefício</button>
+                <button type="button" data-preset="diverse_5" onclick="applyExplorerPreset('diverse_5')" class="chip explorer-preset">Diverso 5%</button>
                 <button type="button" onclick="resetExplorerForm()" class="chip" style="margin-left:auto;color:#64748b">Redefinir filtros</button>
               </div>
 
@@ -1368,8 +1374,8 @@
               <div style="margin-bottom:12px">
                 <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Palavras-chave</label>
                 <div id="admin-keyword-chips" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid #e2e8f0;border-radius:9px 9px 0 0;background:#f8fafc;min-height:32px;border-bottom:0"></div>
-                <textarea id="admin-keyword" oninput="updateExplorerKwCount()" onkeydown="onExplorerKeywordKey(event)" placeholder="digite e pressione Enter ou vírgula — ex: vestido longo feminino, kit skincare" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:0 0 9px 9px;font-size:13px;min-height:44px;resize:vertical;background:#f8fafc">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino</textarea>
-                <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave</div>
+                <textarea id="admin-keyword" oninput="updateExplorerKwCount()" onkeydown="onExplorerKeywordKey(event)" placeholder="digite e pressione Enter ou vírgula — ex: vestido longo feminino, kit skincare" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:0 0 9px 9px;font-size:13px;min-height:44px;resize:vertical;background:#f8fafc">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino, conjunto fitness feminino, sandália feminina, batom líquido matte, colágeno hidrolisado</textarea>
+                <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave · até 60</div>
               </div>
 
               <!-- Filtros principais (4 campos visíveis) -->
@@ -1377,8 +1383,8 @@
                 <div>
                   <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo de lista</label>
                   <select id="admin-list-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
-                    <option value="0">Recomendados</option>
-                    <option value="1" selected>Maior comissão</option>
+                    <option value="0" selected>Recomendados (mais volume)</option>
+                    <option value="1">Maior comissão</option>
                     <option value="2">Mais vendidos na Shopee</option>
                     <option value="3">Categoria (página)</option>
                     <option value="4">Categoria (detalhe)</option>
@@ -1390,10 +1396,10 @@
                   <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenação</label>
                   <select id="admin-sort-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
                     <option value="1">Relevância</option>
-                    <option value="2">Mais vendidos</option>
+                    <option value="2" selected>Mais vendidos</option>
                     <option value="3">Maior preço</option>
                     <option value="4">Menor preço</option>
-                    <option value="5" selected>Maior comissão</option>
+                    <option value="5">Maior comissão</option>
                   </select>
                 </div>
                 <div>
@@ -1412,6 +1418,8 @@
                     <option value="2">2</option>
                     <option value="3">3</option>
                     <option value="5">5</option>
+                    <option value="8">8</option>
+                    <option value="10">10 (máx)</option>
                   </select>
                 </div>
               </div>

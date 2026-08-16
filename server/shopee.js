@@ -36,6 +36,8 @@ const MIN_RATING = Number(process.env.SYNC_MIN_RATING) || 4.3;
 /** Mínimo de vendas no sync — evita produto “novo” com comissão alta e zero prova social. */
 const MIN_SALES = Number(process.env.SYNC_MIN_SALES) || 50;
 const DEFAULT_BATCH_GAP_MS = clampNum(process.env.SHOPEE_BATCH_GAP_MS, 350, 100, 5000);
+const DEFAULT_BATCH_CONCURRENCY = clampNum(process.env.SHOPEE_BATCH_CONCURRENCY, 3, 1, 6);
+const BATCH_MAX_KEYWORDS = clampNum(process.env.SHOPEE_BATCH_MAX_KEYWORDS, 60, 10, 120);
 
 function clampNum(v, def, min, max) {
   const n = Number(v);
@@ -398,6 +400,7 @@ async function fetchProductOffersBatch({
   requireCommission,
   minCommissionPct,
   gapMs = DEFAULT_BATCH_GAP_MS,
+  concurrency = DEFAULT_BATCH_CONCURRENCY,
   onProgress,
   signal,
 } = {}) {
@@ -407,12 +410,16 @@ async function fetchProductOffersBatch({
     (Array.isArray(keywords) ? keywords : String(keywords || "").split(/[\n,;]+/))
       .map((k) => String(k || "").trim())
       .filter(Boolean)
-  )].slice(0, 40);
+  )].slice(0, BATCH_MAX_KEYWORDS);
   if (!kws.length && (hasMatch || hasShop)) kws = [""];
   const start = Math.max(1, Number(pageStart) || 1);
   const pageCount = Math.min(Math.max(Number(pages) || 1, 1), 10);
   const pageNums = Array.from({ length: pageCount }, (_, i) => start + i);
-  const total = Math.max(1, kws.length * pageNums.length);
+  const tasks = [];
+  for (const keyword of kws) {
+    for (const page of pageNums) tasks.push({ keyword, page });
+  }
+  const total = Math.max(1, tasks.length);
   const byId = new Map();
   const report = [];
   let filteredOut = 0;
@@ -420,83 +427,103 @@ async function fetchProductOffersBatch({
   let hasNextPage = false;
   let lastListType = listType;
   let lastSortType = sortType;
+  let rateBackoff = 0; // ms — cresce quando a Shopee retorna 429
 
-  for (const keyword of kws) {
-    for (const page of pageNums) {
-      if (signal?.aborted) {
-        return {
-          aborted: true,
-          keywords: kws,
-          pages: pageNums,
-          count: byId.size,
-          filteredOut,
-          hasNextPage,
-          listType: lastListType,
-          sortType: lastSortType,
-          listTypeLabel: listTypeLabel(lastListType),
-          sortTypeLabel: sortTypeLabel(lastSortType),
-          report,
-          products: [...byId.values()],
-          nodes: [...byId.values()].map((p) => p._node).filter(Boolean),
-        };
+  const workers = Math.min(Math.max(Number(concurrency) || 1, 1), 6, tasks.length);
+  let cursor = 0;
+
+  function abortedSnapshot() {
+    return {
+      aborted: true,
+      keywords: kws,
+      pages: pageNums,
+      count: byId.size,
+      filteredOut,
+      hasNextPage,
+      listType: lastListType,
+      sortType: lastSortType,
+      listTypeLabel: listTypeLabel(lastListType),
+      sortTypeLabel: sortTypeLabel(lastSortType),
+      report,
+      products: [...byId.values()].map((p) => { const { _node, ...r } = p; return r; }),
+      nodes: [...byId.values()].map((p) => p._node).filter(Boolean),
+    };
+  }
+
+  async function runOne({ keyword, page }) {
+    try {
+      const labelKw = keyword || (hasShop ? `shop:${shopId}` : hasMatch ? `match:${matchId}` : "oferta");
+      const offer = await fetchProductOffers({
+        keyword,
+        limit,
+        page,
+        listType,
+        sortType,
+        matchId: hasMatch ? Number(matchId) : null,
+        shopId: hasShop ? Number(shopId) : null,
+        minRating,
+        minSales,
+        requireCommission,
+        minCommissionPct,
+      });
+      lastListType = offer.listType;
+      lastSortType = offer.sortType;
+      filteredOut += offer.filteredOut || 0;
+      if (offer.hasNextPage) hasNextPage = true;
+      const nodes = offer.nodes || [];
+      let added = 0;
+      for (const n of nodes) {
+        const id = String(n.itemId);
+        if (!id || byId.has(id)) continue;
+        const product = mapOfferToProduct(n, labelKw, offer.listType);
+        product._node = n;
+        byId.set(id, product);
+        added += 1;
       }
-      try {
-        const labelKw = keyword || (hasShop ? `shop:${shopId}` : hasMatch ? `match:${matchId}` : "oferta");
-        const offer = await fetchProductOffers({
-          keyword,
-          limit,
-          page,
-          listType,
-          sortType,
-          matchId: hasMatch ? Number(matchId) : null,
-          shopId: hasShop ? Number(shopId) : null,
-          minRating,
-          minSales,
-          requireCommission,
-          minCommissionPct,
-        });
-        lastListType = offer.listType;
-        lastSortType = offer.sortType;
-        filteredOut += offer.filteredOut || 0;
-        if (offer.hasNextPage) hasNextPage = true;
-        const nodes = offer.nodes || [];
-        let added = 0;
-        for (const n of nodes) {
-          const id = String(n.itemId);
-          if (!id || byId.has(id)) continue;
-          const product = mapOfferToProduct(n, labelKw, offer.listType);
-          product._node = n;
-          byId.set(id, product);
-          added += 1;
-        }
-        report.push({
-          keyword: labelKw,
-          page,
-          ok: true,
-          count: nodes.length,
-          added,
-          filteredOut: offer.filteredOut || 0,
-          hasNextPage: !!offer.hasNextPage,
-        });
-      } catch (e) {
-        report.push({
-          keyword: keyword || (hasShop ? `shop:${shopId}` : `match:${matchId}`),
-          page,
-          ok: false,
-          error: e.message,
-          code: e.code || null,
-          status: e.status || null,
-        });
+      report.push({
+        keyword: labelKw, page, ok: true,
+        count: nodes.length, added,
+        filteredOut: offer.filteredOut || 0,
+        hasNextPage: !!offer.hasNextPage,
+      });
+      // Sucesso: relaxa o backoff progressivamente
+      if (rateBackoff > 0) rateBackoff = Math.max(0, rateBackoff - 200);
+    } catch (e) {
+      report.push({
+        keyword: keyword || (hasShop ? `shop:${shopId}` : `match:${matchId}`),
+        page, ok: false,
+        error: e.message,
+        code: e.code || null,
+        status: e.status || null,
+      });
+      if (e.status === 429 || /rate|limit|too many/i.test(e.message || "")) {
+        rateBackoff = Math.min(4000, (rateBackoff || gapMs) * 2);
       }
-      done += 1;
-      if (typeof onProgress === "function") {
-        try {
-          onProgress({ done, total, keyword, page, count: byId.size, filteredOut });
-        } catch (_) {}
-      }
-      if (done < total) await sleep(gapMs);
+    }
+    done += 1;
+    if (typeof onProgress === "function") {
+      try { onProgress({ done, total, keyword, page, count: byId.size, filteredOut }); }
+      catch (_) {}
     }
   }
+
+  async function worker(id) {
+    // Escalona o arranque de cada worker para não estourar em rajada
+    if (id > 0) await sleep(Math.round(gapMs / workers) * id);
+    while (true) {
+      if (signal?.aborted) return;
+      const idx = cursor++;
+      if (idx >= tasks.length) return;
+      await runOne(tasks[idx]);
+      if (cursor < tasks.length) {
+        // gapMs por-worker — throughput ≈ workers/gapMs; backoff aumenta se 429
+        await sleep(gapMs + rateBackoff);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: workers }, (_, i) => worker(i)));
+  if (signal?.aborted) return abortedSnapshot();
 
   const products = [...byId.values()].map((p) => {
     const { _node, ...rest } = p;
@@ -1235,4 +1262,6 @@ module.exports = {
   MIN_RATING,
   MIN_SALES,
   DEFAULT_BATCH_GAP_MS,
+  DEFAULT_BATCH_CONCURRENCY,
+  BATCH_MAX_KEYWORDS,
 };
