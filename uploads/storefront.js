@@ -2200,7 +2200,7 @@ async function loadOffersFromSupabase(opts = {}) {
                     </div>
                     <button type="button" onclick="event.stopPropagation(); buyFromCard(${p.id}, '${section}')"
                         class="mx-2 mb-2 sm:mx-2.5 sm:mb-2.5 mt-auto w-[calc(100%-1rem)] sm:w-[calc(100%-1.25rem)] min-h-[40px] bg-shopee-orange hover:bg-shopee-orangeHover text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
-                        Comprar <span aria-hidden="true">→</span>
+                        Ver oferta <span aria-hidden="true">→</span>
                     </button>
                 </div>`;
         }
@@ -2626,7 +2626,7 @@ async function loadOffersFromSupabase(opts = {}) {
 
             const buyBtn = document.getElementById('modal-buy-btn');
             const buyLabel = document.getElementById('modal-buy-label');
-            if (buyLabel) buyLabel.textContent = 'Comprar na Shopee';
+            if (buyLabel) buyLabel.textContent = 'Ver na Shopee';
             buyBtn.href = p.shortLink || p.affiliateLink || '#';
             buyBtn.dataset.itemId = String(p.id);
             buyBtn.dataset.category = String(p.category || 'todos');
@@ -2998,7 +2998,7 @@ async function loadOffersFromSupabase(opts = {}) {
                     showToast('Não foi possível abrir a Shopee. Tente de novo.', 'error');
                 }
             } finally {
-                if (labelEl) labelEl.textContent = 'Comprar na Shopee';
+                if (labelEl) labelEl.textContent = 'Ver na Shopee';
             }
         }
 

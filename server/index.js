@@ -2796,7 +2796,7 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       <p class="foot">Nenhum pagamento neste site. A compra é finalizada com segurança na Shopee.</p>
     </div>
     <div class="cta-bar">
-      <a class="cta" id="btn-buy" href="${escapeHtmlSSR(buyHref)}" target="_blank" rel="nofollow sponsored noopener">Comprar na Shopee</a>
+      <a class="cta" id="btn-buy" href="${escapeHtmlSSR(buyHref)}" target="_blank" rel="nofollow sponsored noopener">Ver na Shopee</a>
       <a class="more" id="btn-more" href="${backHrefSafe}">Ver mais ofertas</a>
     </div>
   </main>
