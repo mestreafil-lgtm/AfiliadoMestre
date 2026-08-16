@@ -91,9 +91,10 @@
         budget: "Custo-benefício",
     };
     const CATALOGO_VIEWS = new Set([
-        "catalogo-explorador", "catalogo-lojas", "catalogo-ofertas", "catalogo-cobertura",
-        "catalogo-money", "catalogo-sync", "catalogo-feeds", "catalogo-shortlinks", "catalogo-saude",
+        "catalogo-buscar", "catalogo-atualizar", "catalogo-links", "catalogo-saude",
     ]);
+    const CATALOGO_BUSCAR_TABS = new Set(["palavras", "lojas", "ofertas"]);
+    let currentCatalogoBuscarTab = "palavras";
     const SORT_TYPE_LABELS_UI = {
         1: "Relevância", 2: "Mais vendidos", 3: "Maior preço", 4: "Menor preço", 5: "Maior comissão",
     };
@@ -151,23 +152,16 @@
     const ADMIN_VIEWS = {
         dashboard: { title: "Dashboard", subtitle: "Visão geral da operação de afiliados" },
         "vitrine-preview": { title: "Preview Index", subtitle: "Vitrine pública ao vivo — desktop, tablet e mobile" },
-        catalogo: { title: "Buscar na Shopee", subtitle: "Pré-visualiza só o que ainda não está na vitrine" },
-        "catalogo-explorador": { title: "Buscar na Shopee", subtitle: "Pré-visualiza só o que ainda não está na vitrine" },
-        "catalogo-lojas": { title: "Lojas afiliadas", subtitle: "Busque a loja e pré-visualize produtos novos" },
-        "catalogo-ofertas": { title: "Ofertas oficiais", subtitle: "Coleções da Shopee — só o que falta na vitrine" },
-        "catalogo-cobertura": { title: "Completar vitrine", subtitle: "Preenche lacunas sem duplicar o que já está publicado" },
-        "catalogo-money": { title: "Mais dinheiro", subtitle: "Produtos da vitrine com maior potencial de comissão" },
-        "catalogo-sync": { title: "Atualizar catálogo", subtitle: "Atualiza categorias. Não duplica o que já existe" },
-        "catalogo-feeds": { title: "Atualizações em lote", subtitle: "Atualização completa ou só o que mudou" },
-        "catalogo-shortlinks": { title: "Links curtos", subtitle: "Gera o link curto que falta nos produtos da vitrine" },
-        "catalogo-saude": { title: "Saúde da Shopee", subtitle: "Preços, comissão e conexão com a Shopee" },
+        "catalogo-buscar": { title: "Buscar produtos", subtitle: "Palavras-chave, lojas ou ofertas oficiais — tudo pela API productOfferV2" },
+        "catalogo-atualizar": { title: "Atualizar catálogo", subtitle: "Categorias, alimentação automática e atualizações em lote" },
+        "catalogo-links": { title: "Links curtos", subtitle: "Gera o link curto que falta nos produtos da vitrine" },
+        "catalogo-saude": { title: "Saúde & métricas", subtitle: "Preços, comissão, conexão com a Shopee e comissão validada" },
         produtos: { title: "Produtos", subtitle: "Gerencie o catálogo da vitrine" },
         duplicados: { title: "Remover duplicados", subtitle: "Limpe itens repetidos" },
         campanhas: { title: "Campanhas", subtitle: "Converta o produto e obtenha o link do popup com Pixel" },
         "campanha-desempenho": { title: "Desempenho de campanhas", subtitle: "Resultados por Sub ID" },
         desempenho: { title: "Desempenho geral", subtitle: "Conversões e comissões por Sub ID" },
         "meu-site": { title: "Meu Site", subtitle: "Vendas atribuídas à vitrine pública" },
-        ferramentas: { title: "Atualizações em lote", subtitle: "Atualização completa ou só o que mudou" },
     };
 
         function getAdminToken() {
@@ -402,12 +396,28 @@
                 "campanhas-desempenho": "campanha-desempenho",
                 preview: "vitrine-preview",
                 "preview-index": "vitrine-preview",
-                catalogo: "catalogo-explorador",
-                ferramentas: "catalogo-feeds",
+                catalogo: "catalogo-buscar",
+                ferramentas: "catalogo-atualizar",
+                "catalogo-explorador": "catalogo-buscar",
+                "catalogo-lojas": "catalogo-buscar",
+                "catalogo-ofertas": "catalogo-buscar",
+                "catalogo-cobertura": "catalogo-buscar",
+                "catalogo-money": "catalogo-buscar",
+                "catalogo-sync": "catalogo-atualizar",
+                "catalogo-feeds": "catalogo-atualizar",
+                "catalogo-shortlinks": "catalogo-links",
             };
+            // Guarda a rota legada para restaurar a aba/atalho depois
+            const legacyTabMap = {
+                "catalogo-lojas": { tab: "lojas" },
+                "catalogo-ofertas": { tab: "ofertas" },
+                "catalogo-cobertura": { shortcut: "coverage" },
+                "catalogo-money": { shortcut: "money" },
+            };
+            const legacyIntent = legacyTabMap[view] || null;
             if (legacyMap[view]) view = legacyMap[view];
             if (!ADMIN_VIEWS[view]) view = "dashboard";
-            setTimeout(() => switchAdminView(view, { skipUrl: true }), 0);
+            setTimeout(() => switchAdminView(view, { skipUrl: true, ...(legacyIntent || {}) }), 0);
         }
 
         function toggleAdminSidebar(forceOpen) {
@@ -455,13 +465,38 @@
         }
 
         function switchCatalogTab(tab) {
+            // Compat com chamadas antigas — mapeia para (view + tab/shortcut) do novo catálogo
             const map = {
-                explorer: "catalogo-explorador",
-                coverage: "catalogo-cobertura",
-                money: "catalogo-money",
-                system: "catalogo-sync",
+                explorer: { view: "catalogo-buscar", tab: "palavras" },
+                coverage: { view: "catalogo-buscar", shortcut: "coverage" },
+                money: { view: "catalogo-buscar", shortcut: "money" },
+                system: { view: "catalogo-atualizar" },
+                lojas: { view: "catalogo-buscar", tab: "lojas" },
+                ofertas: { view: "catalogo-buscar", tab: "ofertas" },
             };
-            switchAdminView(map[tab] || "catalogo-explorador");
+            const target = map[tab] || map.explorer;
+            switchAdminView(target.view, { tab: target.tab, shortcut: target.shortcut });
+        }
+
+        function switchCatalogoBuscarTab(tab) {
+            if (!CATALOGO_BUSCAR_TABS.has(tab)) tab = "palavras";
+            currentCatalogoBuscarTab = tab;
+            for (const t of CATALOGO_BUSCAR_TABS) {
+                const btn = document.getElementById(`cat-buscar-tab-${t}`);
+                const pane = document.getElementById(`cat-buscar-pane-${t}`);
+                const active = t === tab;
+                if (btn) btn.classList.toggle("active", active);
+                if (pane) {
+                    pane.classList.toggle("hidden", !active);
+                    pane.style.display = active ? "" : "none";
+                }
+            }
+            if (tab === "lojas" && !document.getElementById("shops-preview")?.dataset.loaded) {
+                // Não carrega automaticamente — usuário decide (evita gastar quota da Shopee).
+            }
+            if (tab === "ofertas" && !document.getElementById("official-offers-box")?.dataset.loaded) {
+                // Idem.
+            }
         }
 
         function switchAdminView(view, opts = {}) {
@@ -469,8 +504,17 @@
                 navigateTo(`/admin/${view || "dashboard"}`);
                 return;
             }
-            if (view === "catalogo") view = "catalogo-explorador";
-            if (view === "ferramentas") view = "catalogo-feeds";
+            // Aliases de rotas antigas
+            if (view === "catalogo") view = "catalogo-buscar";
+            if (view === "catalogo-explorador") view = "catalogo-buscar";
+            if (view === "catalogo-lojas") { opts = { ...opts, tab: "lojas" }; view = "catalogo-buscar"; }
+            if (view === "catalogo-ofertas") { opts = { ...opts, tab: "ofertas" }; view = "catalogo-buscar"; }
+            if (view === "catalogo-cobertura") { opts = { ...opts, shortcut: "coverage" }; view = "catalogo-buscar"; }
+            if (view === "catalogo-money") { opts = { ...opts, shortcut: "money" }; view = "catalogo-buscar"; }
+            if (view === "catalogo-sync") view = "catalogo-atualizar";
+            if (view === "catalogo-feeds") view = "catalogo-atualizar";
+            if (view === "catalogo-shortlinks") view = "catalogo-links";
+            if (view === "ferramentas") view = "catalogo-atualizar";
             if (!ADMIN_VIEWS[view]) view = "dashboard";
 
             document.querySelectorAll(".admin-view").forEach(el => el.classList.remove("active"));
@@ -506,28 +550,24 @@
                     iframe.src = "/";
                 }
                 setPreviewDevice("desktop");
-            } else if (view === "catalogo-explorador") {
+            } else if (view === "catalogo-buscar") {
                 populateAdminCategorySelect();
                 updateExplorerKwCount();
                 updateExplorerModeHint();
-            } else if (view === "catalogo-lojas") {
-                if (!document.getElementById("shops-preview")?.dataset.loaded) {
-                    loadAffiliateShops();
+                renderExplorerKeywordChips();
+                switchCatalogoBuscarTab(opts.tab || currentCatalogoBuscarTab || "palavras");
+                if (opts.shortcut === "coverage") {
+                    runCoverageShortcut();
+                } else if (opts.shortcut === "money") {
+                    showMoneyQueueShortcut();
                 }
-            } else if (view === "catalogo-ofertas") {
-                loadOfficialShopeeOffers();
-            } else if (view === "catalogo-cobertura") {
-                loadCoverageReport();
-            } else if (view === "catalogo-money") {
-                renderMoneyQueue();
-            } else if (view === "catalogo-sync") {
+            } else if (view === "catalogo-atualizar") {
                 populateAdminCategorySelect();
                 renderAdminCategoriesPanel();
                 loadAutoStatus();
-            } else if (view === "catalogo-shortlinks") {
-                loadShortlinkStatus();
-            } else if (view === "catalogo-feeds") {
                 loadFeedInventory();
+            } else if (view === "catalogo-links") {
+                loadShortlinkStatus();
             } else if (view === "catalogo-saude") {
                 loadShopeeHealth();
             } else if (view === "produtos") {
@@ -605,10 +645,54 @@
                 .filter(Boolean))];
         }
 
+        const EXPLORER_KW_MAX = 40;
+
         function updateExplorerKwCount() {
             const el = document.getElementById("explorer-kw-count");
             const n = parseExplorerKeywords(document.getElementById("admin-keyword")?.value).length;
-            if (el) el.textContent = n === 1 ? "1 keyword" : `${n} keywords`;
+            if (el) {
+                const over = n > EXPLORER_KW_MAX;
+                el.textContent = `${n}/${EXPLORER_KW_MAX} palavras-chave${over ? " — só as 40 primeiras serão usadas" : ""}`;
+                el.style.color = over ? "#dc2626" : "#94a3b8";
+            }
+            renderExplorerKeywordChips();
+        }
+
+        function renderExplorerKeywordChips() {
+            const wrap = document.getElementById("admin-keyword-chips");
+            if (!wrap) return;
+            const kws = parseExplorerKeywords(document.getElementById("admin-keyword")?.value);
+            if (!kws.length) {
+                wrap.innerHTML = '<span style="font-size:11px;color:#cbd5e1;padding:4px 6px">nenhuma palavra ainda</span>';
+                return;
+            }
+            wrap.innerHTML = kws.map((kw) => `
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:#fef3c7;color:#78350f;border-radius:999px;font-size:11px;font-weight:600">
+                    ${escapeHtml(kw)}
+                    <button type="button" onclick="removeExplorerKeyword('${escapeHtml(kw).replace(/'/g, "&#39;")}')" style="background:transparent;border:0;color:#78350f;cursor:pointer;font-size:14px;line-height:1;padding:0 2px" title="Remover">×</button>
+                </span>`).join("");
+        }
+
+        function removeExplorerKeyword(kw) {
+            const ta = document.getElementById("admin-keyword");
+            if (!ta) return;
+            const kws = parseExplorerKeywords(ta.value).filter((k) => k !== kw);
+            ta.value = kws.join(", ");
+            updateExplorerKwCount();
+            renderExplorerKeywordChips();
+        }
+
+        function onExplorerKeywordKey(event) {
+            if (event.key !== "Enter" && event.key !== ",") return;
+            const ta = event.target;
+            const raw = ta.value;
+            // Só materializa em chip se o cursor está no fim (fluxo natural digitar-Enter)
+            if (event.key === "Enter" && event.shiftKey) return; // Shift+Enter = quebra de linha real
+            event.preventDefault();
+            const kws = parseExplorerKeywords(raw);
+            ta.value = kws.join(", ") + (kws.length ? ", " : "");
+            updateExplorerKwCount();
+            renderExplorerKeywordChips();
         }
 
         function updateExplorerModeHint() {
@@ -617,6 +701,13 @@
             const matchId = document.getElementById("admin-match-id")?.value;
             const shopId = document.getElementById("admin-shop-id")?.value;
             const hint = document.getElementById("explorer-mode-hint");
+            // Mostra/esconde bloco de IDs conforme o listType
+            const idsWrap = document.getElementById("explorer-ids-wrap");
+            if (idsWrap) {
+                const needsMatchOrShop = [3, 4, 5, 6].includes(lt);
+                idsWrap.classList.toggle("hidden", !needsMatchOrShop);
+                idsWrap.style.display = needsMatchOrShop ? "grid" : "none";
+            }
             if (!hint) return;
             let extra = "";
             if ([3, 4, 6].includes(lt)) {
@@ -642,21 +733,72 @@
             const ms = document.getElementById("admin-min-sales");
             const rc = document.getElementById("admin-require-commission");
             const mc = document.getElementById("admin-min-commission");
-            if (kw && p.keywords != null) kw.value = p.keywords;
+            // Preset acumula com o que o admin já digitou:
+            // - keywords: dedup entre atuais e do preset
+            // - dropdowns/inputs numéricos: só substitui quando o campo está vazio ou = 0
+            if (kw && p.keywords != null) {
+                const current = parseExplorerKeywords(kw.value);
+                const incoming = parseExplorerKeywords(p.keywords);
+                const merged = [...new Set([...current, ...incoming])];
+                kw.value = merged.join(", ");
+            }
             if (lt) lt.value = String(p.listType);
             if (st) st.value = String(p.sortType);
-            if (mr) mr.value = String(p.minRating);
-            if (ms) ms.value = String(p.minSales);
-            if (rc) rc.checked = !!p.requireCommission;
-            if (mc) mc.value = String(p.minCommissionPct != null ? p.minCommissionPct : 0);
+            if (mr && (!mr.value || Number(mr.value) === 0)) mr.value = String(p.minRating);
+            if (ms && (!ms.value || Number(ms.value) === 0)) ms.value = String(p.minSales);
+            if (rc) rc.checked = !!p.requireCommission || rc.checked;
+            if (mc && (!mc.value || Number(mc.value) === 0)) mc.value = String(p.minCommissionPct != null ? p.minCommissionPct : 0);
             document.querySelectorAll(".explorer-preset").forEach((btn) => {
                 btn.classList.toggle("active", btn.dataset.preset === name);
             });
             updateExplorerKwCount();
+            renderExplorerKeywordChips();
             updateExplorerModeHint();
-            if (p.matchIdHint) showToast("Cole o ID da coleção ou categoria (Ofertas oficiais)", "info");
-            else if (p.shopIdHint) showToast("Cole o ID da loja Shopee", "info");
+            if (p.matchIdHint) showToast("Cole o ID da coleção ou categoria (aba Ofertas oficiais)", "info");
+            else if (p.shopIdHint) showToast("Cole o ID da loja Shopee (aba Lojas)", "info");
             else showToast(`Atalho: ${EXPLORER_PRESET_LABELS[name] || name}`, "success");
+        }
+
+        function resetExplorerForm() {
+            const kw = document.getElementById("admin-keyword");
+            const lt = document.getElementById("admin-list-type");
+            const st = document.getElementById("admin-sort-type");
+            const lim = document.getElementById("admin-limit");
+            const pg = document.getElementById("admin-pages");
+            const mr = document.getElementById("admin-min-rating");
+            const ms = document.getElementById("admin-min-sales");
+            const rc = document.getElementById("admin-require-commission");
+            const mc = document.getElementById("admin-min-commission");
+            const mi = document.getElementById("admin-match-id");
+            const si = document.getElementById("admin-shop-id");
+            if (kw) kw.value = "";
+            if (lt) lt.value = "1";
+            if (st) st.value = "5";
+            if (lim) lim.value = "20";
+            if (pg) pg.value = "1";
+            if (mr) mr.value = "4.0";
+            if (ms) ms.value = "20";
+            if (rc) rc.checked = true;
+            if (mc) mc.value = "0";
+            if (mi) mi.value = "";
+            if (si) si.value = "";
+            document.querySelectorAll(".explorer-preset").forEach((btn) => btn.classList.remove("active"));
+            updateExplorerKwCount();
+            renderExplorerKeywordChips();
+            updateExplorerModeHint();
+            showToast("Filtros redefinidos", "info");
+        }
+
+        function runCoverageShortcut() {
+            const box = document.getElementById("coverage-summary");
+            if (box) { box.classList.remove("hidden"); box.style.display = "block"; }
+            loadCoverageReport();
+        }
+
+        function showMoneyQueueShortcut() {
+            const box = document.getElementById("money-queue-card");
+            if (box) { box.classList.remove("hidden"); box.style.display = "block"; }
+            renderMoneyQueue();
         }
 
         function getExplorerFormParams() {
@@ -2941,7 +3083,10 @@
 
         const runRefreshMetrics = withBusy("metrics", async function () {
             if (!isAdminMode()) return;
-            const out = document.getElementById("feed-result");
+            // refresh-metrics-result é o box novo (view catalogo-saude). Fallback pro feed-result
+            // continua funcionando caso alguém abra por rota antiga.
+            const out = document.getElementById("refresh-metrics-result") || document.getElementById("feed-result");
+            if (!out) return;
             const batch = Math.min(Math.max(Number(document.getElementById("refresh-metrics-batch")?.value) || 60, 5), 200);
             const staleHours = Math.min(Math.max(Number(document.getElementById("refresh-metrics-stale")?.value) || 12, 1), 168);
             out.innerHTML = '<p class="text-slate-400">Reverificando métricas…</p>';
@@ -3702,12 +3847,17 @@
         async function loadOfficialShopeeOffers() {
             const box = document.getElementById('official-offers-box');
             if (!box) return;
-            box.innerHTML = '<p class="text-slate-400"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando oficiais…</p>';
+            const keyword = String(document.getElementById('official-keyword')?.value || '').trim();
+            const sortType = String(document.getElementById('official-sort')?.value || '1').trim() || '1';
+            box.innerHTML = '<p class="text-slate-400"><i class="fas fa-spinner fa-spin mr-1"></i> Carregando ofertas oficiais…</p>';
             try {
-                const res = await adminFetch(`${API_BASE}/api/admin/shopee/campaigns?limit=20`);
+                const qs = new URLSearchParams({ limit: '20', sortType });
+                if (keyword) qs.set('keyword', keyword);
+                const res = await adminFetch(`${API_BASE}/api/admin/shopee/campaigns?${qs}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-                const items = data.nodes || data.campaigns || data.offers || [];
+                const items = data.nodes || [];
+                box.dataset.loaded = '1';
                 if (!items.length) {
                     box.innerHTML = '<p class="text-slate-400">Nenhuma oferta oficial retornada agora.</p>';
                     return;
@@ -3758,9 +3908,12 @@
             if (rc) rc.checked = true;
             if (shopEl) shopEl.value = '';
             updateExplorerKwCount();
+            renderExplorerKeywordChips();
             updateExplorerModeHint();
-            switchAdminView("catalogo-explorador");
-            showToast("Pré-visualizando a coleção — só o que ainda não está na vitrine", "info");
+            // Só troca a aba interna — a prévia é compartilhada.
+            switchCatalogoBuscarTab("palavras");
+            document.getElementById("explorer-preview")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            showToast("Buscando produtos da coleção — só o que ainda não está na vitrine", "info");
             runExplorerSearch({ sync: false });
         }
 
@@ -4142,7 +4295,8 @@
                             </div>
                             <div class="flex flex-wrap gap-1 shrink-0">
                                 ${!hasSl ? `<button type="button" onclick="moneyQueueMakeShortlink('${id}')" class="px-2 py-1 rounded bg-amber-500 text-white text-[10px] font-bold hover:bg-amber-600">Shortlink</button>` : ''}
-                                <button type="button" onclick="moneyQueueCopyLink('${id}')" class="px-2 py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-bold hover:bg-slate-200">Copiar</button>
+                                <button type="button" onclick="moneyQueueCopyAdLink('${id}')" class="px-2 py-1 rounded bg-blue-600 text-white text-[10px] font-bold hover:bg-blue-700" title="URL /p/:id — dispara o Pixel completo (Facebook Ads)">Copiar (Ads)</button>
+                                <button type="button" onclick="moneyQueueCopyShopeeLink('${id}')" class="px-2 py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-bold hover:bg-slate-200" title="Link Shopee cru — sem popup nem Pixel">Copiar (Shopee)</button>
                                 <a href="${escapeHtml(link || '#')}" target="_blank" rel="nofollow sponsored noopener" class="px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold hover:bg-orange-600 ${link ? '' : 'pointer-events-none opacity-40'}">Abrir</a>
                                 <button type="button" onclick="moneyQueueToExplorer('${id}')" class="px-2 py-1 rounded bg-slate-800 text-white text-[10px] font-bold hover:bg-slate-700">Explorar</button>
                             </div>
@@ -4185,12 +4339,32 @@
             }
         }
 
-        function moneyQueueCopyLink(id) {
+        function buildProductAdLink(itemId) {
+            if (!itemId) return '';
+            const origin = (window.location && window.location.origin) || '';
+            return `${origin}/p/${encodeURIComponent(String(itemId))}`;
+        }
+
+        function moneyQueueCopyAdLink(id) {
+            const p = moneyQueueFind(id);
+            if (!p) return showToast('Produto não encontrado', 'error');
+            const itemId = p.itemId || p.id;
+            const link = buildProductAdLink(itemId);
+            if (!link) return showToast('Sem itemId', 'error');
+            copyTextToClipboard(link, 'Link do anúncio copiado (dispara Pixel)');
+        }
+
+        function moneyQueueCopyShopeeLink(id) {
             const p = moneyQueueFind(id);
             if (!p) return;
             const link = p.shortLink || p.affiliateLink || p.productLink || '';
-            if (!link) return showToast('Sem link', 'error');
-            copyTextToClipboard(link, 'Link copiado');
+            if (!link) return showToast('Sem link Shopee', 'error');
+            copyTextToClipboard(link, 'Link Shopee copiado');
+        }
+
+        // Compat: alguns lugares antigos ainda podem chamar moneyQueueCopyLink.
+        function moneyQueueCopyLink(id) {
+            return moneyQueueCopyShopeeLink(id);
         }
 
         function moneyQueueToExplorer(id) {
@@ -4217,8 +4391,8 @@
             }
             updateExplorerKwCount();
             updateExplorerModeHint();
-            switchAdminView("catalogo-explorador");
-            document.getElementById('admin-keyword')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            switchAdminView("catalogo-buscar", { tab: "palavras" });
+            document.getElementById('explorer-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             showToast('Pré-visualizando — só produtos novos', 'success');
             runExplorerSearch({ sync: false });
         }
@@ -4271,8 +4445,8 @@
             if (rc) rc.checked = true;
             updateExplorerKwCount();
             updateExplorerModeHint();
-            switchAdminView("catalogo-explorador");
-            document.getElementById('admin-keyword')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            switchAdminView("catalogo-buscar", { tab: "palavras" });
+            document.getElementById('explorer-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             showToast(`${kws.length} palavras-chave de ${cat.label} — pré-visualizando`, 'success');
             runExplorerSearch({ sync: false });
         }
@@ -4285,14 +4459,21 @@
             return "Loja";
         }
 
-        async function loadAffiliateShops() {
+        async function loadAffiliateShops(overrides = {}) {
             const box = document.getElementById("shops-preview");
             if (!box) return;
-            const keyword = String(document.getElementById("shops-keyword")?.value || "").trim();
-            const shopType = String(document.getElementById("shops-type")?.value || "").trim();
+            const keyword = overrides.keyword != null
+                ? String(overrides.keyword)
+                : String(document.getElementById("shops-keyword")?.value || "").trim();
+            const shopType = overrides.shopType != null
+                ? String(overrides.shopType)
+                : String(document.getElementById("shops-type")?.value || "").trim();
+            const sortType = overrides.sortType != null
+                ? String(overrides.sortType)
+                : (String(document.getElementById("shops-sort")?.value || "").trim() || "2");
             box.innerHTML = '<p class="text-slate-400"><i class="fas fa-spinner fa-spin mr-1"></i> Buscando lojas…</p>';
             try {
-                const qs = new URLSearchParams({ limit: "20", sortType: "2" });
+                const qs = new URLSearchParams({ limit: "20", sortType });
                 if (keyword) qs.set("keyword", keyword);
                 if (shopType) qs.set("shopType", shopType);
                 const res = await adminFetch(`${API_BASE}/api/admin/shopee/shops?${qs}`);
@@ -4329,6 +4510,10 @@
             }
         }
 
+        function loadTopAffiliateShops() {
+            return loadAffiliateShops({ keyword: "", shopType: "", sortType: "3" });
+        }
+
         function previewShopInExplorer(shopId) {
             const shopEl = document.getElementById("admin-shop-id");
             const lt = document.getElementById("admin-list-type");
@@ -4345,9 +4530,12 @@
             if (rc) rc.checked = true;
             if (mc) mc.value = "9";
             updateExplorerKwCount();
+            renderExplorerKeywordChips();
             updateExplorerModeHint();
-            switchAdminView("catalogo-explorador");
-            showToast("Pré-visualizando produtos da loja — só os novos", "info");
+            // Fica na aba Palavras-chave (que exibe a prévia); mostra o container de IDs.
+            switchCatalogoBuscarTab("palavras");
+            document.getElementById("explorer-preview")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            showToast("Buscando produtos da loja — só os novos", "info");
             runExplorerSearch({ sync: false });
         }
 
@@ -4366,7 +4554,7 @@
                 if (kwEl) kwEl.value = label;
                 updateExplorerKwCount();
             }
-            switchAdminView("catalogo-explorador");
+            switchAdminView("catalogo-buscar", { tab: "palavras" });
             runExplorerSearch({ sync: false });
         }
 
@@ -4423,7 +4611,11 @@
     // Expõe handlers usados por onclick no HTML do painel
     const exposeMap = {
         switchAdminView, toggleAdminSidebar, toggleMobileSidebar, setPreviewDevice,
-        switchCatalogTab, updateExplorerKwCount, updateExplorerModeHint,
+        switchCatalogTab, switchCatalogoBuscarTab,
+        updateExplorerKwCount, updateExplorerModeHint,
+        renderExplorerKeywordChips, removeExplorerKeyword, onExplorerKeywordKey,
+        resetExplorerForm, runCoverageShortcut, showMoneyQueueShortcut,
+        loadTopAffiliateShops, moneyQueueCopyAdLink, moneyQueueCopyShopeeLink,
         submitAdminLogin, logoutAdmin,
         syncAllCategories, syncCategory, applyExplorerPreset, runExplorerSearch,
         saveExplorerSelection, cancelExplorerSearch, toggleExplorerSelectAll, onExplorerItemToggle,

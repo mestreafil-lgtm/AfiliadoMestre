@@ -355,7 +355,6 @@
         }
         function amPixelCheckout(p) {
             const payload = Object.assign({ num_items: 1 }, amPixelProductPayload(p));
-            amPixelTrack("AddToCart", payload);
             amPixelTrack("InitiateCheckout", payload);
         }
         function amPixelFlush(ms) {
@@ -2127,10 +2126,6 @@ async function loadOffersFromSupabase(opts = {}) {
             renderStoreProducts();
             clearTimeout(searchDebounce);
             searchDebounce = setTimeout(() => {
-                if (term.length >= 2 && term !== lastPixelSearch) {
-                    lastPixelSearch = term;
-                    amPixelTrack("Search", { search_string: term.slice(0, 100) });
-                }
                 if (!apiLive || term.length < 2) return;
                 loadOffersFromSupabase({ silent: true, reset: true, keyword: term });
             }, 400);
