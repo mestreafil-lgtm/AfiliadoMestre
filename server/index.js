@@ -2694,6 +2694,7 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   s.parentNode.insertBefore(t,s)}(window, document,'script',
   'https://connect.facebook.net/en_US/fbevents.js');
   fbq('init', PIXEL_ID);
+  fbq('set', 'autoConfig', false, PIXEL_ID);
   fbq('track', 'PageView', {}, { eventID: eidPV });
   fbq('track', 'ViewContent', payload, { eventID: eidVC });
   fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eidIC });
@@ -2803,9 +2804,6 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
 </div>
 <script>
 (function(){
-  var PIXEL_ID = '2217009299032183';
-  var payload = ${pixelPayload};
-  var checkoutPayload = Object.assign({ num_items: 1 }, payload);
   var backHref = ${JSON.stringify(backHref)};
   var buyHref = ${JSON.stringify(buyHref)};
   function goVitrine(){
@@ -2814,44 +2812,12 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
   function inAppBrowser(){
     return /FBAN|FBAV|FB_IAB|Instagram|Line\/|TikTok|Bytedance|Twitter/i.test(navigator.userAgent || '');
   }
-  function ping(ev, data){
-    try {
-      var p = data || {};
-      var q = 'id=' + encodeURIComponent(PIXEL_ID)
-        + '&ev=' + encodeURIComponent(ev)
-        + '&noscript=1'
-        + '&dl=' + encodeURIComponent(location.href)
-        + '&ts=' + Date.now();
-      if (p.value != null) q += '&cd[value]=' + encodeURIComponent(p.value);
-      if (p.currency) q += '&cd[currency]=' + encodeURIComponent(p.currency);
-      if (p.content_type) q += '&cd[content_type]=' + encodeURIComponent(p.content_type);
-      if (p.content_name) q += '&cd[content_name]=' + encodeURIComponent(p.content_name);
-      if (p.content_category) q += '&cd[content_category]=' + encodeURIComponent(p.content_category);
-      if (p.num_items != null) q += '&cd[num_items]=' + encodeURIComponent(p.num_items);
-      if (p.content_ids) q += '&cd[content_ids]=' + encodeURIComponent(JSON.stringify(p.content_ids));
-      var url = 'https://www.facebook.com/tr?' + q;
-      // sendBeacon é fire-and-forget: entrega mesmo se a página já navegou.
-      // Evita bloquear o clique do "Comprar" (INP).
-      if (navigator.sendBeacon) {
-        try { if (navigator.sendBeacon(url)) return; } catch (e) {}
-      }
-      (new Image(1, 1)).src = url;
-    } catch (e) {}
-  }
-  function trackCheckout(){
-    ping('InitiateCheckout', checkoutPayload);
-    // setTimeout (macrotask) — queueMicrotask ainda entra no INP, porque roda antes do paint.
-    setTimeout(function(){
-      try { if (typeof fbq === 'function') fbq('track', 'InitiateCheckout', checkoutPayload); } catch (e) {}
-    }, 0);
-  }
   var btnBuy = document.getElementById('btn-buy');
   var btnClose = document.getElementById('btn-close');
   var btnMore  = document.getElementById('btn-more');
   var overlay  = document.getElementById('overlay');
   if (btnBuy) btnBuy.addEventListener('click', function(e){
     var href = btnBuy.getAttribute('href') || buyHref;
-    trackCheckout();
     if (!href || href === '#') {
       e.preventDefault();
       return;
