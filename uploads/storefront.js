@@ -183,6 +183,91 @@
         let currentStoreCategory = 'todos';
         let currentStoreSubcategory = '';
         let currentStoreSort = 'money';
+        // Recomendações: guarda até 10 cliques recentes pra rerankear "Ofertas em destaque".
+        const CLICK_SIGNALS_KEY = 'am_click_signals_v1';
+        const CLICK_SIGNALS_MAX = 10;
+        const CLICK_STOP_TOKENS = new Set([
+            'com','sem','para','feminino','feminina','kit','de','da','do','dos','das','em','na','no',
+            'um','uma','the','and','pra','por','plus','ate','ate','a','o','e','ou','tipo','modelo',
+        ]);
+        function tokenizeTitle(text) {
+            return String(text || '')
+                .toLowerCase()
+                .normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .split(/[^a-z0-9]+/)
+                .filter((t) => t.length > 2 && !CLICK_STOP_TOKENS.has(t));
+        }
+        function readClickSignals() {
+            try {
+                const raw = localStorage.getItem(CLICK_SIGNALS_KEY);
+                if (!raw) return [];
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) ? arr.slice(0, CLICK_SIGNALS_MAX) : [];
+            } catch (_) { return []; }
+        }
+        function pushClickSignal(product) {
+            if (!product) return;
+            try {
+                const signal = {
+                    id: String(product.id || product.itemId || ''),
+                    cat: product.category || '',
+                    sub: product.subcategory || '',
+                    kw: product.keyword || '',
+                    tokens: tokenizeTitle(product.title || '').slice(0, 8),
+                    ts: Date.now(),
+                };
+                const cur = readClickSignals().filter((s) => s.id !== signal.id);
+                cur.unshift(signal);
+                localStorage.setItem(CLICK_SIGNALS_KEY, JSON.stringify(cur.slice(0, CLICK_SIGNALS_MAX)));
+            } catch (_) {}
+        }
+        function aggregateClickSignals() {
+            const signals = readClickSignals();
+            const cat = {}, sub = {}, kw = {}, tok = {};
+            let n = signals.length;
+            signals.forEach((s, i) => {
+                const w = 1 - (i / (n + 1)) * 0.5; // clique mais recente pesa mais
+                if (s.cat) cat[s.cat] = (cat[s.cat] || 0) + w;
+                if (s.sub) sub[s.sub] = (sub[s.sub] || 0) + w;
+                if (s.kw)  kw[s.kw]  = (kw[s.kw]  || 0) + w;
+                (s.tokens || []).forEach((t) => { tok[t] = (tok[t] || 0) + w; });
+            });
+            return { cat, sub, kw, tok, hasData: n > 0 };
+        }
+        function affinityScore(p, agg) {
+            let s = 0;
+            if (agg.cat[p.category]) s += agg.cat[p.category] * 4;
+            if (p.subcategory && agg.sub[p.subcategory]) s += agg.sub[p.subcategory] * 8;
+            if (p.keyword && agg.kw[p.keyword]) s += agg.kw[p.keyword] * 3;
+            const tokens = tokenizeTitle(p.title || '');
+            let tokHits = 0;
+            for (const t of tokens) if (agg.tok[t]) tokHits += agg.tok[t];
+            s += Math.min(18, tokHits * 1.8);
+            return s;
+        }
+        // Filtros da sidebar desktop estilo Shopee — só ativos dentro de uma categoria.
+        const storeFilters = {
+            priceMin: null,
+            priceMax: null,
+            onlyDiscount: false,
+            minRating: 0,
+            onlyMall: false,
+            // "Enviado De": Nacional/Internacional detectado pelo nome/tipo da loja.
+            // Estados (SP/MG) não têm dado no API do afiliado — o toggle fica visual mas não filtra.
+            shipping: { nacional: false, internacional: false, sp: false, mg: false },
+            // Condições: a API Shopee de afiliado só devolve produtos novos. Toggles são visuais.
+            conditions: { novo: false, usado: false },
+        };
+        function storeFiltersActive() {
+            const s = storeFilters.shipping;
+            return storeFilters.priceMin != null || storeFilters.priceMax != null
+                || storeFilters.onlyDiscount || storeFilters.minRating > 0 || storeFilters.onlyMall
+                || s.nacional || s.internacional;
+        }
+        function productIsInternational(p) {
+            const name = String(p.shopName || '').toLowerCase();
+            return /internacional|international|china|overseas|choice|global/.test(name);
+        }
         let activeProductForBuy = null;
         let flashEndsAt = null;
         let categoryProductsCache = [];
@@ -1092,6 +1177,14 @@ async function loadOffersFromSupabase(opts = {}) {
             currentStoreCategory = catId;
             currentStoreSubcategory = '';
             currentPage = 0;
+            // Trocar de categoria zera os filtros da sidebar (comportamento igual Shopee).
+            storeFilters.priceMin = null;
+            storeFilters.priceMax = null;
+            storeFilters.onlyDiscount = false;
+            storeFilters.minRating = 0;
+            storeFilters.onlyMall = false;
+            storeFilters.shipping = { nacional: false, internacional: false, sp: false, mg: false };
+            storeFilters.conditions = { novo: false, usado: false };
             currentNavSection = catId === 'todos' ? 'destaque' : 'category_page';
             if (!opts.skipUrl) {
                 const next = !catId || catId === 'todos' ? '/' : `/categoria/${catId}`;
@@ -1152,7 +1245,8 @@ async function loadOffersFromSupabase(opts = {}) {
                     const d = displayDiscount(p);
                     return d >= 20 && d <= 80;
                 });
-                picks = (flashPicks.length ? flashPicks : picks).slice(0, 12);
+                // Cliente pediu APENAS 6 (1 linha). Antes eram 12 (2 linhas).
+                picks = (flashPicks.length ? flashPicks : picks).slice(0, 6);
                 if (!picks.length) {
                     track.innerHTML = `
                         <div class="shrink-0 w-full py-8 text-center text-slate-400 text-xs">
@@ -1164,7 +1258,8 @@ async function loadOffersFromSupabase(opts = {}) {
                 // ANTES de escrever o innerHTML deixa o browser abrir a conexão
                 // e baixar em paralelo com o parse do markup (ganho ~100-200ms no 4G).
                 preloadHeroImage(picks[0] && picks[0].image);
-                track.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5';
+                // 6 cards em UMA linha do sm em diante — mobile continua 2 col.
+                track.className = 'grid grid-cols-2 sm:grid-cols-6 gap-2.5';
                 track.innerHTML = picks.map((p, index) => productCardHTML(p, { index, section: 'flash_deals' })).join('');
                 return true;
             };
@@ -1402,7 +1497,20 @@ async function loadOffersFromSupabase(opts = {}) {
             return categoryImageCandidates(catId)[0] || null;
         }
 
+        // Primeira keyword representativa de uma categoria (pra buscar direto na Shopee
+        // quando o Supabase não tem produto salvo daquela categoria ainda).
+        function firstKeywordOf(cat) {
+            if (!cat) return null;
+            for (const sub of (cat.subcategories || [])) {
+                for (const kw of (sub.keywords || [])) {
+                    const raw = typeof kw === 'string' ? kw : (kw && kw.q);
+                    if (raw && String(raw).trim()) return String(raw).trim();
+                }
+            }
+            return cat.label || cat.id;
+        }
         // Busca 1 produto por categoria em background para garantir uma foto de capa.
+        // 1º tenta Supabase (rápido); se vazio, cai direto na Shopee via keyword da categoria.
         let categoryCoversLoaded = false;
         async function preloadCategoryCovers() {
             if (categoryCoversLoaded || !apiLive) return;
@@ -1412,14 +1520,33 @@ async function loadOffersFromSupabase(opts = {}) {
             );
             if (!missing.length) return;
             await Promise.all(missing.map(async cat => {
+                let image = null;
+                // Tenta primeiro no Supabase (produto já sincronizado).
                 try {
                     const url = `${API_BASE}/api/ofertas/db?limit=1&offset=0&category=${encodeURIComponent(cat.id)}`;
                     const res = await fetch(url);
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    const first = (data.products || [])[0];
-                    if (first && first.image) categoryCovers[cat.id] = first.image;
+                    if (res.ok) {
+                        const data = await res.json();
+                        const first = (data.products || [])[0];
+                        if (first && first.image) image = first.image;
+                    }
                 } catch (_) {}
+                // Fallback: sem produto salvo → busca 1 direto na Shopee via keyword da categoria.
+                if (!image) {
+                    const kw = firstKeywordOf(cat);
+                    if (kw) {
+                        try {
+                            const url = `${API_BASE}/api/ofertas?keyword=${encodeURIComponent(kw)}&limit=1&listType=0&sortType=2&minRating=0&minSales=0`;
+                            const res = await fetch(url);
+                            if (res.ok) {
+                                const data = await res.json();
+                                const first = (data.products || [])[0];
+                                if (first && first.image) image = first.image;
+                            }
+                        } catch (_) {}
+                    }
+                }
+                if (image) categoryCovers[cat.id] = image;
             }));
             persistCovers();
             renderCategories();
@@ -1479,14 +1606,34 @@ async function loadOffersFromSupabase(opts = {}) {
             });
             await Promise.all(missing.map(async s => {
                 const subId = s.id || s.key;
+                let image = null;
+                // 1º tenta no Supabase
                 try {
                     const url = `${API_BASE}/api/ofertas/db?limit=1&offset=0&category=${encodeURIComponent(catId)}&subcategory=${encodeURIComponent(subId)}`;
                     const res = await fetch(url);
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    const first = (data.products || [])[0];
-                    if (first && first.image) subcategoryCovers[`${catId}::${subId}`] = first.image;
+                    if (res.ok) {
+                        const data = await res.json();
+                        const first = (data.products || [])[0];
+                        if (first && first.image) image = first.image;
+                    }
                 } catch (_) {}
+                // 2º fallback: sem produto salvo → busca 1 direto na Shopee via keyword da subcategoria.
+                if (!image) {
+                    const rawKw = (s.keywords || [])[0];
+                    const kw = typeof rawKw === 'string' ? rawKw : (rawKw && rawKw.q) || s.label;
+                    if (kw) {
+                        try {
+                            const url = `${API_BASE}/api/ofertas?keyword=${encodeURIComponent(kw)}&limit=1&listType=0&sortType=2&minRating=0&minSales=0`;
+                            const res = await fetch(url);
+                            if (res.ok) {
+                                const data = await res.json();
+                                const first = (data.products || [])[0];
+                                if (first && first.image) image = first.image;
+                            }
+                        } catch (_) {}
+                    }
+                }
+                if (image) subcategoryCovers[`${catId}::${subId}`] = image;
             }));
             persistCovers();
             renderSubcategories();
@@ -1506,8 +1653,8 @@ async function loadOffersFromSupabase(opts = {}) {
             const badge = badgeLabel
                 ? `<span class="text-[9px] text-slate-400 font-semibold">${badgeLabel}</span>`
                 : '';
-            const circleSize = size === 'lg' ? 'h-16 w-16' : 'h-11 w-11';
-            const iconSize = size === 'lg' ? 'text-2xl' : 'text-base';
+            const circleSize = size === 'lg' ? 'h-16 w-16' : (size === 'md' ? 'h-20 w-20' : 'h-11 w-11');
+            const iconSize = (size === 'lg' || size === 'md') ? 'text-2xl' : 'text-base';
             const img = used
                 ? pickUnused(categoryImageCandidates(cat.id), used)
                 : getCategoryImage(cat.id);
@@ -1532,13 +1679,33 @@ async function loadOffersFromSupabase(opts = {}) {
                 </button>`;
         }
 
+        const CAT_PAGE_SIZE = 12;
+        let storeCatPage = 0;
         function renderCategories() {
             const desktop = document.getElementById('store-categories-container');
             const strip = document.getElementById('mobile-category-strip');
             const visible = categories.filter(cat => cat.id !== 'todos');
             if (desktop) {
                 const used = new Set();
-                desktop.innerHTML = visible.map((cat, i) => categoryTileHTML(cat, { size: 'md', used, eagerImg: i < 2 })).join('');
+                const totalPages = Math.max(1, Math.ceil(visible.length / CAT_PAGE_SIZE));
+                if (storeCatPage >= totalPages) storeCatPage = totalPages - 1;
+                if (storeCatPage < 0) storeCatPage = 0;
+                const start = storeCatPage * CAT_PAGE_SIZE;
+                const pageSlice = visible.slice(start, start + CAT_PAGE_SIZE);
+                desktop.innerHTML = pageSlice.map((cat, i) => categoryTileHTML(cat, { size: 'md', used, eagerImg: i < 2 })).join('');
+                // Setas: aparecem só quando há mais de uma página.
+                const prevBtn = document.getElementById('store-cat-prev');
+                const nextBtn = document.getElementById('store-cat-next');
+                const showPrev = storeCatPage > 0;
+                const showNext = storeCatPage < totalPages - 1;
+                if (prevBtn) {
+                    prevBtn.classList.toggle('hidden', !showPrev);
+                    prevBtn.classList.toggle('flex', showPrev);
+                }
+                if (nextBtn) {
+                    nextBtn.classList.toggle('hidden', !showNext);
+                    nextBtn.classList.toggle('flex', showNext);
+                }
             }
             if (strip) {
                 const used = new Set();
@@ -1580,6 +1747,9 @@ async function loadOffersFromSupabase(opts = {}) {
 
         // Renderiza subcategorias agrupadas da categoria ativa (somente desktop).
         function renderSubcategories() {
+            // A sidebar Shopee-style precisa aparecer mesmo em categorias sem subs
+            // e mesmo em mobile-first bail-outs — chamada antes dos early returns.
+            renderShopeeSidebar();
             const wrapper = document.getElementById('store-subcategories');
             const container = document.getElementById('store-subcategories-container');
             const breadcrumb = document.getElementById('subcat-breadcrumb');
@@ -1652,6 +1822,175 @@ async function loadOffersFromSupabase(opts = {}) {
                     );
                 }).join('');
             updateMobileCategoryUI();
+        }
+
+        // Sidebar desktop estilo Shopee (só visível dentro de categoria em >= lg).
+        function renderShopeeSidebar() {
+            const side = document.getElementById('store-shopee-sidebar');
+            // Marca no main se estamos numa categoria — CSS esconde as seções da home.
+            const main = document.getElementById('store-main');
+            if (main) main.dataset.categoryActive = (currentStoreCategory !== 'todos') ? '1' : '0';
+            if (!side) return;
+            const cat = categories.find(c => c.id === currentStoreCategory);
+            if (!cat || currentStoreCategory === 'todos') {
+                side.innerHTML = '';
+                side.dataset.empty = '1';
+                return;
+            }
+            const subs = (Array.isArray(cat.subcategories) ? cat.subcategories : []);
+            const subItem = (id, label) => {
+                const active = (id === '' ? !currentStoreSubcategory : currentStoreSubcategory === id);
+                return `<button type="button" onclick="setStoreSubcategory('${String(id).replace(/'/g, "\\'")}')"
+                    class="w-full text-left text-[12.5px] py-1.5 pl-4 pr-2 rounded transition ${active ? 'text-shopee-orange font-bold' : 'text-slate-600 hover:text-shopee-orange'}">
+                    ${active ? '<span class="mr-1">›</span>' : ''}${escapeHtml(label)}
+                </button>`;
+            };
+            const ratingRow = (n) => {
+                const active = storeFilters.minRating === n;
+                const stars = Array.from({ length: 5 }, (_, i) =>
+                    `<i class="fas fa-star text-[11px] ${i < n ? 'text-amber-400' : 'text-slate-200'}"></i>`).join('');
+                return `<button type="button" onclick="setStoreMinRating(${n})"
+                    class="w-full flex items-center gap-1.5 py-1 px-1 rounded ${active ? 'bg-orange-50' : 'hover:bg-slate-50'}">
+                    <span class="flex gap-0.5">${stars}</span>
+                    <span class="text-[11px] ${active ? 'text-shopee-orange font-bold' : 'text-slate-500'}">${n === 5 ? '' : 'e acima'}</span>
+                </button>`;
+            };
+            const shipCheck = (key, label, disabled = false) => {
+                const checked = storeFilters.shipping[key];
+                return `<label class="flex items-center gap-2 cursor-pointer text-[12px] ${disabled ? 'text-slate-300' : 'text-slate-600'} py-0.5" ${disabled ? 'title="Sem dado disponível na API"' : ''}>
+                    <input type="checkbox" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="toggleShipping('${key}', this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                    ${escapeHtml(label)}
+                </label>`;
+            };
+            const condCheck = (key, label) => {
+                const checked = storeFilters.conditions[key];
+                // Toggle visual — o cliente Shopee só devolve produtos novos.
+                return `<label class="flex items-center gap-2 cursor-pointer text-[12px] text-slate-600 py-0.5">
+                    <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleCondition('${key}', this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                    ${escapeHtml(label)}
+                </label>`;
+            };
+            side.dataset.empty = '0';
+            side.innerHTML = `
+                <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <div class="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2">
+                        <i class="fas fa-bars text-slate-400 text-xs"></i>
+                        <span class="text-[12px] font-bold text-slate-700">Todas As Categorias</span>
+                    </div>
+                    <div class="py-1.5">
+                        <div class="text-shopee-orange font-bold text-[13px] px-3 py-1.5 flex items-center gap-1">
+                            <span>›</span> ${escapeHtml(cat.label)}
+                        </div>
+                        ${subs.length ? subItem('', 'Todas') + subs.map(s => subItem(s.id || s.key, s.label)).join('') : '<div class="text-[11px] text-slate-400 px-4 py-1">Sem subcategorias</div>'}
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <div class="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2">
+                        <i class="fas fa-filter text-shopee-orange text-xs"></i>
+                        <span class="text-[12px] font-bold text-slate-700">FILTROS</span>
+                    </div>
+                    <div class="p-3 space-y-4">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Enviado De</div>
+                            ${shipCheck('nacional', 'Nacional')}
+                            ${shipCheck('internacional', 'Internacional')}
+                            ${shipCheck('sp', 'São Paulo', true)}
+                            ${shipCheck('mg', 'Minas Gerais', true)}
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Faixa De Preço</div>
+                            <div class="flex items-center gap-1">
+                                <input id="store-filter-pmin" type="number" min="0" placeholder="R$ mín." value="${storeFilters.priceMin ?? ''}" class="w-full text-[11px] px-2 py-1.5 border border-slate-200 rounded" />
+                                <span class="text-slate-300">—</span>
+                                <input id="store-filter-pmax" type="number" min="0" placeholder="R$ máx." value="${storeFilters.priceMax ?? ''}" class="w-full text-[11px] px-2 py-1.5 border border-slate-200 rounded" />
+                            </div>
+                            <button type="button" onclick="applyPriceFilter()" class="mt-2 w-full bg-shopee-orange text-white text-[11px] font-bold py-1.5 rounded hover:brightness-105">CONFIRMAR</button>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Promoções</div>
+                            <label class="flex items-center gap-2 cursor-pointer text-[12px] text-slate-600">
+                                <input type="checkbox" id="store-filter-discount" ${storeFilters.onlyDiscount ? 'checked' : ''} onchange="toggleOnlyDiscount(this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                                Produtos com Desconto
+                            </label>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Avaliação</div>
+                            <div class="space-y-0.5">
+                                ${ratingRow(5)}
+                                ${ratingRow(4)}
+                                ${ratingRow(3)}
+                                ${ratingRow(2)}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Condições</div>
+                            ${condCheck('novo', 'Novo')}
+                            ${condCheck('usado', 'Usado')}
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Loja</div>
+                            <label class="flex items-center gap-2 cursor-pointer text-[12px] text-slate-600">
+                                <input type="checkbox" id="store-filter-mall" ${storeFilters.onlyMall ? 'checked' : ''} onchange="toggleOnlyMall(this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                                Apenas Shopee Mall
+                            </label>
+                        </div>
+                        <button type="button" onclick="clearStoreFilters()" class="w-full bg-shopee-orange text-white text-[11px] font-bold py-2 rounded hover:brightness-105">LIMPAR TUDO</button>
+                    </div>
+                </div>`;
+        }
+        function pageStoreCategories(delta) {
+            const visible = categories.filter(cat => cat.id !== 'todos');
+            const totalPages = Math.max(1, Math.ceil(visible.length / CAT_PAGE_SIZE));
+            storeCatPage = Math.min(Math.max(0, storeCatPage + delta), totalPages - 1);
+            renderCategories();
+        }
+        function toggleShipping(key, checked) {
+            if (!storeFilters.shipping.hasOwnProperty(key)) return;
+            storeFilters.shipping[key] = !!checked;
+            currentPage = 0;
+            renderStoreProducts();
+        }
+        function toggleCondition(key, checked) {
+            if (!storeFilters.conditions.hasOwnProperty(key)) return;
+            storeFilters.conditions[key] = !!checked;
+            // Sem efeito no filtro real (API só devolve novos) — só reflete o UI.
+        }
+
+        function applyPriceFilter() {
+            const min = document.getElementById('store-filter-pmin')?.value;
+            const max = document.getElementById('store-filter-pmax')?.value;
+            storeFilters.priceMin = min !== '' && !Number.isNaN(Number(min)) ? Number(min) : null;
+            storeFilters.priceMax = max !== '' && !Number.isNaN(Number(max)) ? Number(max) : null;
+            currentPage = 0;
+            renderStoreProducts();
+        }
+        function toggleOnlyDiscount(checked) {
+            storeFilters.onlyDiscount = !!checked;
+            currentPage = 0;
+            renderStoreProducts();
+        }
+        function toggleOnlyMall(checked) {
+            storeFilters.onlyMall = !!checked;
+            currentPage = 0;
+            renderStoreProducts();
+        }
+        function setStoreMinRating(n) {
+            storeFilters.minRating = storeFilters.minRating === n ? 0 : n;
+            currentPage = 0;
+            renderShopeeSidebar();
+            renderStoreProducts();
+        }
+        function clearStoreFilters() {
+            storeFilters.priceMin = null;
+            storeFilters.priceMax = null;
+            storeFilters.onlyDiscount = false;
+            storeFilters.minRating = 0;
+            storeFilters.onlyMall = false;
+            storeFilters.shipping = { nacional: false, internacional: false, sp: false, mg: false };
+            storeFilters.conditions = { novo: false, usado: false };
+            currentPage = 0;
+            renderShopeeSidebar();
+            renderStoreProducts();
         }
 
         // ===== Página de categorias em tela cheia (estilo Shopee) =====
@@ -1903,20 +2242,12 @@ async function loadOffersFromSupabase(opts = {}) {
         function renderHomeSections() {
             const box = document.getElementById('home-sections');
             if (!box || isAdminMode()) return;
-            // Trava a altura atual antes de reescrever o conteúdo: se a próxima
-            // renderização for mais curta (ex.: menos blocos), o main não encolhe
-            // no meio da rolagem — anti-CLS.
-            const currentHeight = box.offsetHeight;
-            if (currentHeight > 0) box.style.minHeight = currentHeight + 'px';
-            if (currentStoreCategory !== 'todos' || currentStoreSubcategory) {
-                box.innerHTML = '';
-                return;
-            }
-            const path = pathClean();
-            if (path !== '/' && path !== '') {
-                box.innerHTML = '';
-                return;
-            }
+            // Vitrines da home (Seleção premium, Achadinhos moda, Beleza & skincare,
+            // Mais Vendidos, Maiores Descontos, Melhor Avaliados, Lojas Oficiais)
+            // desativadas por pedido do cliente — mantém só Relâmpago + Categorias + grid.
+            box.innerHTML = '';
+            box.style.minHeight = '0px';
+            return;
             const { topSellers, bigDiscounts, topRated, officialShops, premium, moda, beleza } = deriveHomeSections(productsDatabase);
             const blocks = [
                 { title: 'Seleção premium pra ela', href: '/mais-vendidos', items: premium, section: 'premium_picks' },
@@ -1991,7 +2322,23 @@ async function loadOffersFromSupabase(opts = {}) {
                     const desc = (p.desc || '').toLowerCase();
                     if (!title.includes(searchVal) && !desc.includes(searchVal)) return false;
                 }
-                return productMatchesSubcategory(p, currentStoreCategory, currentStoreSubcategory);
+                if (!productMatchesSubcategory(p, currentStoreCategory, currentStoreSubcategory)) return false;
+                // Filtros da sidebar Shopee-style (só quando dentro de categoria):
+                if (currentStoreCategory !== 'todos' && storeFiltersActive()) {
+                    const price = Number(p.newPrice) || 0;
+                    if (storeFilters.priceMin != null && price < storeFilters.priceMin) return false;
+                    if (storeFilters.priceMax != null && price > storeFilters.priceMax) return false;
+                    if (storeFilters.onlyDiscount && displayDiscount(p) < 5) return false;
+                    if (storeFilters.minRating > 0 && Number(p.stars || 0) < storeFilters.minRating) return false;
+                    if (storeFilters.onlyMall && !isOfficialShop(p.shopType)) return false;
+                    const s = storeFilters.shipping;
+                    if (s.nacional || s.internacional) {
+                        const isIntl = productIsInternational(p);
+                        if (s.nacional && !s.internacional && isIntl) return false;
+                        if (s.internacional && !s.nacional && !isIntl) return false;
+                    }
+                }
+                return true;
             });
             if (onHome) {
                 // Home: respeita o filtro escolhido (Mais vendidos, desconto, etc.)
@@ -2001,6 +2348,19 @@ async function loadOffersFromSupabase(opts = {}) {
                 filtered = sortProductsLocal(filtered);
                 if (currentStoreCategory === 'todos' && !searchVal) {
                     filtered = prioritizeFemaleProducts(filtered);
+                }
+            }
+            // Reranking por afinidade — só quando o sort é "Melhor oferta" (padrão)
+            // e não há busca ativa. Aplica em home E em categorias, empurrando pro topo
+            // os produtos parecidos com os que o usuário clicou recentemente.
+            if (currentStoreSort === 'money' && !searchVal) {
+                const agg = aggregateClickSignals();
+                if (agg.hasData) {
+                    filtered = [...filtered].sort((a, b) => {
+                        const diff = affinityScore(b, agg) - affinityScore(a, agg);
+                        if (diff !== 0) return diff;
+                        return moneyScoreOf(b) - moneyScoreOf(a);
+                    });
                 }
             }
             const totalFiltered = filtered.length;
@@ -2025,8 +2385,9 @@ async function loadOffersFromSupabase(opts = {}) {
                         Nenhuma oferta com prazo de término próximo nesta categoria.
                     </div>`;
             } else {
-                flashContainer.className = 'p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3';
-                flashContainer.innerHTML = flashSales.slice(0, 10).map((p, index) => productCardHTML(p, { index, section: 'flash_deals' })).join('');
+                // 6 cards em UMA linha do sm em diante (o cliente pediu 1 linha só).
+                flashContainer.className = 'p-4 grid grid-cols-2 sm:grid-cols-6 gap-2 md:gap-3';
+                flashContainer.innerHTML = flashSales.slice(0, 6).map((p, index) => productCardHTML(p, { index, section: 'flash_deals' })).join('');
             }
 
             if (window.__filterOfficialOnly) {
@@ -2165,6 +2526,8 @@ async function loadOffersFromSupabase(opts = {}) {
             }
             activeProductForBuy = p;
             if (section) currentNavSection = section;
+            // Sinal pro algoritmo de recomendação: guarda categoria/subcategoria/keyword/tokens.
+            pushClickSignal(p);
 
             const catLabel = (categories.find(c => c.id === p.category) || {}).label || p.category || 'Oferta';
             const disc = displayDiscount(p);
@@ -2663,6 +3026,8 @@ async function loadOffersFromSupabase(opts = {}) {
             if (!p) return;
             activeProductForBuy = p;
             if (section) currentNavSection = section;
+            // Sinal pro algoritmo — clique direto no "Comprar" também conta.
+            pushClickSignal(p);
             await openAffiliateInNewTab(p);
         }
 
