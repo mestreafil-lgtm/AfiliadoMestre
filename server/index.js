@@ -2652,7 +2652,37 @@ function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtm
 ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
 <script>
 (function(){
-  try { if (window.self !== window.top) return; } catch (e) { return; }
+  var PIXEL_ID = '2217009299032183';
+  try {
+    if (window.self !== window.top && window.top.location.hostname === location.hostname) return;
+  } catch (e) {}
+  var payload = ${pixelPayload};
+  var checkoutPayload = Object.assign({ num_items: 1 }, payload);
+  function ping(ev, data, eid){
+    try {
+      var p = data || {};
+      var q = 'id=' + encodeURIComponent(PIXEL_ID)
+        + '&ev=' + encodeURIComponent(ev)
+        + '&noscript=1'
+        + '&dl=' + encodeURIComponent(location.href)
+        + '&ts=' + String(Date.now());
+      if (eid) q += '&eid=' + encodeURIComponent(eid);
+      if (p.value != null) q += '&cd[value]=' + encodeURIComponent(p.value);
+      if (p.currency) q += '&cd[currency]=' + encodeURIComponent(p.currency);
+      if (p.content_type) q += '&cd[content_type]=' + encodeURIComponent(p.content_type);
+      if (p.content_name) q += '&cd[content_name]=' + encodeURIComponent(p.content_name);
+      if (p.content_category) q += '&cd[content_category]=' + encodeURIComponent(p.content_category);
+      if (p.num_items != null) q += '&cd[num_items]=' + encodeURIComponent(p.num_items);
+      if (p.content_ids) q += '&cd[content_ids]=' + encodeURIComponent(JSON.stringify(p.content_ids));
+      (new Image(1, 1)).src = 'https://www.facebook.com/tr?' + q;
+    } catch (err) {}
+  }
+  var eidPV = 'pv_' + Date.now();
+  var eidVC = 'vc_' + Date.now();
+  var eidIC = 'ic_' + Date.now();
+  ping('PageView', payload, eidPV);
+  ping('ViewContent', payload, eidVC);
+  ping('InitiateCheckout', checkoutPayload, eidIC);
   !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -2660,18 +2690,18 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   n.queue=[];t=b.createElement(e);t.async=!0;
   t.src=v;s=b.getElementsByTagName(e)[0];
   s.parentNode.insertBefore(t,s)}(window, document,'script',
-  'https://connect.facebook.net/pt_BR/fbevents.js');
-  fbq('init', '2217009299032183');
-  var payload = ${pixelPayload};
-  var checkoutPayload = Object.assign({ num_items: 1 }, payload);
-  fbq('track', 'PageView');
-  fbq('track', 'ViewContent', payload);
-  fbq('track', 'InitiateCheckout', checkoutPayload);
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', PIXEL_ID);
+  fbq('track', 'PageView', {}, { eventID: eidPV });
+  fbq('track', 'ViewContent', payload, { eventID: eidVC });
+  fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eidIC });
 })();
 </script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=2217009299032183&ev=PageView&noscript=1"
-alt="" /></noscript>
+<noscript>
+<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=PageView&noscript=1" alt="" />
+<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=ViewContent&noscript=1" alt="" />
+<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=InitiateCheckout&noscript=1" alt="" />
+</noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--orange:#ee4d2d;--orange-hover:#d33b1c;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f1f5f9;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
