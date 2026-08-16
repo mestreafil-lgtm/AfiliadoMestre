@@ -2,6 +2,50 @@
 
 const { CATEGORIAS, subcategoryForKeyword, categoryForKeyword } = require("./categorias");
 
+/**
+ * Mapa de categorias oficiais da Shopee Brasil (nível 1) → categoria local.
+ * Descoberto empíricamente rodando productOfferV2 com keywords conhecidas.
+ * Base de decisão prioritária sobre keyword/regex — é o dado oficial da Shopee.
+ */
+const SHOPEE_ROOT_CATEGORY_MAP = {
+  100017: "moda",         // Moda Feminina (vestidos, calças, blusas, etc.)
+  100630: "beleza",       // Beleza (skincare, maquiagem, perfume)
+  100009: "acessorios",   // Acessórios de Moda (bolsas, cintos)
+  100534: "acessorios",   // Óculos & Relógios
+  100637: "fitness",      // Esportes e Lazer
+  100632: "maternidade",  // Mãe & Bebê
+  100633: "infantil",     // Moda Infantil
+  100001: "saude",        // Saúde
+  100629: "saude",        // Farmácia
+  100636: "casa",         // Casa e Construção
+  100010: "casa",         // Eletrodomésticos
+  100013: "celular",      // Celulares e Dispositivos
+  100535: "celular",      // Áudio
+  100638: "automotivo",   // Peças / Acessórios de Veículos
+  100639: "automotivo",   // Automóveis
+  100640: "automotivo",   // Motocicletas
+  100641: "automotivo",
+  100642: "automotivo",
+  102187: "automotivo",   // Automóveis & Motocicletas (root)
+  100015: "utilidades",   // Papelaria/Escritório
+  100016: "utilidades",   // Alimentos & Bebidas / Outros
+  100644: "eletronicos",  // Games / Consoles
+};
+
+/**
+ * Resolve categoria local a partir dos productCatIds oficiais da Shopee (l1-l3).
+ * Tenta l1 primeiro; se não estiver mapeado, tenta l2 e l3 (fallback).
+ */
+function categoryFromShopeeIds(productCatIds) {
+  if (!Array.isArray(productCatIds) || !productCatIds.length) return null;
+  for (const raw of productCatIds) {
+    const id = Number(raw);
+    if (!Number.isFinite(id)) continue;
+    if (SHOPEE_ROOT_CATEGORY_MAP[id]) return SHOPEE_ROOT_CATEGORY_MAP[id];
+  }
+  return null;
+}
+
 const SIZE_TOKENS = new Set([
   "pp", "p", "m", "g", "gg", "xg", "xxg", "xxxg", "plus", "unico", "único",
 ]);
@@ -176,10 +220,13 @@ function resolveTaxonomy(keyword = "", productName = "", opts = {}) {
   const kw = String(keyword || "").toLowerCase().trim();
   const title = String(productName || "");
 
-  let category = categoryForKeyword(kw);
+  // Fonte oficial: productCatIds da própria Shopee (l1-l3). Prioridade máxima
+  // porque é o dado de catalogação real do produto — sobrepõe keyword/regex.
+  const shopeeCategory = categoryFromShopeeIds(opts.productCatIds);
+  let category = shopeeCategory || categoryForKeyword(kw);
   let subcategory = category !== "todos" ? inferSubcategory(category, kw, title) : null;
-  let source = category !== "todos" ? "keyword" : "none";
-  let score = category !== "todos" ? 10 : 0;
+  let source = shopeeCategory ? "shopee_catid" : (category !== "todos" ? "keyword" : "none");
+  let score = shopeeCategory ? 100 : (category !== "todos" ? 10 : 0);
 
   let best = { category: null, subcategory: null, score: 0 };
   for (const cat of CATEGORIAS) {
@@ -247,4 +294,6 @@ module.exports = {
   inferSubcategory,
   resolveTaxonomy,
   productMatchesSubcategory,
+  categoryFromShopeeIds,
+  SHOPEE_ROOT_CATEGORY_MAP,
 };

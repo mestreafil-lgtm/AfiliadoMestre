@@ -354,6 +354,7 @@ async function fetchProductOffers({
         shopId
         shopName
         shopType
+        productCatIds
         periodStartTime
         periodEndTime
       }
@@ -1131,7 +1132,7 @@ function mapOfferToProduct(node, keyword = "", listType = null, taxonomyOpts = n
   const salesLabel = sales && !/vendid/i.test(sales) ? `${sales} vendidos` : sales;
 
   const shop = node.shopName ? String(node.shopName).trim() : "";
-  const tax = resolveTaxonomy(keyword, node.productName, taxonomyOpts || {});
+  const tax = resolveTaxonomy(keyword, node.productName, { ...(taxonomyOpts || {}), productCatIds: node.productCatIds });
   const catId = tax.category;
   const subId = tax.subcategory;
   const options = extractProductOptions(node.productName, priceMin, priceMax);
@@ -1188,7 +1189,7 @@ function mapOfferToProduct(node, keyword = "", listType = null, taxonomyOpts = n
 function mapOfferToRow(node, keyword = "", listType = null, taxonomyOpts = null) {
   const priceMin = Number(node.priceMin) || 0;
   const priceMax = Number(node.priceMax) || priceMin;
-  const tax = resolveTaxonomy(keyword, node.productName, taxonomyOpts || {});
+  const tax = resolveTaxonomy(keyword, node.productName, { ...(taxonomyOpts || {}), productCatIds: node.productCatIds });
   const catId = tax.category;
   const itemId = Number(node.itemId);
   return {
