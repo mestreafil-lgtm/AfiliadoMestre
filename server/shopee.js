@@ -37,7 +37,7 @@ const MIN_RATING = Number(process.env.SYNC_MIN_RATING) || 4.3;
 const MIN_SALES = Number(process.env.SYNC_MIN_SALES) || 50;
 const DEFAULT_BATCH_GAP_MS = clampNum(process.env.SHOPEE_BATCH_GAP_MS, 350, 100, 5000);
 const DEFAULT_BATCH_CONCURRENCY = clampNum(process.env.SHOPEE_BATCH_CONCURRENCY, 3, 1, 6);
-const BATCH_MAX_KEYWORDS = clampNum(process.env.SHOPEE_BATCH_MAX_KEYWORDS, 60, 10, 120);
+const BATCH_MAX_KEYWORDS = clampNum(process.env.SHOPEE_BATCH_MAX_KEYWORDS, 80, 10, 120);
 
 function clampNum(v, def, min, max) {
   const n = Number(v);
@@ -304,19 +304,22 @@ function filterQualityNodes(nodes, filters = {}) {
  */
 async function fetchProductOffers({
   keyword = "",
-  limit = 20,
+  limit = 50,
   page = 1,
   sortType = 2,
   listType = 0,
   matchId = null,
   shopId = null,
   itemId = null,
+  productCatId = null,
+  isAMSOffer = null,
+  isKeySeller = null,
   minRating,
   minSales,
   requireCommission,
   minCommissionPct,
 } = {}) {
-  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 50);
   const safePage = Math.max(Number(page) || 1, 1);
   const safeList = [0, 1, 2, 3, 4, 5, 6].includes(Number(listType)) ? Number(listType) : 0;
   const safeSort = [1, 2, 3, 4, 5].includes(Number(sortType)) ? Number(sortType) : 2;
@@ -333,6 +336,9 @@ async function fetchProductOffers({
   if (matchId != null && Number(matchId) > 0) args.push(`matchId: ${Number(matchId)}`);
   if (shopId != null && Number(shopId) > 0) args.push(`shopId: ${Number(shopId)}`);
   if (itemId != null && Number(itemId) > 0) args.push(`itemId: ${Number(itemId)}`);
+  if (productCatId != null && Number(productCatId) > 0) args.push(`productCatId: ${Number(productCatId)}`);
+  if (isAMSOffer === true || isAMSOffer === false) args.push(`isAMSOffer: ${isAMSOffer}`);
+  if (isKeySeller === true || isKeySeller === false) args.push(`isKeySeller: ${isKeySeller}`);
 
   const query = `{
     productOfferV2(${args.join(", ")}) {
@@ -348,6 +354,10 @@ async function fetchProductOffers({
         sales
         ratingStar
         commissionRate
+        appExistRate
+        appNewRate
+        webExistRate
+        webNewRate
         sellerCommissionRate
         shopeeCommissionRate
         commission
@@ -391,11 +401,14 @@ async function fetchProductOffersBatch({
   keywords = [],
   pages = 1,
   pageStart = 1,
-  limit = 20,
+  limit = 50,
   listType = 0,
   sortType = 2,
   matchId = null,
   shopId = null,
+  productCatId = null,
+  isAMSOffer = null,
+  isKeySeller = null,
   minRating,
   minSales,
   requireCommission,
@@ -407,14 +420,15 @@ async function fetchProductOffersBatch({
 } = {}) {
   const hasMatch = matchId != null && Number(matchId) > 0;
   const hasShop = shopId != null && Number(shopId) > 0;
+  const hasCat = productCatId != null && Number(productCatId) > 0;
   let kws = [...new Set(
     (Array.isArray(keywords) ? keywords : String(keywords || "").split(/[\n,;]+/))
       .map((k) => String(k || "").trim())
       .filter(Boolean)
   )].slice(0, BATCH_MAX_KEYWORDS);
-  if (!kws.length && (hasMatch || hasShop)) kws = [""];
+  if (!kws.length && (hasMatch || hasShop || hasCat)) kws = [""];
   const start = Math.max(1, Number(pageStart) || 1);
-  const pageCount = Math.min(Math.max(Number(pages) || 1, 1), 10);
+  const pageCount = Math.min(Math.max(Number(pages) || 1, 1), 20);
   const pageNums = Array.from({ length: pageCount }, (_, i) => start + i);
   const tasks = [];
   for (const keyword of kws) {
@@ -453,7 +467,8 @@ async function fetchProductOffersBatch({
 
   async function runOne({ keyword, page }) {
     try {
-      const labelKw = keyword || (hasShop ? `shop:${shopId}` : hasMatch ? `match:${matchId}` : "oferta");
+      const labelKw = keyword
+        || (hasShop ? `shop:${shopId}` : hasMatch ? `match:${matchId}` : hasCat ? `cat:${productCatId}` : "oferta");
       const offer = await fetchProductOffers({
         keyword,
         limit,
@@ -462,6 +477,9 @@ async function fetchProductOffersBatch({
         sortType,
         matchId: hasMatch ? Number(matchId) : null,
         shopId: hasShop ? Number(shopId) : null,
+        productCatId,
+        isAMSOffer,
+        isKeySeller,
         minRating,
         minSales,
         requireCommission,
@@ -491,7 +509,7 @@ async function fetchProductOffersBatch({
       if (rateBackoff > 0) rateBackoff = Math.max(0, rateBackoff - 200);
     } catch (e) {
       report.push({
-        keyword: keyword || (hasShop ? `shop:${shopId}` : `match:${matchId}`),
+        keyword: keyword || (hasShop ? `shop:${shopId}` : hasMatch ? `match:${matchId}` : hasCat ? `cat:${productCatId}` : "oferta"),
         page, ok: false,
         error: e.message,
         code: e.code || null,
@@ -545,6 +563,7 @@ async function fetchProductOffersBatch({
     sortTypeLabel: sortTypeLabel(lastSortType),
     matchId: hasMatch ? Number(matchId) : null,
     shopId: hasShop ? Number(shopId) : null,
+    nextPageStart: start + pageCount,
     report,
     products,
     nodes,
@@ -753,6 +772,11 @@ async function fetchConversionReport({
   orderStatus = "",
   limit = 20,
   scrollId = "",
+  orderId = "",
+  conversionId = "",
+  productId = null,
+  shopId = null,
+  productName = "",
 } = {}) {
   const now = Math.floor(Date.now() / 1000);
   const start = Math.max(1, Number(purchaseTimeStart) || now - 30 * 24 * 3600);
@@ -770,6 +794,14 @@ async function fetchConversionReport({
     args.push(`orderStatus: ${String(orderStatus).toUpperCase()}`);
   }
   if (scrollId) args.push(`scrollId: ${JSON.stringify(String(scrollId))}`);
+  const oid = String(orderId || "").trim();
+  if (oid) args.push(`orderId: ${JSON.stringify(oid)}`);
+  const cid = String(conversionId || "").trim();
+  if (cid) args.push(/^\d+$/.test(cid) ? `conversionId: ${cid}` : `conversionId: ${JSON.stringify(cid)}`);
+  if (productId != null && Number(productId) > 0) args.push(`productId: ${Number(productId)}`);
+  if (shopId != null && Number(shopId) > 0) args.push(`shopId: ${Number(shopId)}`);
+  const pname = String(productName || "").trim();
+  if (pname) args.push(`productName: ${JSON.stringify(pname)}`);
 
   const query = `{
     conversionReport(${args.join(", ")}) {
@@ -944,8 +976,9 @@ async function fetchValidatedReport({
   }
 }
 
-function sanitizeSubIdsForShopee(subIds = null) {
+function sanitizeSubIdsForShopee(subIds = null, opts = {}) {
   const { SITE_SUBID, buildProductSubIds, sanitizeSubId } = require("./tracking");
+  const preserveExact = opts && opts.preserveExact === true;
   const fallback = buildProductSubIds("geral", null);
   const rawInput = Array.isArray(subIds) && subIds.length ? subIds : fallback;
   // Só alfanumérico: a API responde "invalid sub id" (11001) e não gera link
@@ -955,10 +988,16 @@ function sanitizeSubIdsForShopee(subIds = null) {
   const clean = rawInput
     .map((s) => sanitizeSubId(s, ""))
     .filter(Boolean);
-  // Invariante A: slot 0 SEMPRE = SITE_SUBID. Quem chama já monta os Sub IDs
-  // com ele na frente (buildProductSubIds/buildTrackedSubIds); este unshift é
-  // só a rede de segurança. Nesse caso a Shopee só aceita 5 slots, então o
-  // último (p<itemId>) cai — por isso não monte os Sub IDs sem o SITE_SUBID.
+  // preserveExact: link de campanha standalone (1 slot só com o nome). Bypass
+  // do unshift automático de SITE_SUBID pra o sub_id na Shopee ficar cru.
+  if (preserveExact) {
+    const capped = clean.slice(0, 5);
+    return capped.length ? capped : [SITE_SUBID];
+  }
+  // Fluxo vitrine/orgânico: slot 0 SEMPRE = SITE_SUBID. Quem chama já monta os
+  // Sub IDs com ele na frente (buildProductSubIds/buildTrackedSubIds); este
+  // unshift é rede de segurança. A Shopee só aceita 5 slots, então o último
+  // (p<itemId>) cai — não monte os Sub IDs sem o SITE_SUBID nesse fluxo.
   if (clean[0] !== SITE_SUBID) clean.unshift(SITE_SUBID);
   const capped = clean.slice(0, 5);
   return capped.length ? capped : [SITE_SUBID, "organico", "vitrine", "geral", "produto"];
@@ -982,7 +1021,7 @@ function resolveProductOriginUrl(rowOrNode = {}) {
   return productLink || offer || "";
 }
 
-async function generateShortLink(originUrl, subIds = null) {
+async function generateShortLink(originUrl, subIds = null, opts = {}) {
   const query = `
     mutation GenerateShortLink($originUrl: String!, $subIds: [String!]) {
       generateShortLink(input: { originUrl: $originUrl, subIds: $subIds }) {
@@ -992,7 +1031,7 @@ async function generateShortLink(originUrl, subIds = null) {
   `;
   const data = await shopeeGraphql(query, {
     originUrl,
-    subIds: sanitizeSubIdsForShopee(subIds),
+    subIds: sanitizeSubIdsForShopee(subIds, opts),
   });
   return data?.generateShortLink?.shortLink || null;
 }
@@ -1006,8 +1045,11 @@ async function generateBatchShortLink(links = []) {
   const batch = (Array.isArray(links) ? links : [])
     .map((l) => ({
       originUrl: String(l.originUrl || "").trim(),
-      subIds: sanitizeSubIdsForShopee(l.subIds),
+      // Cada link decide se quer preservar seus sub_ids exatos (modo campanha)
+      // ou passar pelo default (vitrine/orgânico com SITE_SUBID no slot 1).
+      subIds: sanitizeSubIdsForShopee(l.subIds, { preserveExact: l.preserveExact === true }),
       itemId: l.itemId != null ? Number(l.itemId) : null,
+      preserveExact: l.preserveExact === true,
     }))
     .filter((l) => l.originUrl)
     .slice(0, 50);
@@ -1083,7 +1125,9 @@ async function generateBatchShortLink(links = []) {
       let successCount = 0;
       for (const b of batch) {
         try {
-          const shortLink = await generateShortLink(b.originUrl, b.subIds);
+          const shortLink = await generateShortLink(b.originUrl, b.subIds, {
+            preserveExact: b.preserveExact === true,
+          });
           const ok = !!shortLink;
           if (ok) successCount += 1;
           out.push({
@@ -1177,6 +1221,10 @@ function mapOfferToProduct(node, keyword = "", listType = null, taxonomyOpts = n
     sellerCommission: node.sellerCommissionRate || "—",
     shopeeCommission: node.shopeeCommissionRate || "—",
     totalCommission: node.commission != null ? `R$ ${node.commission}` : "—",
+    appNewRate: node.appNewRate || null,
+    webNewRate: node.webNewRate || null,
+    appExistRate: node.appExistRate || null,
+    webExistRate: node.webExistRate || null,
     shopName: node.shopName || "",
     shopId: node.shopId,
     shopType: node.shopType != null ? Number(node.shopType) : null,

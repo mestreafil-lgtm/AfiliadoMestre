@@ -47,39 +47,44 @@
         // listType=1 (comissão) fica reservado ao preset "female_9" para cherry-picking de comissão alta.
         female_money: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 5,
-            keywords: KW_FEMALE_ELITE,
+            keywords: KW_FEMALE_ELITE, limit: 50, pages: 3,
         },
         female_9: {
             listType: 1, sortType: 5, minRating: 4.0, minSales: 10, requireCommission: true, minCommissionPct: 9,
-            keywords: KW_FEMALE_ELITE,
+            keywords: KW_FEMALE_ELITE, limit: 50, pages: 3,
         },
         beleza: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
-            keywords: KW_BELEZA,
+            keywords: KW_BELEZA, limit: 50, pages: 3,
         },
         moda: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 30, requireCommission: true, minCommissionPct: 3,
-            keywords: KW_MODA,
+            keywords: KW_MODA, limit: 50, pages: 3,
         },
         fitness: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
-            keywords: KW_FITNESS,
+            keywords: KW_FITNESS, limit: 50, pages: 3,
         },
         acessorios: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
-            keywords: KW_ACESSORIOS,
+            keywords: KW_ACESSORIOS, limit: 50, pages: 3,
         },
         casa: {
             listType: 0, sortType: 2, minRating: 4.2, minSales: 30, requireCommission: true, minCommissionPct: 3,
-            keywords: KW_CASA,
+            keywords: KW_CASA, limit: 50, pages: 3,
         },
         mae_bebe: {
             listType: 0, sortType: 2, minRating: 4.3, minSales: 20, requireCommission: true, minCommissionPct: 3,
-            keywords: KW_MAE_BEBE,
+            keywords: KW_MAE_BEBE, limit: 50, pages: 3,
+        },
+        ams: {
+            listType: 0, sortType: 2, minRating: 4.0, minSales: 20, requireCommission: true, minCommissionPct: 3,
+            keywords: KW_FEMALE_ELITE, limit: 50, pages: 3, isAMSOffer: true,
         },
         diverse_5: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 30, requireCommission: true, minCommissionPct: 5,
             keywords: "organizador cozinha, tapete pet, lampada led, cabo usb, suporte celular, caixa organizadora",
+            limit: 50, pages: 3,
         },
         bestsellers: {
             listType: 0, sortType: 2, minRating: 4.0, minSales: 50, requireCommission: true, minCommissionPct: 0,
@@ -123,6 +128,7 @@
         acessorios: "Acessórios femininos",
         casa: "Casa & Decoração",
         mae_bebe: "Mãe & Bebê",
+        ams: "Ofertas AMS",
         diverse_5: "Diverso 5%",
         bestsellers: "Mais vendidos",
         topperf: "Mais vendidos na Shopee",
@@ -133,7 +139,7 @@
         budget: "Custo-benefício",
     };
     const CATALOGO_VIEWS = new Set([
-        "catalogo-buscar", "catalogo-atualizar", "catalogo-links", "catalogo-saude",
+        "catalogo-buscar", "catalogo-atualizar", "catalogo-links",
     ]);
     const CATALOGO_BUSCAR_TABS = new Set(["palavras", "lojas", "ofertas"]);
     let currentCatalogoBuscarTab = "palavras";
@@ -175,6 +181,9 @@
     let explorerSelected = new Set();
     let explorerBusy = false;
     let explorerSkippedExisting = 0;
+    let explorerHasNext = false;
+    let explorerNextPage = 1;
+    let explorerScanMode = "broad";
     let adminSearchTerm = "";
     let adminFilterCategory = "";
     let adminFilterType = "";
@@ -192,18 +201,18 @@
     const CAMPAIGN_CHANNEL = "ads";
 
     const ADMIN_VIEWS = {
-        dashboard: { title: "Dashboard", subtitle: "Visão geral da operação de afiliados" },
-        "vitrine-preview": { title: "Preview Index", subtitle: "Vitrine pública ao vivo — desktop, tablet e mobile" },
-        "catalogo-buscar": { title: "Buscar produtos", subtitle: "Palavras-chave, lojas ou ofertas oficiais — tudo pela API productOfferV2" },
-        "catalogo-atualizar": { title: "Atualizar catálogo", subtitle: "Categorias, alimentação automática e atualizações em lote" },
+        dashboard: { title: "Início", subtitle: "Visão geral da operação de afiliados" },
+        "vitrine-preview": { title: "Ver vitrine", subtitle: "Loja pública ao vivo — celular, tablet e computador" },
+        "catalogo-buscar": { title: "Buscar produtos", subtitle: "Busca na Shopee por palavra, loja ou coleção" },
+        "catalogo-atualizar": { title: "Atualizar catálogo", subtitle: "Categorias, alimentação automática e lotes do feed" },
         "catalogo-links": { title: "Links curtos", subtitle: "Gera o link curto que falta nos produtos da vitrine" },
-        "catalogo-saude": { title: "Saúde & métricas", subtitle: "Preços, comissão, conexão com a Shopee e comissão validada" },
-        produtos: { title: "Produtos", subtitle: "Gerencie o catálogo da vitrine" },
-        duplicados: { title: "Remover duplicados", subtitle: "Limpe itens repetidos" },
-        campanhas: { title: "Campanhas", subtitle: "Converta o produto e obtenha o link do popup com Pixel" },
-        "campanha-desempenho": { title: "Desempenho de campanhas", subtitle: "Resultados por Sub ID" },
-        desempenho: { title: "Desempenho geral", subtitle: "Conversões e comissões por Sub ID" },
-        "meu-site": { title: "Meu Site", subtitle: "Vendas atribuídas à vitrine pública" },
+        "catalogo-saude": { title: "Saúde da Shopee", subtitle: "Preços, comissão e conexão com a Shopee" },
+        produtos: { title: "Produtos na vitrine", subtitle: "Gerencie o catálogo da vitrine" },
+        duplicados: { title: "Limpar catálogo", subtitle: "Tire itens repetidos e ofertas fracas" },
+        campanhas: { title: "Campanhas", subtitle: "Converta o produto e obtenha o link do anúncio com Pixel" },
+        "campanha-desempenho": { title: "Resultado das campanhas", subtitle: "Resultados por Sub ID" },
+        desempenho: { title: "Todas as conversões", subtitle: "Conversões e comissões da Shopee" },
+        "meu-site": { title: "Vendas do site", subtitle: "Vendas atribuídas à vitrine pública" },
     };
 
         function getAdminToken() {
@@ -422,11 +431,7 @@
             if (badge) badge.classList.remove("hidden");
 
             loadSubIdSettings();
-            loadShortlinkStatus();
-            loadCoverageReport();
             loadAutoStatus();
-            renderAdminCategoriesPanel();
-            setTimeout(() => renderMoneyQueue(), 800);
 
             const parts = pathClean().split("/").filter(Boolean);
             let view = parts[1] || "dashboard";
@@ -585,6 +590,7 @@
             if (view === "dashboard") {
                 loadAdminStats();
                 loadAutoStatus();
+                loadDashboardSales();
             } else if (view === "vitrine-preview") {
                 const iframe = document.getElementById("vitrine-preview-iframe");
                 if (iframe && !iframe.dataset.loaded) {
@@ -687,7 +693,56 @@
                 .filter(Boolean))];
         }
 
-        const EXPLORER_KW_MAX = 60;
+        const EXPLORER_KW_MAX = 80;
+
+        function addExplorerKeyword(kw) {
+            const ta = document.getElementById("admin-keyword");
+            if (!ta) return;
+            const next = String(kw || "").trim();
+            if (!next) return;
+            const kws = parseExplorerKeywords(ta.value);
+            if (!kws.includes(next)) kws.push(next);
+            ta.value = kws.join(", ");
+            updateExplorerKwCount();
+            renderExplorerKeywordChips();
+            setExplorerScanMode("keyword");
+        }
+
+        function updateExplorerMassHint() {
+            const slider = document.getElementById("admin-pages-mass");
+            const hint = document.getElementById("explorer-mass-hint");
+            const pages = Math.min(20, Math.max(1, Number(slider?.value) || 5));
+            const limit = Number(document.getElementById("admin-limit")?.value) || 50;
+            if (hint) hint.textContent = `${pages} página${pages === 1 ? "" : "s"} × ${limit} = até ${pages * limit} produtos`;
+            const pg = document.getElementById("admin-pages");
+            if (pg) {
+                const opt = [...pg.options].some((o) => o.value === String(pages));
+                if (opt) pg.value = String(pages);
+            }
+        }
+
+        function setExplorerScanMode(mode) {
+            explorerScanMode = mode === "keyword" ? "keyword" : "broad";
+            const broadBtn = document.getElementById("explorer-mode-broad");
+            const kwBtn = document.getElementById("explorer-mode-keyword");
+            const broadPanel = document.getElementById("explorer-broad-panel");
+            const kwPanel = document.getElementById("explorer-keyword-panel");
+            const presets = document.getElementById("explorer-presets");
+            const pagesWrap = document.getElementById("explorer-pages-select-wrap");
+            const searchBtn = document.getElementById("btn-explorer-search");
+            if (broadBtn) broadBtn.classList.toggle("active", explorerScanMode === "broad");
+            if (kwBtn) kwBtn.classList.toggle("active", explorerScanMode === "keyword");
+            if (broadPanel) broadPanel.style.display = explorerScanMode === "broad" ? "block" : "none";
+            if (kwPanel) kwPanel.style.display = explorerScanMode === "keyword" ? "block" : "none";
+            if (presets) {
+                presets.style.display = explorerScanMode === "keyword" ? "flex" : "none";
+            }
+            if (pagesWrap) pagesWrap.style.display = explorerScanMode === "keyword" ? "" : "none";
+            if (searchBtn && !explorerBusy) {
+                searchBtn.textContent = explorerScanMode === "broad" ? "Iniciar varredura" : "Mostrar produtos";
+            }
+            updateExplorerMassHint();
+        }
 
         function updateExplorerKwCount() {
             const el = document.getElementById("explorer-kw-count");
@@ -771,10 +826,14 @@
             const kw = document.getElementById("admin-keyword");
             const lt = document.getElementById("admin-list-type");
             const st = document.getElementById("admin-sort-type");
+            const lim = document.getElementById("admin-limit");
+            const pg = document.getElementById("admin-pages");
             const mr = document.getElementById("admin-min-rating");
             const ms = document.getElementById("admin-min-sales");
             const rc = document.getElementById("admin-require-commission");
             const mc = document.getElementById("admin-min-commission");
+            const ams = document.getElementById("admin-ams-offer");
+            const ks = document.getElementById("admin-key-seller");
             // Preset acumula com o que o admin já digitou:
             // - keywords: dedup entre atuais e do preset
             // - dropdowns/inputs numéricos: só substitui quando o campo está vazio ou = 0
@@ -786,10 +845,14 @@
             }
             if (lt) lt.value = String(p.listType);
             if (st) st.value = String(p.sortType);
+            if (lim) lim.value = String(p.limit != null ? p.limit : 50);
+            if (pg) pg.value = String(p.pages != null ? p.pages : 3);
             if (mr && (!mr.value || Number(mr.value) === 0)) mr.value = String(p.minRating);
             if (ms && (!ms.value || Number(ms.value) === 0)) ms.value = String(p.minSales);
             if (rc) rc.checked = !!p.requireCommission || rc.checked;
             if (mc && (!mc.value || Number(mc.value) === 0)) mc.value = String(p.minCommissionPct != null ? p.minCommissionPct : 0);
+            if (ams) ams.checked = !!p.isAMSOffer;
+            if (ks) ks.checked = !!p.isKeySeller;
             document.querySelectorAll(".explorer-preset").forEach((btn) => {
                 btn.classList.toggle("active", btn.dataset.preset === name);
             });
@@ -799,6 +862,7 @@
             if (p.matchIdHint) showToast("Cole o ID da coleção ou categoria (aba Ofertas oficiais)", "info");
             else if (p.shopIdHint) showToast("Cole o ID da loja Shopee (aba Lojas)", "info");
             else showToast(`Atalho: ${EXPLORER_PRESET_LABELS[name] || name}`, "success");
+            setExplorerScanMode("keyword");
         }
 
         function resetExplorerForm() {
@@ -816,18 +880,27 @@
             if (kw) kw.value = "";
             if (lt) lt.value = "0";
             if (st) st.value = "2";
-            if (lim) lim.value = "20";
-            if (pg) pg.value = "1";
+            if (lim) lim.value = "50";
+            if (pg) pg.value = "3";
             if (mr) mr.value = "4.0";
             if (ms) ms.value = "20";
             if (rc) rc.checked = true;
             if (mc) mc.value = "0";
             if (mi) mi.value = "";
             if (si) si.value = "";
+            const ams = document.getElementById("admin-ams-offer");
+            const ks = document.getElementById("admin-key-seller");
+            if (ams) ams.checked = false;
+            if (ks) ks.checked = false;
+            const cat = document.getElementById("admin-product-cat");
+            const mass = document.getElementById("admin-pages-mass");
+            if (cat) cat.value = "100017";
+            if (mass) mass.value = "5";
             document.querySelectorAll(".explorer-preset").forEach((btn) => btn.classList.remove("active"));
             updateExplorerKwCount();
             renderExplorerKeywordChips();
             updateExplorerModeHint();
+            setExplorerScanMode(explorerScanMode);
             showToast("Filtros redefinidos", "info");
         }
 
@@ -848,18 +921,27 @@
             const shopRaw = document.getElementById("admin-shop-id")?.value;
             const matchId = matchRaw ? Number(matchRaw) : null;
             const shopId = shopRaw ? Number(shopRaw) : null;
+            const catRaw = document.getElementById("admin-product-cat")?.value;
+            const productCatId = catRaw ? Number(catRaw) : null;
+            const massPages = Number(document.getElementById("admin-pages-mass")?.value) || 5;
+            const selectPages = Number(document.getElementById("admin-pages")?.value) || 3;
+            const scanMode = explorerScanMode === "keyword" ? "keyword" : "broad";
             return {
-                keywords: parseExplorerKeywords(document.getElementById("admin-keyword")?.value),
-                limit: Number(document.getElementById("admin-limit")?.value) || 20,
-                pages: Number(document.getElementById("admin-pages")?.value) || 1,
+                scanMode,
+                keywords: scanMode === "broad" ? [] : parseExplorerKeywords(document.getElementById("admin-keyword")?.value),
+                limit: Number(document.getElementById("admin-limit")?.value) || 50,
+                pages: scanMode === "broad" ? Math.min(20, Math.max(1, massPages)) : Math.min(20, Math.max(1, selectPages)),
                 listType: Number(document.getElementById("admin-list-type")?.value) || 0,
                 sortType: Number(document.getElementById("admin-sort-type")?.value) || 2,
                 minRating: Number(document.getElementById("admin-min-rating")?.value) || 4,
                 minSales: Number(document.getElementById("admin-min-sales")?.value) || 0,
                 requireCommission: !!document.getElementById("admin-require-commission")?.checked,
                 minCommissionPct: Number(document.getElementById("admin-min-commission")?.value) || 0,
+                isAMSOffer: !!document.getElementById("admin-ams-offer")?.checked,
+                isKeySeller: !!document.getElementById("admin-key-seller")?.checked,
                 matchId: Number.isFinite(matchId) && matchId > 0 ? matchId : null,
                 shopId: Number.isFinite(shopId) && shopId > 0 ? shopId : null,
+                productCatId: scanMode === "broad" && Number.isFinite(productCatId) && productCatId > 0 ? productCatId : null,
             };
         }
 
@@ -899,12 +981,20 @@
         function setExplorerBusy(busy) {
             explorerBusy = busy;
             const btn = document.getElementById("btn-explorer-search");
+            const syncBtn = document.getElementById("btn-explorer-sync");
             const cancel = document.getElementById("btn-explorer-cancel");
+            const idleSearch = explorerScanMode === "broad" ? "Iniciar varredura" : "Mostrar produtos";
             if (btn) {
                 btn.disabled = busy;
                 btn.innerHTML = busy
-                    ? `<i class="fas fa-spinner fa-spin"></i> Buscando…`
-                    : `<i class="fas fa-magnifying-glass"></i> Pré-visualizar`;
+                    ? `<i class="fas fa-spinner fa-spin"></i> ${explorerScanMode === "broad" ? "Varrendo…" : "Buscando…"}`
+                    : idleSearch;
+            }
+            if (syncBtn) {
+                syncBtn.disabled = busy;
+                syncBtn.innerHTML = busy
+                    ? `<i class="fas fa-spinner fa-spin"></i> Alimentando…`
+                    : "Alimentar vitrine";
             }
             if (cancel) {
                 cancel.classList.toggle("hidden", !busy);
@@ -956,7 +1046,7 @@
                 box.innerHTML = `
                     <div class="text-center py-8 text-slate-400 text-[11px]">
                         <i class="fas fa-inbox text-2xl text-slate-300 mb-2 block"></i>
-                        Nenhum produto novo na prévia.
+                        Nenhum produto novo na lista.
                         ${explorerSkippedExisting ? `<br><strong class="text-slate-600">${explorerSkippedExisting} já estavam na vitrine</strong> e foram ocultos.` : ""}
                         ${meta.rateLimited ? "<br><strong class='text-orange-700'>Possível limite da Shopee — aguarde e tente de novo.</strong>" : ""}
                         ${meta.filteredOut ? `<br>${meta.filteredOut} itens filtrados pelos critérios de qualidade.` : ""}
@@ -992,6 +1082,7 @@
                             <span><i class="fas fa-star text-amber-400"></i> ${stars}</span>
                             <span>${escapeHtml(String(p.sales || "—"))}</span>
                             <span class="text-emerald-700 font-bold">${escapeHtml(String(commission))}</span>
+                            ${p.appNewRate || p.webNewRate ? `<span class="text-sky-700">app ${escapeHtml(String(p.appNewRate || "—"))} · site ${escapeHtml(String(p.webNewRate || "—"))}</span>` : ""}
                             <span class="text-amber-700 font-bold">score ${score}</span>
                             ${mall}
                             ${taxBadge}
@@ -1024,12 +1115,17 @@
             const btn = document.getElementById("btn-explorer-save");
             if (meta) {
                 const skip = explorerSkippedExisting ? ` · ${explorerSkippedExisting} já na vitrine` : "";
-                meta.textContent = `${explorerSelected.size} selecionados · ${explorerProducts.length} novos na prévia${skip}`;
+                meta.textContent = `${explorerSelected.size} selecionados · ${explorerProducts.length} novos${skip}`;
             }
             if (btn) btn.disabled = explorerSelected.size === 0;
         }
 
-        async function runExplorerSearch({ sync = false } = {}) {
+        function setExplorerLoadMore(show) {
+            const wrap = document.getElementById("explorer-pagination");
+            if (wrap) wrap.style.display = show ? "block" : "none";
+        }
+
+        async function runExplorerSearch({ sync = false, append = false } = {}) {
             if (explorerBusy) return;
             const params = getExplorerFormParams();
             const needsMatch = [3, 4, 6].includes(params.listType);
@@ -1044,17 +1140,23 @@
                 showToast("Informe o ID da loja", "error");
                 return;
             }
-            if (!params.keywords.length && !params.matchId && !params.shopId) {
-                setExplorerStatus("error", "Informe palavras-chave, ID da coleção/categoria ou ID da loja.");
-                showToast("Digite uma palavra-chave ou ID", "error");
+            if (!params.keywords.length && !params.matchId && !params.shopId && !params.productCatId) {
+                setExplorerStatus("error", params.scanMode === "broad"
+                    ? "Escolha uma <strong>categoria Shopee</strong> para a varredura em massa."
+                    : "Informe palavras-chave, ID da coleção/categoria ou ID da loja.");
+                showToast(params.scanMode === "broad" ? "Escolha uma categoria" : "Digite uma palavra-chave ou ID", "error");
                 return;
             }
 
             explorerAbort = new AbortController();
             setExplorerBusy(true);
-            setExplorerProgress(true, 8, sync ? "Buscando e salvando…" : "Pré-visualizando na Shopee…");
-            const modeLabel = LIST_TYPE_LABELS_UI[params.listType] || "lista";
-            setExplorerStatus("info", `Consultando ${params.keywords.length || 1} origem(ns) × ${params.pages} página(s) · ${modeLabel}…`);
+            const modeLabel = params.scanMode === "broad"
+                ? `varredura · cat ${params.productCatId}`
+                : (LIST_TYPE_LABELS_UI[params.listType] || "lista");
+            setExplorerProgress(true, 8, sync ? "Buscando e gravando na vitrine…" : (params.scanMode === "broad" ? "Varrendo a Shopee…" : "Buscando na Shopee…"));
+            setExplorerStatus("info", params.scanMode === "broad"
+                ? `Varredura em massa · categoria ${params.productCatId} · ${params.pages} página(s) × ${params.limit}…`
+                : `Consultando ${params.keywords.length || 1} origem(ns) × ${params.pages} página(s) · ${modeLabel}…`);
 
             let fakePct = 8;
             const tick = setInterval(() => {
@@ -1062,50 +1164,86 @@
                 setExplorerProgress(true, fakePct, `Shopee · ${modeLabel}…`);
             }, 400);
 
-            try {
-                const res = await adminFetch(`${API_BASE}/api/ofertas/batch`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    signal: explorerAbort.signal,
-                    body: JSON.stringify({
-                        keywords: params.keywords,
-                        pages: params.pages,
-                        pageStart: 1,
-                        limit: params.limit,
-                        listType: params.listType,
-                        sortType: params.sortType,
-                        minRating: params.minRating,
-                        minSales: params.minSales,
-                        requireCommission: params.requireCommission,
-                        minCommissionPct: params.minCommissionPct,
-                        matchId: params.matchId,
-                        shopId: params.shopId,
-                        sync,
-                    }),
-                });
-                const data = await res.json().catch(() => ({}));
-                clearInterval(tick);
-                if (!res.ok) {
-                    const rate = data.rateLimited || res.status === 429;
-                    setExplorerStatus(rate ? "rate" : "error", escapeHtml(data.error || `HTTP ${res.status}`));
-                    showToast(data.error || "Falha na busca", "error");
-                    return;
+            const byId = new Map();
+            if (append) {
+                for (const p of explorerProducts) {
+                    const id = productItemId(p);
+                    if (id) byId.set(id, p);
                 }
+            }
+            let skipped = append ? explorerSkippedExisting : 0;
+            let filteredOut = 0;
+            let rateLimited = false;
+            let saved = 0;
+            let pageStart = append ? explorerNextPage : 1;
+            const target = sync || params.scanMode === "broad" ? Infinity : 80;
+            const maxRounds = append ? 1 : (params.scanMode === "broad" ? 1 : 4);
+
+            try {
+                for (let round = 0; round < maxRounds; round++) {
+                    const res = await adminFetch(`${API_BASE}/api/ofertas/batch`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        signal: explorerAbort.signal,
+                        body: JSON.stringify({
+                            keywords: params.keywords,
+                            pages: params.pages,
+                            pageStart,
+                            limit: params.limit,
+                            listType: params.listType,
+                            sortType: params.sortType,
+                            minRating: params.minRating,
+                            minSales: params.minSales,
+                            requireCommission: params.requireCommission,
+                            minCommissionPct: params.minCommissionPct,
+                            matchId: params.matchId,
+                            shopId: params.shopId,
+                            productCatId: params.productCatId,
+                            isAMSOffer: params.isAMSOffer,
+                            isKeySeller: params.isKeySeller,
+                            sync: sync && round === 0,
+                        }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        rateLimited = data.rateLimited || res.status === 429;
+                        if (round === 0) {
+                            clearInterval(tick);
+                            setExplorerStatus(rateLimited ? "rate" : "error", escapeHtml(data.error || `HTTP ${res.status}`));
+                            showToast(data.error || "Falha na busca", "error");
+                            return;
+                        }
+                        break;
+                    }
+                    rateLimited = rateLimited || !!data.rateLimited;
+                    filteredOut += Number(data.filteredOut) || 0;
+                    skipped += Number(data.skippedExisting) || 0;
+                    if (sync && data.saved) saved += Number(data.saved) || 0;
+                    const extra = filterProductsNotInVitrine(data.products || []);
+                    skipped += extra.skippedExisting || 0;
+                    for (const p of extra.products) {
+                        const id = productItemId(p);
+                        if (id && !byId.has(id)) byId.set(id, p);
+                    }
+                    explorerHasNext = !!data.hasNextPage;
+                    explorerNextPage = Number(data.nextPageStart) || (pageStart + params.pages);
+                    pageStart = explorerNextPage;
+                    if (sync || !explorerHasNext || rateLimited || byId.size >= target) break;
+                }
+                clearInterval(tick);
                 setExplorerProgress(true, 100, "Pronto");
-                let products = data.products || [];
-                const extra = filterProductsNotInVitrine(products);
-                products = extra.products;
-                const skipped = extra.skippedExisting || Number(data.skippedExisting) || 0;
-                renderExplorerPreview(products, { ...data, skippedExisting: skipped });
-                const savedBit = sync && data.saved ? ` · <strong>${data.saved} salvos</strong>` : "";
+                const products = [...byId.values()];
+                renderExplorerPreview(products, { skippedExisting: skipped, rateLimited, filteredOut });
+                setExplorerLoadMore(!sync && explorerHasNext && !rateLimited);
+                const savedBit = sync && saved ? ` · <strong>${saved} salvos</strong>` : "";
                 const skipBit = skipped ? ` · <strong>${skipped} já estavam na vitrine</strong>` : "";
                 setExplorerStatus(
                     products.length ? "success" : "empty",
-                    `${products.length} novos · ${modeLabel}${skipBit}${data.filteredOut ? ` · ${data.filteredOut} filtrados` : ""}${savedBit}${data.rateLimited ? " · limite da Shopee" : ""}`
+                    `${products.length} novos · ${modeLabel}${skipBit}${filteredOut ? ` · ${filteredOut} filtrados` : ""}${savedBit}${rateLimited ? " · limite da Shopee" : ""}`
                 );
                 if (skipped && !sync) showToast(`${products.length} novos · ${skipped} já estavam na vitrine`, products.length ? "success" : "info");
-                if (sync && data.saved) {
-                    showToast(`${data.saved} novos · ${skipped || data.skippedExisting || 0} já estavam`, "success");
+                if (sync && saved) {
+                    showToast(`${saved} novos na vitrine · ${skipped} já estavam`, "success");
                     await loadOffersFromSupabase({ silent: true, reset: true });
                     loadShortlinkStatus();
                     renderMoneyQueue();
@@ -1719,12 +1857,11 @@
         function updateSubIdPreview(channel, campaign, product) {
             const preview = document.getElementById('subid-preview');
             if (!preview) return;
-            const ch = sanitizeSubId(channel || CAMPAIGN_CHANNEL, CAMPAIGN_CHANNEL);
             const camp = sanitizeSubId(campaign || getCampaignSlug(), '') || 'SUBID';
-            const cat = product?.category || 'moda';
-            const pid = product?.id ? `p${product.id}` : 'pID';
-            const ids = [SITE_SUBID, `${ch}_social`, camp, sanitizeSubId(cat, 'geral'), sanitizeSubId(pid, 'produto')];
-            preview.textContent = ids.join(' | ');
+            // Formato standalone: só o nome da campanha aparece no relatório da
+            // Shopee (`Sub_id1 = teste211`). Bate 1:1 com o filtro `Sub_id` do
+            // painel da Shopee — igual às campanhas manuais dele.
+            preview.textContent = `${camp} (Sub_id de 1 slot — filtra igual no painel Shopee)`;
         }
 
         function loadSubIdSettings() {
@@ -1797,13 +1934,9 @@
                 image: p.image,
                 url: buildCampaignShareUrl(channel, slug, p.id),
                 shopeeUrl: p.shortLink || null,
-                subIds: [
-                    SITE_SUBID,
-                    `${channel}_social`,
-                    slug,
-                    sanitizeSubId(p.category || 'geral', 'geral'),
-                    `p${p.id}`,
-                ],
+                // Standalone: um slot só, igual ao Sub_id que a Shopee vai gravar
+                // na venda. Retrocompat: o array ainda existe com 1 item.
+                subIds: [slug],
             }));
             const entry = {
                 id: prev?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -1907,11 +2040,101 @@
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
                         <button type="button" onclick="copySavedCampaignLinks('${escapeAttr(String(c.id))}')" class="btn-dark" style="padding:5px 8px;font-size:10px">Copiar link</button>
+                        <button type="button" onclick="regenerateCampaignShortlinks('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px" title="Gera shortlink Shopee no formato standalone (Sub_id = nome, 1 slot)">Regerar link Shopee</button>
                         <button type="button" onclick="renameSavedCampaign('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Renomear</button>
                         <button type="button" onclick="loadSavedCampaignIntoEditor('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Editar</button>
                     </div>
                 </article>`;
             }).join('');
+        }
+
+        function summarizeRegenResponse(data) {
+            const camps = Array.isArray(data?.campaigns) ? data.campaigns : [];
+            const total = Number(data?.regenerated) || 0;
+            const failed = Number(data?.failed) || 0;
+            const rateLimited = !!data?.rateLimited;
+            const parts = [`${total} link(s) regerados`];
+            if (failed) parts.push(`${failed} falharam`);
+            if (rateLimited) parts.push('rate-limit atingido — rode de novo em ~1min');
+            if (camps.length) {
+                const camp = camps.map(c => `${c.campaign} → ${(c.links || []).filter(l => l.shopeeUrl).length}/${c.products || 0}`).join(', ');
+                parts.push(camp);
+            }
+            return parts.join(' · ');
+        }
+
+        async function regenerateCampaignShortlinks(id) {
+            const entry = campaignSavedList.find(c => String(c.id) === String(id))
+                || readSavedCampaigns().find(c => String(c.id) === String(id));
+            if (!entry) return showToast('Campanha não encontrada', 'error');
+            const slug = entry.campaign || entry.id;
+            if (!confirm(`Regerar shortlinks Shopee de "${entry.title || slug}" no formato standalone?\n\nO Sub_id vai virar "${slug}" (1 slot só), igual ao filtro do painel Shopee.`)) return;
+            showToast('Regerando shortlinks…', 'success');
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/regenerar-standalone`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ campaign: slug }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                // Atualiza local com os novos shopeeUrl (se veio)
+                const camp = (data.campaigns || [])[0];
+                if (camp && Array.isArray(camp.links)) {
+                    const byId = new Map(camp.links.map(l => [String(l.productId), l]));
+                    const updated = readSavedCampaigns().map(c => {
+                        if (String(c.id) !== String(id)) return c;
+                        const newLinks = (c.links || []).map(l => {
+                            const fresh = byId.get(String(l.productId));
+                            return fresh?.shopeeUrl ? { ...l, shopeeUrl: fresh.shopeeUrl, subIds: fresh.subIds || l.subIds } : l;
+                        });
+                        return { ...c, links: newLinks };
+                    });
+                    writeSavedCampaigns(updated);
+                    campaignSavedList = updated;
+                    renderSavedCampaignsList();
+                }
+                showToast(summarizeRegenResponse(data), 'success');
+            } catch (err) {
+                showToast(`Falha: ${err.message}`, 'error');
+            }
+        }
+
+        async function regenerateAllCampaignShortlinks() {
+            const list = campaignSavedList.length ? campaignSavedList : readSavedCampaigns();
+            if (!list.length) return showToast('Nenhuma campanha salva', 'error');
+            if (!confirm(`Regerar shortlinks Shopee de TODAS as ${list.length} campanha(s) no formato standalone?\n\nCada uma vai virar Sub_id = <nome>, 1 slot só. Pode consumir várias chamadas da API da Shopee.`)) return;
+            const btn = document.getElementById('regen-all-campaigns-btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Regerando…'; }
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/regenerar-standalone`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                // Atualiza local com todos os novos shopeeUrl que voltaram
+                const byCampId = new Map((data.campaigns || []).map(c => [String(c.id), c]));
+                const updated = readSavedCampaigns().map(c => {
+                    const fresh = byCampId.get(String(c.id));
+                    if (!fresh || !Array.isArray(fresh.links)) return c;
+                    const byPid = new Map(fresh.links.map(l => [String(l.productId), l]));
+                    const newLinks = (c.links || []).map(l => {
+                        const f = byPid.get(String(l.productId));
+                        return f?.shopeeUrl ? { ...l, shopeeUrl: f.shopeeUrl, subIds: f.subIds || l.subIds } : l;
+                    });
+                    return { ...c, links: newLinks };
+                });
+                writeSavedCampaigns(updated);
+                campaignSavedList = updated;
+                renderSavedCampaignsList();
+                showToast(summarizeRegenResponse(data), 'success');
+            } catch (err) {
+                showToast(`Falha: ${err.message}`, 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Regerar links Shopee'; }
+            }
         }
 
         async function deleteSavedCampaign(id) {
@@ -1993,7 +2216,8 @@
         }
 
         async function resetVitrineAndRefill() {
-            if (!confirm('Isso apaga todos os produtos do Supabase e busca de novo (foco feminino). Continuar?')) return;
+            const typed = window.prompt("Isso apaga todos os produtos da vitrine. Digite RESET para confirmar.");
+            if (typed !== "RESET") return;
             showToast('Limpando e realimentando a vitrine…', 'success');
             try {
                 const res = await adminFetch(`${API_BASE}/api/reset-vitrine`, {
@@ -3009,7 +3233,7 @@
         const loadFeedInventory = withBusy("feedInventory", async function () {
             const out = document.getElementById("feed-inventory-result");
             if (!out) return;
-            out.innerHTML = '<p class="text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Consultando listItemFeeds…</p>';
+            out.innerHTML = '<p class="text-slate-400 text-xs">Consultando feeds…</p>';
             try {
                 const modeSel = document.getElementById("feed-inventory-mode")?.value || "";
                 const q = modeSel ? `?feedMode=${encodeURIComponent(modeSel)}` : "";
@@ -3025,21 +3249,106 @@
                     <div class="overflow-x-auto"><table class="w-full text-[11px] border-collapse">
                         <thead><tr class="text-left text-slate-500 border-b border-slate-200">
                             <th class="p-1">Data</th><th class="p-1">Modo</th><th class="p-1">Ref</th>
-                            <th class="p-1 text-right">Registros</th><th class="p-1">Nome</th>
+                            <th class="p-1 text-right">Registros</th><th class="p-1">Nome</th><th class="p-1"></th>
                         </tr></thead>
                         <tbody>${feeds.map(f => `
                             <tr class="border-b border-slate-100">
                                 <td class="p-1 font-mono">${escapeHtml(String(f.date || "—"))}</td>
-                                <td class="p-1"><span class="px-1.5 py-0.5 rounded ${String(f.feedMode).toUpperCase() === 'FULL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} text-[10px] font-bold">${escapeHtml(String(f.feedMode || ""))}</span></td>
+                                <td class="p-1"><span class="px-1.5 py-0.5 rounded ${String(f.feedMode).toUpperCase() === 'FULL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} text-[10px] font-bold">${escapeHtml(String(f.feedMode).toUpperCase() === 'FULL' ? 'Completa' : String(f.feedMode).toUpperCase() === 'DELTA' ? 'Só o que mudou' : (f.feedMode || ""))}</span></td>
                                 <td class="p-1 font-mono text-slate-500">${escapeHtml(String(f.referenceId || "—"))}</td>
                                 <td class="p-1 text-right font-mono">${Number(f.totalCount || 0).toLocaleString('pt-BR')}</td>
                                 <td class="p-1 text-slate-600 truncate max-w-[220px]">${escapeHtml(String(f.datafeedName || f.description || ""))}</td>
+                                <td class="p-1">${f.datafeedId ? `<button type="button" class="btn-ghost" style="padding:4px 8px;font-size:10px" onclick="previewFeed('${String(f.datafeedId).replace(/'/g, "")}')">Ver lote</button>` : ""}</td>
                             </tr>`).join("")}</tbody>
                     </table></div>`;
             } catch (err) {
                 out.innerHTML = `<p class="text-red-600 text-xs">Erro: ${escapeHtml(err.message || String(err))}</p>`;
             }
         });
+
+        async function previewFeed(datafeedId) {
+            const out = document.getElementById("feed-preview-result");
+            if (!out) return;
+            out.innerHTML = "Carregando lote…";
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/feeds/preview?datafeedId=${encodeURIComponent(datafeedId)}&limit=40`);
+                const d = await res.json();
+                if (!res.ok || !d?.ok) throw new Error(d?.error || `HTTP ${res.status}`);
+                const rows = d.rows || [];
+                if (!rows.length) {
+                    out.innerHTML = "Nenhuma linha neste lote.";
+                    return;
+                }
+                const typeLabel = (t) => t === "DELETE" ? "Remover" : t === "UPDATE" ? "Atualizar" : t === "NEW" ? "Novo" : (t || "—");
+                out.innerHTML = `<p style="margin:0 0 8px;font-size:11px;color:#64748b">${rows.length} linhas deste feed</p>` +
+                    rows.slice(0, 40).map((r) =>
+                        `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9">
+                            <span style="font-size:10px;font-weight:700;color:#64748b;min-width:70px">${escapeHtml(typeLabel(r.updateType))}</span>
+                            <span style="flex:1;font-size:11px">${escapeHtml(String(r.name || r.itemId || "—"))}</span>
+                            <span style="font-size:11px;color:#059669">${escapeHtml(String(r.commission || ""))}</span>
+                        </div>`
+                    ).join("");
+            } catch (err) {
+                out.innerHTML = `<span style="color:#be123c">${escapeHtml(err.message || "Erro")}</span>`;
+            }
+        }
+
+        async function loadDashboardSales() {
+            const dashTotal = document.getElementById("dash-conversion-total");
+            const dashComm = document.getElementById("dash-conversion-commission");
+            if (!dashTotal && !dashComm) return;
+            try {
+                const res = await adminFetch(`${API_BASE}/api/conversions/summary?days=30`);
+                const d = await res.json();
+                if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
+                const total = Number(d.conversions) || 0;
+                const commission = (d.channels || []).reduce((s, c) => s + (Number(c.commission) || 0), 0);
+                if (dashTotal) dashTotal.textContent = String(total);
+                if (dashComm) dashComm.textContent = commission.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            } catch (_) {
+                if (dashTotal && dashTotal.textContent === "—") dashTotal.textContent = "0";
+            }
+        }
+
+        async function lookupConversion() {
+            const box = document.getElementById("conversion-lookup-result");
+            const raw = String(document.getElementById("conversion-lookup-q")?.value || "").trim();
+            if (!box) return;
+            if (!raw) {
+                box.textContent = "Cole o ID do pedido, do produto ou da loja.";
+                return;
+            }
+            box.textContent = "Buscando…";
+            const qs = new URLSearchParams({ days: "90" });
+            if (/^\d{10,}$/.test(raw) && raw.length > 12) qs.set("orderId", raw);
+            else if (/^\d+$/.test(raw)) qs.set("productId", raw);
+            else qs.set("orderId", raw);
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/conversions/lookup?${qs}`);
+                const d = await res.json();
+                if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
+                const nodes = d.nodes || [];
+                if (!nodes.length) {
+                    box.textContent = "Nada encontrado nos últimos 90 dias.";
+                    return;
+                }
+                box.innerHTML = nodes.slice(0, 12).map((n) => {
+                    const orders = n.orders || [];
+                    const first = orders[0] || {};
+                    const item = (first.items || [])[0] || {};
+                    const status = first.orderStatus || "—";
+                    const fraud = item.fraudStatus || "";
+                    return `<div style="padding:8px 0;border-bottom:1px solid #f1f5f9">
+                        <strong>${escapeHtml(String(first.orderId || n.conversionId || "—"))}</strong>
+                        · ${escapeHtml(String(status))}
+                        ${fraud ? ` · fraude ${escapeHtml(String(fraud))}` : ""}
+                        <div style="font-size:11px;color:#64748b">${escapeHtml(String(item.itemName || ""))}</div>
+                    </div>`;
+                }).join("");
+            } catch (err) {
+                box.textContent = err.message || "Erro na busca";
+            }
+        }
 
         const loadShopeeHealth = withBusy("health", async function () {
             const out = document.getElementById("shopee-health-result");
@@ -3921,7 +4230,7 @@
                                     <p class="font-bold text-slate-800 text-[11px] line-clamp-2">${escapeHtml(c.offerName || c.title || c.productName || c.name || 'Oferta')}</p>
                                     <p class="text-[10px] text-slate-400">${match ? `ID ${escapeHtml(String(match))}` : 'sem ID de coleção'}${c.commissionRate ? ` · ${escapeHtml(String(c.commissionRate))}` : ''}</p>
                                 </div>
-                                ${match ? `<button type="button" onclick="useOfficialInExplorer(${i})" class="shrink-0 px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold">Pré-visualizar</button>` : ''}
+                                ${match ? `<button type="button" onclick="useOfficialInExplorer(${i})" class="shrink-0 px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold">Mostrar produtos</button>` : ''}
                             </div>`;
                         }).join('')}
                     </div>`;
@@ -4518,6 +4827,7 @@
                 const qs = new URLSearchParams({ limit: "20", sortType });
                 if (keyword) qs.set("keyword", keyword);
                 if (shopType) qs.set("shopType", shopType);
+                if (document.getElementById("shops-key-seller")?.checked) qs.set("isKeySeller", "1");
                 const res = await adminFetch(`${API_BASE}/api/admin/shopee/shops?${qs}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -4541,9 +4851,9 @@
                                 <img src="${escapeHtml(s.imageUrl || s.image || "")}" class="w-10 h-10 rounded object-cover bg-slate-100" onerror="this.style.display='none'">
                                 <div class="min-w-0 flex-1">
                                     <p class="font-bold text-slate-800 text-[12px] truncate">${escapeHtml(s.shopName || s.shop_name || "Loja")}</p>
-                                    <p class="text-[10px] text-slate-400">${escapeHtml(shopTypeLabel(s.shopType))} · comissão ${escapeHtml(comm)}${id ? ` · ID ${escapeHtml(String(id))}` : ""}</p>
+                                    <p class="text-[10px] text-slate-400">${escapeHtml(shopTypeLabel(s.shopType))} · comissão ${escapeHtml(comm)}${s.sellerCommCoveRatio ? ` · cobertura ${escapeHtml(String(s.sellerCommCoveRatio))}` : ""}${id ? ` · ID ${escapeHtml(String(id))}` : ""}</p>
                                 </div>
-                                ${id ? `<button type="button" onclick="previewShopInExplorer('${String(id).replace(/'/g, "")}')" class="shrink-0 px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold">Pré-visualizar</button>` : ""}
+                                ${id ? `<button type="button" onclick="previewShopInExplorer('${String(id).replace(/'/g, "")}')" class="shrink-0 px-2 py-1 rounded bg-shopee-orange text-white text-[10px] font-bold">Mostrar produtos</button>` : ""}
                             </div>`;
                         }).join("")}
                     </div>`;
@@ -4630,7 +4940,7 @@
                         <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                             <span class="font-bold text-slate-700">${fem ? '♀' : '·'} ${escapeHtml(c.label)} <span class="text-slate-400 font-normal">${c.count || 0}</span></span>
                             <div class="flex gap-1">
-                                <button type="button" onclick="loadCategoryKeywordsToExplorer('${c.id}')" class="px-2 py-1 rounded bg-pink-50 text-pink-700 text-[10px] font-bold hover:bg-pink-100">Pré-visualizar</button>
+                                <button type="button" onclick="loadCategoryKeywordsToExplorer('${c.id}')" class="px-2 py-1 rounded bg-pink-50 text-pink-700 text-[10px] font-bold hover:bg-pink-100">Mostrar produtos</button>
                                 <button type="button" onclick="document.getElementById('admin-cat-sync').value='${c.id}'; adminSyncCategory()" class="px-2 py-1 rounded bg-slate-800 text-white text-[10px] font-bold hover:bg-slate-700">Atualizar</button>
                             </div>
                         </div>
@@ -4654,6 +4964,7 @@
     const exposeMap = {
         switchAdminView, toggleAdminSidebar, toggleMobileSidebar, setPreviewDevice,
         switchCatalogTab, switchCatalogoBuscarTab,
+        setExplorerScanMode, updateExplorerMassHint, addExplorerKeyword,
         updateExplorerKwCount, updateExplorerModeHint,
         renderExplorerKeywordChips, removeExplorerKeyword, onExplorerKeywordKey,
         resetExplorerForm, runCoverageShortcut, showMoneyQueueShortcut,
@@ -4662,7 +4973,8 @@
         syncAllCategories, syncCategory, applyExplorerPreset, runExplorerSearch,
         saveExplorerSelection, cancelExplorerSearch, toggleExplorerSelectAll, onExplorerItemToggle,
         saveCurrentCampaign, deleteSavedCampaign, loadSavedCampaignIntoEditor, copyCampaignLink,
-        copySavedCampaignLinks, addProductToCampaign, removeProductFromCampaign, addCampaignProductById,
+        copySavedCampaignLinks, regenerateCampaignShortlinks, regenerateAllCampaignShortlinks,
+        addProductToCampaign, removeProductFromCampaign, addCampaignProductById,
         convertCampaignProduct, obterCampaignLink, renameSavedCampaign, renderSavedCampaignsList,
         pickCampaignCatalogProduct, resetCampaignForm,
         renderCampaignProductPicker, resolveCampaignProductById, clearCampaignProductSearch,
@@ -4672,6 +4984,7 @@
         closeCampaignPerfDetail, openCampaignPerfByName, loadMeuSiteSummary, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
+        previewFeed, lookupConversion, loadDashboardSales,
         loadConversions, previousConversionPage, nextConversionPage,
         setConversionStatusFilter, onConversionSearch, onConversionPageSizeChange, goToConversionPage,
         onAdminSearch, onAdminFiltersChange, onAdminPageSizeChange, clearAdminFilters,

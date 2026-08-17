@@ -58,7 +58,13 @@ const {
   DEFAULT_MIN_COMMISSION_PCT,
 } = require("./quality");
 const { productMatchesSubcategory } = require("./productMeta");
-const { SITE_SUBID, buildProductSubIds, buildTrackedSubIds, sanitizeSubId } = require("./tracking");
+const {
+  SITE_SUBID,
+  buildProductSubIds,
+  buildTrackedSubIds,
+  buildCampaignSubIds,
+  sanitizeSubId,
+} = require("./tracking");
 const {
   generateShortlinksForRows,
   saveOffersWithShortlinks,
@@ -499,9 +505,9 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
     const keywords = Array.isArray(keywordsRaw)
       ? keywordsRaw
       : String(keywordsRaw).split(/[\n,;]+/);
-    const pages = Math.min(Math.max(Number(body.pages) || 1, 1), 10);
+    const pages = Math.min(Math.max(Number(body.pages) || 3, 1), 20);
     const pageStart = Math.max(Number(body.pageStart) || 1, 1);
-    const limit = Math.min(Math.max(Number(body.limit) || 20, 1), 50);
+    const limit = Math.min(Math.max(Number(body.limit) || 50, 1), 50);
     const listType = body.listType != null ? Number(body.listType) : 0;
     const sortType = body.sortType != null ? Number(body.sortType) : 2;
     const minRating = body.minRating != null ? Number(body.minRating) : MIN_RATING;
@@ -510,6 +516,9 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
     const minCommissionPct = body.minCommissionPct != null ? Number(body.minCommissionPct) : 0;
     const matchId = body.matchId != null ? Number(body.matchId) : null;
     const shopId = body.shopId != null ? Number(body.shopId) : null;
+    const productCatId = body.productCatId != null ? Number(body.productCatId) : null;
+    const isAMSOffer = body.isAMSOffer === true || body.isAMSOffer === "1" || body.isAMSOffer === 1;
+    const isKeySeller = body.isKeySeller === true || body.isKeySeller === "1" || body.isKeySeller === 1;
     const sync = body.sync === true || body.sync === 1 || body.sync === "1";
     const gapMs = body.gapMs != null ? Number(body.gapMs) : DEFAULT_BATCH_GAP_MS;
     const concurrency = body.concurrency != null ? Number(body.concurrency) : undefined;
@@ -517,9 +526,10 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
     const cleaned = keywords.map((k) => String(k || "").trim()).filter(Boolean);
     const hasMatch = Number.isFinite(matchId) && matchId > 0;
     const hasShop = Number.isFinite(shopId) && shopId > 0;
-    if (!cleaned.length && !hasMatch && !hasShop) {
+    const hasCat = Number.isFinite(productCatId) && productCatId > 0;
+    if (!cleaned.length && !hasMatch && !hasShop && !hasCat) {
       return res.status(400).json({
-        error: "Informe keyword(s), ou matchId (coleção/categoria), ou shopId (loja)",
+        error: "Informe palavras-chave, categoria Shopee, coleção ou loja",
         code: "NO_KEYWORDS",
       });
     }
@@ -533,6 +543,9 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
       sortType,
       matchId: hasMatch ? matchId : null,
       shopId: hasShop ? shopId : null,
+      productCatId: Number.isFinite(productCatId) && productCatId > 0 ? productCatId : null,
+      isAMSOffer: isAMSOffer ? true : null,
+      isKeySeller: isKeySeller ? true : null,
       minRating,
       minSales,
       requireCommission,
@@ -592,6 +605,7 @@ app.post("/api/ofertas/batch", requireAdmin, async (req, res) => {
       found: batch.count,
       filteredOut: batch.filteredOut,
       hasNextPage: batch.hasNextPage,
+      nextPageStart: batch.nextPageStart,
       saved,
       skippedExisting,
       shortlinks,
@@ -1577,6 +1591,34 @@ app.get("/api/admin/feeds/list", requireAdmin, async (req, res) => {
   }
 });
 
+/** Admin — inspeciona uma página do feed (até 80 linhas) sem importar. */
+app.get("/api/admin/feeds/preview", requireAdmin, async (req, res) => {
+  try {
+    const { getItemFeedData, columnsJsonToRow } = require("./feed");
+    const datafeedId = String(req.query?.datafeedId || "").trim();
+    if (!datafeedId) return res.status(400).json({ error: "datafeedId obrigatório" });
+    const offset = Math.max(Number(req.query?.offset) || 0, 0);
+    const limit = Math.min(Math.max(Number(req.query?.limit) || 40, 1), 80);
+    const page = await getItemFeedData({ datafeedId, offset, limit });
+    const rows = (page.rows || []).map((r) => {
+      const mapped = columnsJsonToRow(r.columns, r.updateType);
+      return {
+        updateType: r.updateType || mapped?._feedUpdateType || "",
+        itemId: mapped?.item_id || null,
+        name: mapped?.product_name || "",
+        price: mapped?.price_min || mapped?.price || "",
+        commission: mapped?.commission_rate || "",
+        shop: mapped?.shop_name || "",
+        image: mapped?.image_url || "",
+      };
+    });
+    res.json({ ok: true, rows, pageInfo: page.pageInfo || {}, datafeedId });
+  } catch (err) {
+    console.error("[/api/admin/feeds/preview]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
 /** Admin — Ferramentas: batch shortlink ad-hoc (até 50 URLs, com subIds opcionais). */
 app.post("/api/admin/shortlink/batch", requireAdmin, async (req, res) => {
   try {
@@ -1646,6 +1688,8 @@ app.get("/api/admin/shopee/shops", requireAdmin, async (req, res) => {
       page: Number(req.query?.page) || 1,
       limit: Number(req.query?.limit) || 20,
       shopId: req.query?.shopId ? Number(req.query.shopId) : null,
+      sellerCommCoveRatio: req.query?.sellerCommCoveRatio ? String(req.query.sellerCommCoveRatio) : null,
+      isKeySeller: req.query?.isKeySeller === "1" || req.query?.isKeySeller === "true" ? true : null,
     });
     res.json({ ok: true, ...result });
   } catch (err) {
@@ -1756,6 +1800,135 @@ app.delete("/api/campanhas-rastreio/:id", requireAdmin, async (req, res) => {
 });
 
 /**
+ * Regenera os shortlinks de UMA (ou TODAS) as campanhas no formato standalone
+ * (sub_id de 1 slot só com o nome). Pra migrar rastreamento antigo (5 slots
+ * com afiliadamestre no slot 1) pro novo formato — que bate 1:1 com o filtro
+ * `Sub_id` do relatório da Shopee.
+ *
+ * Body: { campaign?: string }  — se ausente, regenera todas.
+ * Não muda o `short_link` cacheado da oferta na vitrine (esse continua sendo
+ * o link orgânico). Os novos links voltam no response pra o Diego colar nas
+ * campanhas dele.
+ */
+app.post("/api/admin/campanhas/regenerar-standalone", requireAdmin, async (req, res) => {
+  try {
+    const targetSlug = req.body?.campaign
+      ? sanitizeSubId(req.body.campaign, "")
+      : "";
+
+    const all = await listCampanhasRastreio();
+    const list = Array.isArray(all) ? all : [];
+    const chosen = targetSlug
+      ? list.filter((c) => sanitizeSubId(c.id, "") === targetSlug || sanitizeSubId(c.campaign, "") === targetSlug)
+      : list;
+
+    if (!chosen.length) {
+      return res.json({
+        ok: true,
+        regenerated: 0,
+        campaigns: [],
+        note: targetSlug
+          ? `Nenhuma campanha "${targetSlug}" encontrada em campanhas_rastreio.`
+          : "Nenhuma campanha cadastrada.",
+      });
+    }
+
+    const perCampaign = [];
+    let totalLinks = 0;
+    let totalFailed = 0;
+    let rateLimited = false;
+
+    for (const camp of chosen) {
+      const campaignSlug = sanitizeSubId(camp.campaign || camp.id, "vitrine");
+      const productIds = [...new Set(
+        (Array.isArray(camp.products) ? camp.products : [])
+          .map((p) => Number(p?.itemId ?? p?.id ?? p))
+          .filter((n) => Number.isSafeInteger(n) && n > 0)
+      )].slice(0, 50);
+
+      if (!productIds.length) {
+        perCampaign.push({
+          id: camp.id,
+          campaign: campaignSlug,
+          links: [],
+          note: "Campanha sem produtos.",
+        });
+        continue;
+      }
+
+      const rows = await getOffersByItemIds(productIds, { full: true });
+      const byId = new Map(
+        (Array.isArray(rows) ? rows : []).map((r) => [String(r.item_id), r])
+      );
+
+      const payload = [];
+      const missing = [];
+      for (const id of productIds) {
+        const row = byId.get(String(id));
+        if (!row || !row.offer_link) {
+          missing.push(id);
+          continue;
+        }
+        const originUrl = resolveProductOriginUrl(row);
+        if (!originUrl) {
+          missing.push(id);
+          continue;
+        }
+        payload.push({
+          originUrl,
+          subIds: buildCampaignSubIds(campaignSlug),
+          itemId: row.item_id,
+          preserveExact: true,
+        });
+      }
+
+      let links = [];
+      if (payload.length) {
+        const batch = await generateBatchShortLink(payload);
+        if (batch.rateLimited) rateLimited = true;
+        const bySent = new Map(payload.map((p) => [String(p.itemId), p]));
+        links = (batch.links || []).map((l) => {
+          const ok = l.success && !!l.shortLink;
+          if (ok) totalLinks += 1; else totalFailed += 1;
+          return {
+            productId: l.itemId,
+            shopeeUrl: ok ? l.shortLink : null,
+            subIds: bySent.get(String(l.itemId))?.subIds || [],
+            error: ok ? null : (l.errorMessage || "falhou"),
+          };
+        });
+      }
+
+      perCampaign.push({
+        id: camp.id,
+        campaign: campaignSlug,
+        subIdFormat: `${campaignSlug}----`,
+        products: productIds.length,
+        links,
+        missing,
+      });
+
+      if (rateLimited) break;
+    }
+
+    res.json({
+      ok: true,
+      regenerated: totalLinks,
+      failed: totalFailed,
+      rateLimited,
+      campaigns: perCampaign,
+    });
+  } catch (err) {
+    console.error("[/api/admin/campanhas/regenerar-standalone]", err.message);
+    res.status(err.status || 500).json({
+      error: err.message,
+      rateLimited: !!err.rateLimited,
+      details: err.payload || null,
+    });
+  }
+});
+
+/**
  * Resolve um produto para o gerador de campanha a partir do ID (ou link Shopee).
  * Item já publicado volta direto do banco; o que faltar é buscado na Shopee e
  * publicado na vitrine com Sub IDs/shortlink antes de responder.
@@ -1861,13 +2034,18 @@ app.post("/api/admin/campanha/links", requireAdmin, async (req, res) => {
   try {
     const channel = sanitizeSubId(req.body?.channel, "organico");
     const campaign = sanitizeSubId(req.body?.campaign, "vitrine");
+    // standalone=true (default): shortlink sai com sub_id de 1 slot só (nome da
+    // campanha), pra bater 1:1 com o filtro `Sub_id` do relatório da Shopee —
+    // mesmo formato das campanhas manuais que o Diego cria direto no painel deles.
+    // standalone=false: formato antigo (5 slots com SITE_SUBID no slot 1).
+    const standalone = req.body?.standalone !== false && req.body?.legacy !== true;
     const ids = [...new Set(
       (Array.isArray(req.body?.productIds) ? req.body.productIds : [])
         .map(Number)
         .filter((id) => Number.isSafeInteger(id) && id > 0)
     )].slice(0, 50);
 
-    if (!ids.length) return res.json({ ok: true, links: [], channel, campaign });
+    if (!ids.length) return res.json({ ok: true, links: [], channel, campaign, standalone });
 
     const rows = await getOffersByItemIds(ids, { full: true });
     const byId = new Map(
@@ -1887,14 +2065,18 @@ app.post("/api/admin/campanha/links", requireAdmin, async (req, res) => {
         missing.push(id);
         continue;
       }
+      const subIds = standalone
+        ? buildCampaignSubIds(campaign)
+        : buildTrackedSubIds(row.category, row.item_id, row.subcategory, {
+            channel,
+            campaign,
+            medium: "social",
+          });
       payload.push({
         originUrl,
-        subIds: buildTrackedSubIds(row.category, row.item_id, row.subcategory, {
-          channel,
-          campaign,
-          medium: "social",
-        }),
+        subIds,
         itemId: row.item_id,
+        preserveExact: standalone,
       });
     }
 
@@ -1916,6 +2098,7 @@ app.post("/api/admin/campanha/links", requireAdmin, async (req, res) => {
       ok: true,
       channel,
       campaign,
+      standalone,
       links: generated,
       missing,
       rateLimited,
@@ -1938,22 +2121,34 @@ app.post("/api/shortlink", shortlinkRateLimit, async (req, res) => {
   try {
     const originUrl = String(req.body?.originUrl || "").trim();
     if (!originUrl) return res.status(400).json({ error: "originUrl obrigatório" });
-    const { SITE_SUBID } = require("./tracking");
+    const { SITE_SUBID, looksLikeCampaignSubIds } = require("./tracking");
     let subIds = Array.isArray(req.body?.subIds) && req.body.subIds.length
       ? req.body.subIds.map(String)
       : buildProductSubIds("geral", req.body?.itemId);
-    // Invariante A: slot 1 sempre SITE_SUBID — mesmo quando cliente manda subIds custom.
-    if (subIds[0] !== SITE_SUBID) {
-      subIds = [SITE_SUBID, ...subIds].slice(0, 5);
+
+    // Detecta 3 formatos aceitos:
+    //   - standalone flag explícita ({ standalone: true } no body)
+    //   - subIds vem com 1 slot só que não é SITE_SUBID (campanha standalone)
+    //   - default: vitrine/orgânico (5 slots com SITE_SUBID no slot 1)
+    const explicitStandalone = req.body?.standalone === true;
+    const inferredStandalone = looksLikeCampaignSubIds(subIds);
+    const standalone = explicitStandalone || inferredStandalone;
+
+    if (!standalone) {
+      // Invariante A pra fluxo vitrine: slot 1 sempre SITE_SUBID.
+      if (subIds[0] !== SITE_SUBID) {
+        subIds = [SITE_SUBID, ...subIds].slice(0, 5);
+      }
     }
-    // Normaliza aqui pra responder (e decidir o cache) com o que a Shopee de
-    // fato registrou — o painel mostra esses Sub IDs pra casar com o relatório.
-    subIds = sanitizeSubIdsForShopee(subIds);
+    // Sanitiza pra responder (e decidir o cache) com o que a Shopee de fato
+    // registrou — o painel mostra esses Sub IDs pra casar com o relatório.
+    subIds = sanitizeSubIdsForShopee(subIds, { preserveExact: standalone });
     const itemId = req.body?.itemId != null ? Number(req.body.itemId) : null;
-    const shortLink = await generateShortLink(originUrl, subIds);
-    // Só o link orgânico pode virar cache do produto. Guardar um link de campanha
-    // aqui faria o próximo visitante orgânico sair com o Sub ID da campanha alheia.
-    const isOrganic = subIds[1] === "organico" && subIds[2] === "vitrine";
+    const shortLink = await generateShortLink(originUrl, subIds, { preserveExact: standalone });
+    // Só o link orgânico da vitrine vira cache do produto. Guardar um link de
+    // campanha aqui faria o próximo visitante orgânico sair com o Sub ID da
+    // campanha alheia.
+    const isOrganic = !standalone && subIds[1] === "organico" && subIds[2] === "vitrine";
     if (shortLink && itemId && isOrganic) {
       try {
         await updateShortLink(itemId, shortLink);
@@ -1961,7 +2156,13 @@ app.post("/api/shortlink", shortlinkRateLimit, async (req, res) => {
         console.warn("[/api/shortlink] cache falhou:", e.message);
       }
     }
-    res.json({ shortLink, originUrl, subIds, cached: Boolean(shortLink && itemId && isOrganic) });
+    res.json({
+      shortLink,
+      originUrl,
+      subIds,
+      standalone,
+      cached: Boolean(shortLink && itemId && isOrganic),
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message, details: err.payload || null });
   }
@@ -2069,13 +2270,20 @@ app.get("/api/conversions", async (req, res) => {
     let nodes = Array.isArray(report.nodes) ? report.nodes : [];
     const totalFromShopee = nodes.length;
     if (siteOnly) {
-      // Reconhece ambas as formas do marcador (com/sem underscore) —
-      // histórico usava "afiliada_mestre"; novo padrão é "afiliadamestre".
+      // 3 formatos aceitos como "meu site":
+      //   1. utm contém SITE_SUBID (vitrine/orgânico, 5 slots)
+      //   2. utm contém "afiliada_mestre" (legado, histórico com underscore)
+      //   3. sub_id1 === nome de campanha conhecida (standalone, 1 slot)
       const markerCompact = marker.replace(/[^a-z0-9]/g, "");
       const markerLegacy = "afiliada_mestre";
+      const { listKnownCampaignNames } = require("./supabase");
+      const knownCampaigns = await listKnownCampaignNames();
       nodes = nodes.filter((conversion) => {
         const utm = String(conversion.utmContent || "").toLowerCase();
-        return utm.includes(markerCompact) || utm.includes(markerLegacy);
+        if (utm.includes(markerCompact) || utm.includes(markerLegacy)) return true;
+        // campanha standalone: primeiro token (split por - _ | , ; /) é o nome.
+        const slot1 = utm.split(/[-_|,;/]/)[0]?.replace(/[^a-z0-9]/g, "");
+        return slot1 ? knownCampaigns.has(slot1) : false;
       });
     }
     const itemIds = nodes.flatMap((conversion) =>
@@ -2161,7 +2369,14 @@ app.get("/api/conversions/summary", requireAdmin, async (req, res) => {
     });
     let nodes = Array.isArray(report.nodes) ? report.nodes : [];
     const marker = SITE_SUBID.toLowerCase();
-    nodes = nodes.filter((c) => String(c.utmContent || "").toLowerCase().includes(marker));
+    const { listKnownCampaignNames } = require("./supabase");
+    const knownCampaigns = await listKnownCampaignNames();
+    nodes = nodes.filter((c) => {
+      const utm = String(c.utmContent || "").toLowerCase();
+      if (utm.includes(marker)) return true;
+      const slot1 = utm.split(/[-_|,;/]/)[0]?.replace(/[^a-z0-9]/g, "");
+      return slot1 ? knownCampaigns.has(slot1) : false;
+    });
 
     const byChannel = new Map();
     const byItem = new Map();
@@ -2207,6 +2422,42 @@ app.get("/api/conversions/summary", requireAdmin, async (req, res) => {
   }
 });
 
+/** Admin — localiza pedido / SKU / loja no conversionReport. */
+app.get("/api/admin/conversions/lookup", requireAdmin, async (req, res) => {
+  try {
+    const orderId = String(req.query?.orderId || "").trim();
+    const conversionId = String(req.query?.conversionId || "").trim();
+    const productId = req.query?.productId ? Number(req.query.productId) : null;
+    const shopId = req.query?.shopId ? Number(req.query.shopId) : null;
+    const productName = String(req.query?.productName || "").trim();
+    if (!orderId && !conversionId && !(Number.isFinite(productId) && productId > 0) && !(Number.isFinite(shopId) && shopId > 0) && !productName) {
+      return res.status(400).json({ error: "Informe pedido, conversão, produto ou loja" });
+    }
+    const days = Math.min(Math.max(Number(req.query.days) || 90, 1), 90);
+    const now = Math.floor(Date.now() / 1000);
+    const report = await fetchConversionReport({
+      purchaseTimeStart: now - days * 24 * 3600,
+      purchaseTimeEnd: now,
+      limit: 50,
+      orderId,
+      conversionId,
+      productId: Number.isFinite(productId) && productId > 0 ? productId : null,
+      shopId: Number.isFinite(shopId) && shopId > 0 ? shopId : null,
+      productName,
+    });
+    res.json({
+      ok: true,
+      days,
+      count: (report.nodes || []).length,
+      nodes: report.nodes || [],
+      pageInfo: report.pageInfo || {},
+    });
+  } catch (err) {
+    console.error("[/api/admin/conversions/lookup]", err.message);
+    res.status(err.status || 500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
 /**
  * Lê winners do conversionReport e empurra keywords para a fila prioritária do autosync.
  */
@@ -2222,7 +2473,14 @@ app.post("/api/conversions/prioritize", requireAdmin, async (req, res) => {
     });
     let nodes = Array.isArray(report.nodes) ? report.nodes : [];
     const marker = SITE_SUBID.toLowerCase();
-    nodes = nodes.filter((c) => String(c.utmContent || "").toLowerCase().includes(marker));
+    const { listKnownCampaignNames } = require("./supabase");
+    const knownCampaigns = await listKnownCampaignNames();
+    nodes = nodes.filter((c) => {
+      const utm = String(c.utmContent || "").toLowerCase();
+      if (utm.includes(marker)) return true;
+      const slot1 = utm.split(/[-_|,;/]/)[0]?.replace(/[^a-z0-9]/g, "");
+      return slot1 ? knownCampaigns.has(slot1) : false;
+    });
 
     const jobs = [];
     const seen = new Set();

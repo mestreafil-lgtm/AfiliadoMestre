@@ -11,8 +11,12 @@ const {
   fetchConversionReport,
   fetchValidatedReport,
 } = require("./shopee");
-const { supabaseRequest } = require("./supabase");
-const { SITE_SUBID } = require("./tracking");
+const {
+  supabaseRequest,
+  buildMineFilter,
+  isKnownCampaign,
+} = require("./supabase");
+const { SITE_SUBID, sanitizeSubId } = require("./tracking");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -343,7 +347,9 @@ function windowFromParams({ from, to, days } = {}) {
 async function summary({ from, to, days = 30, onlyMeuSite = true } = {}) {
   const { fromIso, toIso } = windowFromParams({ from, to, days });
   const baseFilter = `purchase_time=gte.${encodeURIComponent(fromIso)}&purchase_time=lte.${encodeURIComponent(toIso)}`;
-  const scopeFilter = onlyMeuSite ? `${baseFilter}&is_meu_site=is.true` : baseFilter;
+  // "Meu site" agora inclui campanhas standalone (sub_id1 = nome-de-campanha).
+  const mineFilter = onlyMeuSite ? await buildMineFilter() : "";
+  const scopeFilter = onlyMeuSite ? `${baseFilter}&${mineFilter}` : baseFilter;
 
   async function safeGet(path) {
     try {
@@ -475,8 +481,9 @@ async function summary({ from, to, days = 30, onlyMeuSite = true } = {}) {
 async function topSignalsFromMySite({ days = 30, limit = 20 } = {}) {
   const { fromIso, toIso } = windowFromParams({ days });
   try {
+    const mineFilter = await buildMineFilter();
     const rows = await supabaseRequest(
-      `/conversions?select=item_id,shop_id,sub_id3,net_commission,total_commission&is_meu_site=is.true&purchase_time=gte.${encodeURIComponent(fromIso)}&purchase_time=lte.${encodeURIComponent(toIso)}&order=purchase_time.desc&limit=5000`,
+      `/conversions?select=item_id,shop_id,sub_id3,net_commission,total_commission&${mineFilter}&purchase_time=gte.${encodeURIComponent(fromIso)}&purchase_time=lte.${encodeURIComponent(toIso)}&order=purchase_time.desc&limit=5000`,
       { method: "GET", useService: true }
     );
     const list = Array.isArray(rows) ? rows : [];
@@ -515,7 +522,9 @@ async function topSignalsFromMySite({ days = 30, limit = 20 } = {}) {
 
 /**
  * Backfill de sub_ids em ofertas antigas que não têm SITE_SUBID no slot 1.
- * Reprocessa os sub_ids e força regenerate do short_link.
+ * Reprocessa os sub_ids da vitrine (fluxo orgânico) e força regenerate do
+ * short_link. Ofertas com sub_ids de campanha standalone (1 slot só) ficam
+ * de fora — quem regera essas é o endpoint /api/admin/campanha/regenerar.
  */
 async function reprocessSubIds({ limit = 100, dryRun = false } = {}) {
   const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
@@ -567,14 +576,17 @@ function itemIdFromShopeeUrl(u) {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
-function decodeSubIdsFromUrl(url) {
+async function decodeSubIdsFromUrl(url) {
   const raw = String(url || "").trim();
   if (!raw) return { ok: false, error: "url vazia" };
   try {
     const u = new URL(raw);
     const utmContent = u.searchParams.get("utm_content") || u.searchParams.get("sub_id") || "";
     const parts = parseUtmSubIds(utmContent);
-    const isMeuSite = parts.sub_id1 === SITE_SUBID;
+    const slot1 = sanitizeSubId(parts.sub_id1, "");
+    const isSiteMarker = slot1 === SITE_SUBID;
+    const isCampaignLink = !isSiteMarker && slot1 && await isKnownCampaign(slot1);
+    const isMeuSite = isSiteMarker || isCampaignLink;
     const subIds = [parts.sub_id1, parts.sub_id2, parts.sub_id3, parts.sub_id4, parts.sub_id5].filter(Boolean);
     // Slot 5 guarda p<itemId>; se a URL já traz o id no caminho, ele vale mais.
     const fromSlot = /^p(\d+)$/.exec(String(parts.sub_id5 || ""));
@@ -593,6 +605,14 @@ function decodeSubIdsFromUrl(url) {
         note: "Este é um link encurtado: os Sub IDs ficam no destino, não na URL. Abra o link e cole aqui o endereço final (o que tem utm_content).",
       };
     }
+    // Link de campanha standalone: nome da campanha vira Sub_id1, os demais
+    // slots ficam vazios. Nesse formato o "campaign" real é o slot 1 mesmo.
+    const campaignName = isCampaignLink ? slot1 : (parts.sub_id3 || null);
+    const note = isSiteMarker
+      ? "✅ Este link é do seu site (sub_id1 = " + SITE_SUBID + ")."
+      : isCampaignLink
+        ? `✅ Este link é da sua campanha "${slot1}" (formato standalone).`
+        : "⚠️ Este link NÃO tem SITE_SUBID no slot 1 nem campanha conhecida — venda não será rastreada como sua.";
     return {
       ok: true,
       url: raw,
@@ -600,16 +620,15 @@ function decodeSubIdsFromUrl(url) {
       subIds,
       itemId,
       channel: parts.sub_id2 || null,
-      campaign: parts.sub_id3 || null,
+      campaign: campaignName,
       category: parts.sub_id4 || null,
       destination: u.origin + u.pathname,
       isMeuSite,
       // O painel lê isMySite; mantemos os dois nomes pra não quebrar chamador antigo.
       isMySite: isMeuSite,
+      isCampaignLink,
       siteSubId: SITE_SUBID,
-      note: isMeuSite
-        ? "✅ Este link é do seu site (sub_id1 = " + SITE_SUBID + ")."
-        : "⚠️ Este link NÃO tem SITE_SUBID no slot 1 — venda não será rastreada como sua.",
+      note,
     };
   } catch (err) {
     return { ok: false, error: "URL inválida: " + err.message };
@@ -624,9 +643,10 @@ function decodeSubIdsFromUrl(url) {
 async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
   const { fromIso, toIso } = windowFromParams({ days });
   const statusFilter = String(status || "").trim().toUpperCase();
+  const mineFilter = await buildMineFilter();
   let path =
     `/conversions?select=conversion_id,purchase_time,order_id,order_status,fraud_status,shop_id,shop_name,item_id,item_name,item_price,actual_amount,qty,total_commission,net_commission,seller_commission,shopee_commission_capped,utm_content,sub_id1,sub_id2,sub_id3,sub_id4,sub_id5,updated_at` +
-    `&is_meu_site=is.true` +
+    `&${mineFilter}` +
     `&purchase_time=gte.${encodeURIComponent(fromIso)}` +
     `&purchase_time=lte.${encodeURIComponent(toIso)}` +
     `&order=purchase_time.desc&limit=5000`;

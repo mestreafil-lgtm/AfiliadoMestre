@@ -471,6 +471,11 @@ module.exports = {
   listCampanhasRastreio,
   upsertCampanhaRastreio,
   deleteCampanhaRastreio,
+  listKnownCampaignNames,
+  invalidateCampaignNamesCache,
+  isKnownCampaign,
+  buildMineFilter,
+  isMineByParts,
 };
 
 async function listCampanhasRastreio() {
@@ -480,8 +485,82 @@ async function listCampanhasRastreio() {
   );
 }
 
+/**
+ * Cache do set de nomes de campanha conhecidos.
+ * A detecção "é meu site?" em conversions/index consulta isso pra reconhecer
+ * vendas com `Sub_id1 = TESTE211` (campanha standalone, sem SITE_SUBID).
+ * TTL curto (60s) pra não segurar campanhas recém-criadas.
+ */
+const CAMPAIGN_NAMES_CACHE = { at: 0, set: null };
+const CAMPAIGN_NAMES_TTL_MS = 60 * 1000;
+
+async function listKnownCampaignNames({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && CAMPAIGN_NAMES_CACHE.set && now - CAMPAIGN_NAMES_CACHE.at < CAMPAIGN_NAMES_TTL_MS) {
+    return CAMPAIGN_NAMES_CACHE.set;
+  }
+  const { sanitizeSubId } = require("./tracking");
+  const set = new Set();
+  try {
+    const rows = await supabaseRequest(
+      "/campanhas_rastreio?select=id,campaign&limit=500",
+      { method: "GET", useService: true }
+    );
+    for (const r of Array.isArray(rows) ? rows : []) {
+      const idSlug = sanitizeSubId(r.id, "");
+      const campSlug = sanitizeSubId(r.campaign, "");
+      if (idSlug) set.add(idSlug);
+      if (campSlug) set.add(campSlug);
+    }
+  } catch (err) {
+    console.warn("[listKnownCampaignNames] falhou:", err.message);
+  }
+  CAMPAIGN_NAMES_CACHE.set = set;
+  CAMPAIGN_NAMES_CACHE.at = now;
+  return set;
+}
+
+function invalidateCampaignNamesCache() {
+  CAMPAIGN_NAMES_CACHE.at = 0;
+  CAMPAIGN_NAMES_CACHE.set = null;
+}
+
+async function isKnownCampaign(name) {
+  const { sanitizeSubId } = require("./tracking");
+  const slug = sanitizeSubId(name, "");
+  if (!slug) return false;
+  const set = await listKnownCampaignNames();
+  return set.has(slug);
+}
+
+/**
+ * Filtro PostgREST pra vendas "do meu site" — reconhece 2 formatos de SubID:
+ *   - vitrine/orgânico: sub_id1 = SITE_SUBID (via coluna gerada is_meu_site)
+ *   - campanha standalone: sub_id1 = nome-de-campanha-cadastrada-no-AM
+ * Retorna string pronta pra concatenar no querystring. Sem `&` no início.
+ */
+async function buildMineFilter() {
+  const set = await listKnownCampaignNames();
+  const names = [...set].filter(Boolean);
+  if (!names.length) return "is_meu_site=is.true";
+  // PostgREST in.(...) — só alfanumérico entra (sanitizeSubId já garantiu),
+  // então não precisa quotar. Nomes reservados/vazios ficariam fora do Set.
+  const list = names.slice(0, 200).join(",");
+  return `or=(is_meu_site.is.true,sub_id1.in.(${list}))`;
+}
+
+/** Sync helper — decide se um parts.sub_id1 pertence ao site. */
+async function isMineByParts(sub_id1) {
+  const { SITE_SUBID, sanitizeSubId } = require("./tracking");
+  const raw = sanitizeSubId(sub_id1, "");
+  if (!raw) return false;
+  if (raw === SITE_SUBID) return true;
+  return isKnownCampaign(raw);
+}
+
 async function upsertCampanhaRastreio(row) {
   if (!row?.id) throw new Error("id obrigatório");
+  invalidateCampaignNamesCache();
   return supabaseRequest("/campanhas_rastreio", {
     method: "POST",
     body: [{
@@ -503,6 +582,7 @@ async function upsertCampanhaRastreio(row) {
 
 async function deleteCampanhaRastreio(id) {
   if (!id) return null;
+  invalidateCampaignNamesCache();
   return supabaseRequest(
     `/campanhas_rastreio?id=eq.${encodeURIComponent(String(id))}`,
     { method: "DELETE", prefer: "return=minimal", useService: true }

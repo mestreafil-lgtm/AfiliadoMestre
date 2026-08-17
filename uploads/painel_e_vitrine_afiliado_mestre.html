@@ -382,13 +382,55 @@
         }
         #admin-panel-root .chip:hover { background: #f1f5f9; }
         #admin-panel-root .chip.active {
-          background: #0f172a !important;
+          background: #ee4d2d !important;
           color: #fff !important;
-          border-color: #0f172a !important;
+          border-color: #ee4d2d !important;
         }
         #admin-panel-root .chip.active:hover {
-          background: #1e293b !important;
+          background: #d33b1c !important;
           color: #fff !important;
+        }
+        #admin-panel-root .explorer-scan-toggle {
+          display: flex;
+          background: #f1f5f9;
+          padding: 4px;
+          border-radius: 10px;
+          gap: 4px;
+          margin-bottom: 14px;
+        }
+        #admin-panel-root .explorer-scan-toggle button {
+          flex: 1;
+          border: 0;
+          background: transparent;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 8px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        #admin-panel-root .explorer-scan-toggle button.active {
+          background: #fff;
+          color: #e11d48;
+          box-shadow: 0 1px 2px rgba(15,23,42,.08);
+        }
+        #admin-panel-root .kw-suggest {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid #fbcfe8;
+          background: #fdf2f8;
+          color: #9d174d;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        #admin-panel-root .kw-suggest:hover { background: #fce7f3; }
+        @media (max-width: 720px) {
+          #admin-panel-root #explorer-broad-panel > div {
+            grid-template-columns: 1fr !important;
+          }
         }
         #admin-panel-root .tab {
           background: transparent;
@@ -426,6 +468,13 @@
           font-weight: 600;
         }
         #admin-panel-root .btn-dark:hover { background: #1e293b; }
+        #admin-panel-root .btn-danger {
+          background: #be123c;
+          color: #fff;
+          border: 0;
+          font-weight: 600;
+        }
+        #admin-panel-root .btn-danger:hover { background: #9f1239; }
         #admin-panel-root .hamburger { display: none; }
         #admin-panel-root .table-row:hover { background: #f8fafc; }
         #admin-panel-root input,
@@ -722,29 +771,41 @@
             overflow-wrap: anywhere;
         }
         /* Reserva espaço — CLS. Skeletons no HTML cobrem o hero/grid; min-heights
-           evitam colapso das seções vazias (flash / home-sections) até o JS pintar.
-           Usa :empty para que o min-height desapareça assim que houver produtos —
-           evita "espaço em branco gigante" quando uma categoria tem poucos itens. */
+           evitam colapso das seções vazias (flash) até o JS pintar.
+           Categorias NÃO usam :empty: o card já nasce com título + skeletons. */
         #hero-products-track:empty { min-height: 360px; contain: layout; }
         #store-products-grid:empty { min-height: 1100px; contain: layout; }
         #flash-products-container:empty { min-height: 280px; contain: layout; }
-        #store-categories-card:empty { min-height: 260px; contain: layout; }
-        #mobile-category-strip:empty { min-height: 200px; contain: layout; }
+        #store-categories-card {
+            contain: layout;
+            min-height: 340px;
+        }
+        #mobile-category-strip {
+            contain: layout;
+            min-height: 268px;
+        }
+        .cat-tile-label {
+            min-height: 2.5em;
+            line-height: 1.25;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+        }
+        .cat-tile-badge {
+            min-height: 14px;
+            line-height: 14px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #94a3b8;
+        }
         @media (min-width: 640px) {
             #hero-products-track:empty { min-height: 260px; }
             #store-products-grid:empty { min-height: 700px; }
-            #store-categories-card:empty { min-height: 200px; }
+            #store-categories-card { min-height: 368px; }
         }
         /* home-sections desativado por pedido do cliente — sem altura reservada. */
         #home-sections { display: none !important; }
-        /* Abaixo da dobra: browser pode adiar trabalho de layout/paint (SI/TBT).
-           contain-intrinsic-size evita “pulo” quando a seção entra na viewport. */
-        #flash-sale-section,
-        #home-sections,
-        #store-grid-section {
-            content-visibility: auto;
-            contain-intrinsic-size: auto 800px;
-        }
         #main-storefront-section { min-height: calc(100dvh - 60px); }
         #store-main { min-height: 720px; contain: layout; }
         /* Sidebar Shopee-style só aparece quando renderShopeeSidebar populou (categoria ativa). */
@@ -786,7 +847,6 @@
     })();
     </script>
     <noscript><link rel="stylesheet" href="/uploads/fa-solid.min.css"></noscript>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 </head>
 <body class="bg-shopee-grayBg text-shopee-textDark font-sans selection:bg-shopee-orange selection:text-white min-h-screen flex flex-col">
 
@@ -896,16 +956,15 @@
                 <!-- Mobile: faixa de fotos + nomes (sem "Tudo"; toque abre página de categorias) -->
                 <div class="sm:hidden mt-4 -mx-1 px-1">
                     <div id="mobile-category-strip" class="grid grid-flow-col auto-cols-[22%] grid-rows-2 gap-2 overflow-x-auto snap-x pb-2 scrollbar-thin">
-                        <!-- Skeletons ocupam o espaço exato até renderCategories() rodar; sem eles
-                             o strip aparece com 0px e a categorias-card recolhe → CLS. -->
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-12 rounded bg-slate-100"></div></div>
+                        <!-- Mesma altura do tile real (círculo + 2 linhas + badge) — CLS. -->
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
                     </div>
                 </div>
 
@@ -922,19 +981,19 @@
                         <i class="fas fa-chevron-right text-sm"></i>
                     </button>
                     <div class="grid grid-cols-4 sm:grid-cols-6 gap-2" id="store-categories-container">
-                        <!-- Skeletons desktop (12 = 2 linhas × 6). -->
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
-                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5"></div><div class="h-2.5 w-14 rounded bg-slate-100"></div></div>
+                        <!-- Skeletons desktop (12 = 2 linhas × 6), mesma altura do tile real. -->
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
                     </div>
                 </div>
 
@@ -1090,15 +1149,19 @@
     <!-- Nav -->
     <nav style="flex:1;padding:14px 10px;overflow-y:auto">
       
-        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Visão geral</div>
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Início</div>
         
           <button type="button" id="nav-dashboard" data-admin-view="dashboard" onclick="switchAdminView('dashboard')" class="nav-item admin-nav-item active" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Dashboard</span>
+            <span style="flex:1">Início</span>
             
           </button>
+          <button type="button" id="nav-vitrine-preview" data-admin-view="vitrine-preview" onclick="switchAdminView('vitrine-preview')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Ver vitrine</span>
+          </button>
       
-        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Gestão de catálogo</div>
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Catálogo</div>
         
           <button type="button" id="nav-catalogo-toggle" onclick="toggleCatalogoSubmenu()" aria-expanded="false" class="nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
@@ -1109,43 +1172,48 @@
             <button type="button" id="nav-catalogo-buscar" data-admin-view="catalogo-buscar" onclick="switchAdminView('catalogo-buscar')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Buscar produtos</button>
             <button type="button" id="nav-catalogo-atualizar" data-admin-view="catalogo-atualizar" onclick="switchAdminView('catalogo-atualizar')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Atualizar catálogo</button>
             <button type="button" id="nav-catalogo-links" data-admin-view="catalogo-links" onclick="switchAdminView('catalogo-links')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Links curtos</button>
-            <button type="button" id="nav-catalogo-saude" data-admin-view="catalogo-saude" onclick="switchAdminView('catalogo-saude')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Saúde &amp; métricas</button>
           </div>
           <button type="button" id="nav-produtos" data-admin-view="produtos" onclick="switchAdminView('produtos')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Produtos</span>
+            <span style="flex:1">Produtos na vitrine</span>
             
           </button>
           <button type="button" id="nav-duplicados" data-admin-view="duplicados" onclick="switchAdminView('duplicados')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Remover duplicados</span>
+            <span style="flex:1">Limpar catálogo</span>
             
           </button>
       
-        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Campanhas & links</div>
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Campanhas</div>
         
           <button type="button" id="nav-campanhas" data-admin-view="campanhas" onclick="switchAdminView('campanhas')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Criar campanha</span>
+            <span style="flex:1">Campanhas</span>
             
           </button>
           <button type="button" id="nav-campanha-desempenho" data-admin-view="campanha-desempenho" onclick="switchAdminView('campanha-desempenho')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Desempenho campanhas</span>
+            <span style="flex:1">Resultado das campanhas</span>
             
           </button>
       
-        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Financeiro & vendas</div>
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Vendas</div>
         
-          <button type="button" id="nav-desempenho" data-admin-view="desempenho" onclick="switchAdminView('desempenho')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
-            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Desempenho geral</span>
-            
-          </button>
           <button type="button" id="nav-meu-site" data-admin-view="meu-site" onclick="switchAdminView('meu-site')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
             <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
-            <span style="flex:1">Meu Site (vendas)</span>
+            <span style="flex:1">Vendas do site</span>
             
+          </button>
+          <button type="button" id="nav-desempenho" data-admin-view="desempenho" onclick="switchAdminView('desempenho')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Todas as conversões</span>
+            
+          </button>
+      
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Operação</div>
+          <button type="button" id="nav-catalogo-saude" data-admin-view="catalogo-saude" onclick="switchAdminView('catalogo-saude')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Saúde da Shopee</span>
           </button>
       
     </nav>
@@ -1176,14 +1244,14 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div style="flex:1;min-width:0">
-        <h1 id="admin-page-title" style="margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#0f172a">Dashboard</h1>
+        <h1 id="admin-page-title" style="margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#0f172a">Início</h1>
         <p id="admin-page-subtitle" style="margin:2px 0 0;font-size:12.5px;color:#64748b">Visão geral da operação de afiliados</p>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span id="admin-api-badge" class="hidden" style="padding:6px 10px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:999px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
           <span style="width:6px;height:6px;border-radius:50%;background:#10b981"></span>API OK
         </span>
-        <button onclick="loadAdminStats(); loadAutoStatus();" title="Atualizar" style="background:#fff;border:1px solid #e2e8f0;padding:8px;border-radius:8px;cursor:pointer">
+        <button onclick="loadAdminStats(); loadAutoStatus(); loadDashboardSales();" title="Atualizar" style="background:#fff;border:1px solid #e2e8f0;padding:8px;border-radius:8px;cursor:pointer">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
         </button>
       </div>
@@ -1210,7 +1278,7 @@
             </div>
           </div>
 
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo')" style="cursor:pointer;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-atualizar')" style="cursor:pointer;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Categorias ativas</div>
@@ -1223,7 +1291,7 @@
             </div>
           </div>
 
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo')" style="cursor:pointer;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-atualizar')" style="cursor:pointer;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Auto-sync</div>
@@ -1236,7 +1304,7 @@
             </div>
           </div>
 
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('desempenho')" style="cursor:pointer;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-saude')" style="cursor:pointer;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Última sincronização</div>
@@ -1259,7 +1327,7 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
             <button id="btn-run-auto" onclick="runAutoSyncNow()" class="btn-dark btn-action" style="display:flex;align-items:center;gap:10px">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
-              Sync agora
+              Atualizar agora
             </button>
             <button id="btn-top-perf" onclick="runTopPerformanceNow()" class="btn-ghost btn-action" style="display:flex;align-items:center;gap:10px">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
@@ -1288,19 +1356,19 @@
         <div class="am-strip" onclick="switchAdminView('desempenho')" style="cursor:pointer;background:linear-gradient(135deg,#0b1220,#1e293b);border-radius:14px;padding:26px;color:#fff;position:relative;overflow:hidden">
           <div style="position:absolute;right:-40px;top:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(238,77,45,.3),transparent 70%);border-radius:50%"></div>
           <div style="position:relative">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#f97316;margin-bottom:8px">Desempenho Shopee · Últimos 30 dias</div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#f97316;margin-bottom:8px">Vendas Shopee · Últimos 30 dias</div>
             <div style="display:flex;gap:36px;flex-wrap:wrap">
               <div>
                 <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Conversões</div>
                 <div id="dash-conversion-total" style="font-size:30px;font-weight:800;letter-spacing:-.03em">—</div>
               </div>
               <div>
-                <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Confirmado (Completed)</div>
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Confirmado</div>
                 <div id="dash-conversion-commission" style="font-size:30px;font-weight:800;color:#34d399;letter-spacing:-.03em">R$ 0,00</div>
               </div>
             </div>
           </div>
-          <div class="btn-primary" style="padding:12px 20px;border-radius:10px;font-size:13px;position:relative;text-align:center">Abrir relatório →</div>
+          <div class="btn-primary" style="padding:12px 20px;border-radius:10px;font-size:13px;position:relative;text-align:center">Abrir vendas →</div>
         </div>
       </section>
 
@@ -1309,8 +1377,8 @@
         <div class="am-card" style="padding:0;overflow:hidden">
           <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
             <div>
-              <h2 style="margin:0;font-size:15px;font-weight:700">Simulador de vitrine ao vivo</h2>
-              <p style="margin:2px 0 0;font-size:12px;color:#64748b">iframe apontando para <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">/</code></p>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Ver vitrine ao vivo</h2>
+              <p style="margin:2px 0 0;font-size:12px;color:#64748b">A loja pública, no celular, tablet ou computador.</p>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               <div style="background:#f1f5f9;padding:4px;border-radius:10px;display:flex;gap:2px">
@@ -1337,7 +1405,7 @@
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:12px">
               <div>
                 <h2 style="margin:0;font-size:15px;font-weight:700">Buscar produtos na Shopee</h2>
-                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Toda busca vai pela API <code>productOfferV2</code>. Só entram produtos que ainda não estão na vitrine.</p>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Varredura em massa por categoria ou busca por palavra. A API da Shopee já está ligada neste servidor. Só entram produtos que ainda não estão na vitrine.</p>
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button type="button" onclick="runCoverageShortcut()" class="btn-primary" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Preencher lacunas femininas</button>
@@ -1368,7 +1436,7 @@
           <div class="am-card am-section">
             <!-- Tabs -->
             <div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px">
-              <button type="button" id="cat-buscar-tab-palavras" onclick="switchCatalogoBuscarTab('palavras')" class="chip active">Palavras-chave</button>
+              <button type="button" id="cat-buscar-tab-palavras" onclick="switchCatalogoBuscarTab('palavras')" class="chip active">Busca / varredura</button>
               <button type="button" id="cat-buscar-tab-lojas" onclick="switchCatalogoBuscarTab('lojas')" class="chip">Lojas afiliadas</button>
               <button type="button" id="cat-buscar-tab-ofertas" onclick="switchCatalogoBuscarTab('ofertas')" class="chip">Ofertas oficiais</button>
               <span id="explorer-mode-hint" style="margin-left:auto;font-size:11px;color:#ea580c;font-weight:600;padding:4px 10px;background:#fff7ed;border-radius:999px">Modo: MAIS VENDIDOS</span>
@@ -1376,8 +1444,37 @@
 
             <!-- Aba 1: Palavras-chave -->
             <div id="cat-buscar-pane-palavras" class="cat-buscar-pane">
+              <div class="explorer-scan-toggle" role="tablist" aria-label="Modo de busca">
+                <button type="button" id="explorer-mode-broad" onclick="setExplorerScanMode('broad')" class="active">Varredura (massa)</button>
+                <button type="button" id="explorer-mode-keyword" onclick="setExplorerScanMode('keyword')">Palavra-chave</button>
+              </div>
+
+              <div id="explorer-broad-panel" style="margin-bottom:14px;padding:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px">
+                <p style="margin:0 0 10px;font-size:12px;color:#9a3412"><strong>Varredura em massa</strong> — percorre a categoria oficial da Shopee, página a página (até 50 itens cada). Sem App ID: as credenciais ficam no servidor.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Categoria Shopee</label>
+                    <select id="admin-product-cat" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff">
+                      <option value="100017" selected>Moda Feminina</option>
+                      <option value="100630">Beleza e Perfumaria</option>
+                      <option value="100009">Bolsas e Acessórios</option>
+                      <option value="100534">Óculos e Relógios</option>
+                      <option value="100637">Fitness e Esportes</option>
+                      <option value="100632">Mães e Bebês</option>
+                      <option value="100633">Moda Infantil</option>
+                      <option value="100636">Casa e Construção</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Páginas da varredura</label>
+                    <input id="admin-pages-mass" type="range" min="1" max="20" value="5" oninput="updateExplorerMassHint()" style="width:100%;accent-color:#ee4d2d"/>
+                    <p id="explorer-mass-hint" style="margin:4px 0 0;font-size:11px;color:#c2410c;font-weight:600">5 páginas × 50 = até 250 produtos</p>
+                  </div>
+                </div>
+              </div>
+
               <!-- Presets -->
-              <div id="explorer-presets" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #e2e8f0">
+              <div id="explorer-presets" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #e2e8f0">
                 <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="chip explorer-preset active" style="background:#fce7f3;color:#9d174d;font-weight:700">♀ Feminino elite</button>
                 <button type="button" data-preset="female_9" onclick="applyExplorerPreset('female_9')" class="chip explorer-preset" style="background:#fce7f3;color:#9d174d">♀ Feminino 9%+</button>
                 <button type="button" data-preset="beleza" onclick="applyExplorerPreset('beleza')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Beleza & Skincare</button>
@@ -1386,6 +1483,7 @@
                 <button type="button" data-preset="acessorios" onclick="applyExplorerPreset('acessorios')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Acessórios</button>
                 <button type="button" data-preset="mae_bebe" onclick="applyExplorerPreset('mae_bebe')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Mãe & Bebê</button>
                 <button type="button" data-preset="casa" onclick="applyExplorerPreset('casa')" class="chip explorer-preset">Casa & Decoração</button>
+                <button type="button" data-preset="ams" onclick="applyExplorerPreset('ams')" class="chip explorer-preset">Ofertas AMS</button>
                 <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="chip explorer-preset">Mais vendidos</button>
                 <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Top Shopee</button>
                 <button type="button" data-preset="commission" onclick="applyExplorerPreset('commission')" class="chip explorer-preset">Maior comissão</button>
@@ -1396,11 +1494,25 @@
               </div>
 
               <!-- Palavras-chave (chips + textarea) -->
-              <div style="margin-bottom:12px">
+              <div id="explorer-keyword-panel" style="display:none;margin-bottom:12px">
                 <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Palavras-chave</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Vestido Midi')">Vestido Midi</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Conjunto Alfaiataria')">Conjunto Alfaiataria</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Cropped')">Cropped</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Skincare')">Skincare</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Maquiagem')">Maquiagem</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Lingerie Renda')">Lingerie Renda</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Bolsa Transversal')">Bolsa Transversal</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Moda Fitness')">Moda Fitness</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Sandália Plataforma')">Sandália Plataforma</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Acessórios Prata')">Acessórios Prata</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Blusa Tricot')">Blusa Tricot</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Óculos Gatinho')">Óculos Gatinho</button>
+                </div>
                 <div id="admin-keyword-chips" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid #e2e8f0;border-radius:9px 9px 0 0;background:#f8fafc;min-height:32px;border-bottom:0"></div>
                 <textarea id="admin-keyword" oninput="updateExplorerKwCount()" onkeydown="onExplorerKeywordKey(event)" placeholder="digite e pressione Enter ou vírgula — ex: vestido longo feminino, kit skincare" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:0 0 9px 9px;font-size:13px;min-height:44px;resize:vertical;background:#f8fafc">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino, conjunto fitness feminino, sandália feminina, batom líquido matte, colágeno hidrolisado</textarea>
-                <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave · até 60</div>
+                <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave · até 80</div>
               </div>
 
               <!-- Filtros principais (4 campos visíveis) -->
@@ -1429,22 +1541,24 @@
                 </div>
                 <div>
                   <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Itens / página</label>
-                  <select id="admin-limit" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                  <select id="admin-limit" onchange="updateExplorerMassHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
                     <option value="10">10</option>
-                    <option value="20" selected>20</option>
+                    <option value="20">20</option>
                     <option value="30">30</option>
-                    <option value="50">50</option>
+                    <option value="50" selected>50</option>
                   </select>
                 </div>
-                <div>
+                <div id="explorer-pages-select-wrap" style="display:none">
                   <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Páginas</label>
                   <select id="admin-pages" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
-                    <option value="1" selected>1</option>
+                    <option value="1">1</option>
                     <option value="2">2</option>
-                    <option value="3">3</option>
+                    <option value="3" selected>3</option>
                     <option value="5">5</option>
                     <option value="8">8</option>
-                    <option value="10">10 (máx)</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20 (máx)</option>
                   </select>
                 </div>
               </div>
@@ -1481,13 +1595,21 @@
                     <input id="admin-require-commission" type="checkbox" checked style="width:14px;height:14px;accent-color:#ee4d2d"/>
                     Exigir comissão
                   </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-ams-offer" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Só ofertas AMS (Shopee paga a mais)
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-key-seller" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Só vendedor-chave
+                  </label>
                 </div>
               </details>
 
               <!-- Ações -->
               <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f1f5f9">
-                <button id="btn-explorer-search" onclick="runExplorerSearch({sync:false})" class="btn-primary" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Pré-visualizar</button>
-                <button onclick="runExplorerSearch({sync:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Buscar e salvar tudo</button>
+                <button id="btn-explorer-search" onclick="runExplorerSearch({sync:false})" class="btn-primary" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Iniciar varredura</button>
+                <button id="btn-explorer-sync" onclick="runExplorerSearch({sync:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Alimentar vitrine</button>
                 <button id="btn-explorer-save" onclick="saveExplorerSelection()" class="btn-ghost" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Salvar seleção</button>
                 <button type="button" id="btn-explorer-cancel" onclick="cancelExplorerSearch()" class="btn-ghost hidden" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px;margin-left:auto;display:none">Cancelar</button>
               </div>
@@ -1507,7 +1629,7 @@
 
             <!-- Aba 2: Lojas afiliadas -->
             <div id="cat-buscar-pane-lojas" class="cat-buscar-pane hidden" style="display:none">
-              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca lojas via <code>shopOfferV2</code>. Escolha uma loja → produtos daquela loja aparecem na prévia abaixo.</p>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca lojas afiliadas. Escolha uma loja — os produtos dela aparecem na lista abaixo.</p>
               <div style="display:grid;grid-template-columns:1fr 160px 160px auto;gap:8px;align-items:end;margin-bottom:14px">
                 <div>
                   <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da loja</label>
@@ -1529,9 +1651,13 @@
                     <option value="3">Mais populares</option>
                   </select>
                 </div>
-                <div style="display:flex;gap:6px">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
                   <button type="button" onclick="loadAffiliateShops()" class="btn-primary" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Buscar</button>
                   <button type="button" onclick="loadTopAffiliateShops()" class="btn-ghost" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Top lojas</button>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                    <input id="shops-key-seller" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Vendedor-chave
+                  </label>
                 </div>
               </div>
               <div id="shops-preview" style="font-size:12px;color:#64748b;max-height:420px;overflow-y:auto">Digite o nome e busque — ou clique em <strong>Top lojas</strong> para ver as mais populares agora.</div>
@@ -1539,7 +1665,7 @@
 
             <!-- Aba 3: Ofertas oficiais -->
             <div id="cat-buscar-pane-ofertas" class="cat-buscar-pane hidden" style="display:none">
-              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca coleções e categorias oficiais via <code>shopeeOfferV2</code>. Escolha uma coleção → produtos aparecem na prévia abaixo (via <code>productOfferV2</code>).</p>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca coleções e categorias oficiais da Shopee. Escolha uma coleção — os produtos aparecem na lista abaixo.</p>
               <div style="display:grid;grid-template-columns:1fr 160px auto;gap:8px;align-items:end;margin-bottom:14px">
                 <div>
                   <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da oferta</label>
@@ -1571,9 +1697,11 @@
               <div id="explorer-status" style="font-size:11.5px;color:#64748b">Pronto para buscar</div>
             </div>
             <div id="explorer-preview" style="max-height:520px;overflow-y:auto">
-              <div style="text-align:center;padding:40px 16px;color:#94a3b8;font-size:12px">Escolha um atalho, uma aba (palavras-chave, lojas ou ofertas oficiais) e clique em <strong>Pré-visualizar</strong>. Só entram produtos que ainda não estão na vitrine.</div>
+              <div style="text-align:center;padding:40px 16px;color:#94a3b8;font-size:12px">Escolha <strong>Varredura (massa)</strong> por categoria ou <strong>Palavra-chave</strong>, depois <strong>Iniciar varredura</strong> para prévia ou <strong>Alimentar vitrine</strong> para gravar. Só entram produtos que ainda não estão na vitrine.</div>
             </div>
-            <div id="explorer-pagination"></div>
+            <div id="explorer-pagination" style="padding:12px;text-align:center;display:none">
+              <button type="button" id="btn-explorer-load-more" onclick="runExplorerSearch({append:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;font-size:13px;cursor:pointer">Carregar mais</button>
+            </div>
           </div>
         </div>
       </section>
@@ -1584,7 +1712,7 @@
           <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:12px">
             <div class="am-card">
               <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Categorias da vitrine</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Toque numa subcategoria para buscar via <code>productOfferV2</code>. Produtos já na vitrine não entram na prévia.</p>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Toque numa subcategoria para buscar na Shopee. Produtos já na vitrine não entram na lista.</p>
               <div id="admin-categories-panel" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto"></div>
             </div>
             <div class="am-card">
@@ -1600,7 +1728,7 @@
               </div>
               <div style="display:flex;gap:8px;margin-top:10px">
                 <button id="btn-sync-cat" onclick="adminSyncCategory()" class="btn-primary" style="flex:1;padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar categoria</button>
-                <button type="button" onclick="previewCategoryInExplorer()" class="btn-ghost" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Pré-visualizar</button>
+                <button type="button" onclick="previewCategoryInExplorer()" class="btn-ghost" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Mostrar produtos</button>
               </div>
               <div id="cat-sync-status" style="margin-top:10px;font-size:11.5px;color:#64748b"></div>
             </div>
@@ -1612,7 +1740,7 @@
               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
                 <button onclick="runAutoSyncNow()" class="btn-dark" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Atualizar agora</button>
                 <button onclick="runTopPerformanceNow()" class="btn-ghost" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Destaques</button>
-                <button onclick="resetVitrineAndRefill()" class="btn-ghost" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Resetar e reencher</button>
+                <button onclick="resetVitrineAndRefill()" class="btn-danger" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Apagar vitrine e reencher</button>
               </div>
               <div id="auto-status-box" style="background:#0b1220;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;border-radius:8px;min-height:80px;max-height:280px;overflow-y:auto;line-height:1.6">Carregando status…</div>
             </div>
@@ -1622,12 +1750,13 @@
           <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:0">
             <div class="am-card" style="padding:20px">
               <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Histórico de atualizações em lote</h2>
-              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Feeds da Shopee (<code>listItemFeeds</code>) — completos ou incrementais.</p>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Feeds da Shopee — atualização completa (500 por vez) ou só o que mudou.</p>
               <div style="display:flex;gap:8px;margin-bottom:14px">
                 <select id="feed-inventory-mode" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"><option value="">Todas</option><option value="FULL">Atualização completa</option><option value="DELTA">Só o que mudou</option></select>
                 <button type="button" onclick="loadFeedInventory()" class="btn-primary" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Carregar</button>
               </div>
-              <div id="feed-inventory-result" style="max-height:320px;overflow-y:auto"></div>
+            <div id="feed-inventory-result" style="max-height:320px;overflow-y:auto"></div>
+            <div id="feed-preview-result" style="margin-top:12px;max-height:280px;overflow-y:auto;font-size:12px;color:#64748b"></div>
             </div>
             <div class="am-card" style="padding:20px">
               <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Rodar atualização em lote</h2>
@@ -1652,7 +1781,7 @@
             </div>
             <button type="button" id="btn-shortlink-backfill" onclick="runShortlinkBackfill()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Gerar tudo que falta</button>
           </div>
-          <p style="margin:0 0 12px;font-size:12px;color:#64748b">Só produtos que já estão na vitrine e ainda não têm link curto — usa <code>generateBatchShortLink</code> em lotes de 50.</p>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Só produtos que já estão na vitrine e ainda não têm link curto — em lotes de 50.</p>
           <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden">
             <div id="shortlink-status-bar" style="width:0%;height:100%;background:#94a3b8;border-radius:999px"></div>
           </div>
@@ -1773,7 +1902,7 @@
         <div class="am-card am-section">
           <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:16px">
             <div>
-              <h2 style="margin:0;font-size:15px;font-weight:700">Higiene do catálogo</h2>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Limpar catálogo</h2>
               <p id="duplicates-status-line" style="margin:2px 0 0;font-size:12px;color:#64748b">Nenhuma análise recente</p>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1832,6 +1961,16 @@
             <div id="subid-preview" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#f97316;word-break:break-all"></div>
           </div>
           <div id="campaign-link-preview" style="margin-top:8px;padding:12px;background:#f8fafc;border-radius:9px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;word-break:break-all;min-height:40px"></div>
+        </div>
+        <div class="am-card am-section" style="max-width:820px;margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div style="min-width:0;flex:1">
+              <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Campanhas salvas</h2>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Os links copiados daqui são os mesmos anunciados no Facebook.</p>
+            </div>
+            <button type="button" id="regen-all-campaigns-btn" onclick="regenerateAllCampaignShortlinks()" class="btn-dark" style="padding:8px 12px;font-size:12px;white-space:nowrap" title="Gera shortlinks Shopee no formato standalone (Sub_id = nome da campanha, 1 slot só)">Regerar links Shopee</button>
+          </div>
+          <div id="campaigns-saved-list"></div>
         </div>
       </section>
 
@@ -1907,6 +2046,16 @@
           <button onclick="loadConversions({reset:true,forcePull:true})" class="btn-primary">Atualizar Shopee</button>
           <button onclick="prioritizeConversionWinners()" class="btn-dark">Priorizar no sync</button>
           <button onclick="loadConversionSummary()" class="btn-ghost" style="margin-left:auto">Por canal</button>
+        </div>
+
+        <div class="am-card am-section" style="padding:16px 20px">
+          <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Localizar pedido</h2>
+          <p style="margin:0 0 10px;font-size:12px;color:#64748b">Cole o ID do pedido, do produto ou da loja para ver se a venda é nossa.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+            <input id="conversion-lookup-q" type="text" placeholder="Pedido, produto ou loja" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
+            <button type="button" onclick="lookupConversion()" class="btn-primary" style="padding:9px 14px;font-size:12.5px">Buscar</button>
+          </div>
+          <div id="conversion-lookup-result" style="margin-top:10px;font-size:12px;color:#64748b"></div>
         </div>
 
         <!-- KPIs -->

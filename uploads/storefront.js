@@ -741,7 +741,7 @@
                     ]);
                     loadHeroProducts({ fromCacheOnly: true });
                     scheduleHomeSections();
-                    preloadCategoryCovers();
+                    scheduleCategoryCovers();
                 }
             } else if (admin) {
                 showToast("Backend offline — rode: npm start", "error");
@@ -756,6 +756,15 @@
                 requestIdleCallback(run, { timeout: 1200 });
             } else {
                 setTimeout(run, 200);
+            }
+        }
+
+        function scheduleCategoryCovers() {
+            const run = () => { preloadCategoryCovers().catch(() => {}); };
+            if (typeof requestIdleCallback === "function") {
+                requestIdleCallback(run, { timeout: 2500 });
+            } else {
+                setTimeout(run, 2000);
             }
         }
 
@@ -1428,6 +1437,33 @@ async function loadOffersFromSupabase(opts = {}) {
             return `<img src="${escapeAttr(thumbUrl(img))}" data-fallbacks="${escapeAttr(imgFallbackChain(img).join('|'))}" alt="" width="80" height="80" sizes="112px" loading="${eager ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${eager ? 'high' : 'low'}" class="w-full h-full object-cover" onerror="tileImgError(this, '${iconClass}')">`;
         }
 
+        // Troca só a foto do círculo — sem innerHTML da faixa (CLS).
+        function applyCategoryCoverInPlace(catId, imageUrl) {
+            if (!catId || !imageUrl) return;
+            const id = String(catId);
+            let nodes;
+            try {
+                nodes = document.querySelectorAll(`[data-cat-id="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"')}"]`);
+            } catch (_) {
+                nodes = document.querySelectorAll(`[data-cat-id="${id.replace(/"/g, '\\"')}"]`);
+            }
+            if (!nodes.length) return;
+            const iconClass = `fas ${categoryIconClass(catId)} text-2xl text-shopee-orange`;
+            nodes.forEach((btn) => {
+                const circle = btn.querySelector('.cat-tile-circle');
+                if (!circle) return;
+                const existing = circle.querySelector('img');
+                const nextSrc = thumbUrl(imageUrl);
+                if (existing) {
+                    existing.dataset.fallbacks = imgFallbackChain(imageUrl).join('|');
+                    if (existing.getAttribute('src') !== nextSrc) existing.src = nextSrc;
+                    return;
+                }
+                circle.classList.add('bg-slate-100');
+                circle.innerHTML = tileImgHTML(imageUrl, iconClass, false);
+            });
+        }
+
         function productImgError(img, fallbackSize) {
             const rest = (img.dataset.fallbacks || '').split('|').filter(Boolean);
             if (rest.length) {
@@ -1549,8 +1585,9 @@ async function loadOffersFromSupabase(opts = {}) {
                 if (image) categoryCovers[cat.id] = image;
             }));
             persistCovers();
-            renderCategories();
-            renderSubcategories();
+            for (const cat of missing) {
+                if (categoryCovers[cat.id]) applyCategoryCoverInPlace(cat.id, categoryCovers[cat.id]);
+            }
             const sheet = document.getElementById('mobile-category-sheet');
             if (sheet && !sheet.classList.contains('hidden')) {
                 renderMobileCategoryList();
@@ -1650,9 +1687,6 @@ async function loadOffersFromSupabase(opts = {}) {
             const textClass = isActive ? 'text-shopee-orange font-bold' : 'text-slate-600 font-medium';
             const count = Number(cat.count || 0);
             const badgeLabel = formatCountBadge(count);
-            const badge = badgeLabel
-                ? `<span class="text-[9px] text-slate-400 font-semibold">${badgeLabel}</span>`
-                : '';
             const circleSize = size === 'lg' ? 'h-16 w-16' : (size === 'md' ? 'h-20 w-20' : 'h-11 w-11');
             const iconSize = (size === 'lg' || size === 'md') ? 'text-2xl' : 'text-base';
             const img = used
@@ -1668,14 +1702,16 @@ async function loadOffersFromSupabase(opts = {}) {
                 : `setStoreCategory('${cat.id}')`;
             return `
                 <button
+                    type="button"
+                    data-cat-id="${escapeAttr(cat.id)}"
                     onclick="${clickAction}"
                     class="flex flex-col items-center p-2 rounded-xl hover:bg-slate-50 transition border ${borderClass} group w-full snap-start"
                 >
-                    <div class="${circleSize} rounded-full ${circleBg} overflow-hidden flex items-center justify-center mb-1.5 transition transform group-hover:scale-105 ring-2 ${isActive ? 'ring-shopee-orange' : 'ring-transparent'}">
+                    <div class="cat-tile-circle ${circleSize} rounded-full ${circleBg} overflow-hidden flex items-center justify-center mb-1.5 shrink-0 transition transform group-hover:scale-105 ring-2 ${isActive ? 'ring-shopee-orange' : 'ring-transparent'}">
                         ${inner}
                     </div>
-                    <span class="text-[11px] text-center leading-tight ${textClass} line-clamp-2">${escapeHtml(cat.label)}</span>
-                    ${badge}
+                    <span class="cat-tile-label text-[11px] text-center ${textClass}">${escapeHtml(cat.label)}</span>
+                    <span class="cat-tile-badge"${badgeLabel ? '' : ' style="visibility:hidden"'}>${badgeLabel || '—'}</span>
                 </button>`;
         }
 
@@ -1711,11 +1747,12 @@ async function loadOffersFromSupabase(opts = {}) {
                 const used = new Set();
                 const tiles = visible.map((cat, i) => categoryTileHTML(cat, { size: 'lg', used, openSheet: true, eagerImg: i < 2 })).join('');
                 const verMais = `
-                    <button onclick="openMobileCategorySheet()" class="flex flex-col items-center p-2 rounded-xl hover:bg-slate-50 transition border border-transparent group w-full snap-start">
-                        <div class="h-16 w-16 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-1.5">
+                    <button type="button" onclick="openMobileCategorySheet()" class="flex flex-col items-center p-2 rounded-xl hover:bg-slate-50 transition border border-transparent group w-full snap-start">
+                        <div class="cat-tile-circle h-16 w-16 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-1.5 shrink-0">
                             <i class="fas fa-th-large text-2xl"></i>
                         </div>
-                        <span class="text-[11px] text-center leading-tight text-slate-600 font-medium">Ver Mais</span>
+                        <span class="cat-tile-label text-[11px] text-center text-slate-600 font-medium">Ver Mais</span>
+                        <span class="cat-tile-badge" style="visibility:hidden">—</span>
                     </button>`;
                 strip.innerHTML = tiles + verMais;
             }
@@ -2931,6 +2968,17 @@ async function loadOffersFromSupabase(opts = {}) {
 
 
 
+        // Detecta se o visitante veio de uma campanha real (não vitrine/orgânico).
+        // Nesse caso o shortlink sai no formato standalone (1 slot só com o nome
+        // da campanha), pra bater 1:1 com o filtro `Sub_id` do relatório da Shopee
+        // — igual às campanhas manuais que o Diego cria direto no painel deles.
+        function isCampaignAttribution() {
+            const s = getSubIdSettings();
+            if (!s.campaign || s.campaign === 'vitrine') return false;
+            if (!s.channel || s.channel === 'organico') return false;
+            return true;
+        }
+
         async function resolveAffiliateUrl(p) {
             if (!p) return '#';
             if (hasMatchingTrackedLink(p)) return p.shortLink;
@@ -2940,13 +2988,19 @@ async function loadOffersFromSupabase(opts = {}) {
             const fallback = p.shortLink || origin;
             try {
                 const section = document.getElementById('modal-buy-btn')?.dataset?.section || currentNavSection || 'modal_direct';
+                const standalone = isCampaignAttribution();
+                const s = getSubIdSettings();
+                const subIds = standalone
+                    ? [sanitizeSubId(s.campaign, 'vitrine')]
+                    : getTrackingSubIds(p.category, p.id, p, section);
                 const res = await fetch(`${API_BASE}/api/shortlink`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         originUrl: origin,
                         itemId: p.id,
-                        subIds: getTrackingSubIds(p.category, p.id, p, section),
+                        subIds,
+                        standalone,
                     }),
                 });
                 const data = await res.json();
@@ -3149,8 +3203,18 @@ async function loadOffersFromSupabase(opts = {}) {
             if (window.__AM_ADMIN && window.__AM_ADMIN.initAdminUi) return window.__AM_ADMIN.initAdminUi(opts);
         };
 
+        function loadAdminFonts() {
+            if (document.getElementById('admin-fonts')) return;
+            const l = document.createElement('link');
+            l.id = 'admin-fonts';
+            l.rel = 'stylesheet';
+            l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap';
+            document.head.appendChild(l);
+        }
+
         async function loadAdminBundle() {
             if (window.__AM_ADMIN) return window.__AM_ADMIN;
+            loadAdminFonts();
             await new Promise((resolve, reject) => {
                 const s = document.createElement("script");
                 s.src = window.__AM_ADMIN_JS || ("/uploads/admin.min.js?v=" + Date.now());

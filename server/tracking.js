@@ -40,6 +40,28 @@ function sanitizeSubId(value, fallback = "geral") {
 }
 
 /**
+ * SubID de 1 slot só com o nome da campanha — espelha as campanhas manuais
+ * que o Diego cria direto no painel da Shopee (`TESTE211----`).
+ * A venda cai no relatório com `Sub_id1 = <nome>`, `Sub_id2..5` vazios,
+ * então o filtro "Sub_id" da Shopee bate exatamente na campanha.
+ *
+ * ATENÇÃO: quebra a invariante do SITE_SUBID no slot 1. A detecção de "meu site"
+ * precisa consultar a tabela `campanhas_rastreio` como fallback (ver conversions.js).
+ */
+function buildCampaignSubIds(campaignName) {
+  const clean = sanitizeSubId(campaignName, "");
+  if (!clean) return [SITE_SUBID];
+  return [clean];
+}
+
+/** True se subIds parece slug de campanha standalone (1 slot preenchido). */
+function looksLikeCampaignSubIds(subIds) {
+  if (!Array.isArray(subIds) || !subIds.length) return false;
+  const filled = subIds.filter((s) => s != null && String(s).length);
+  return filled.length === 1 && filled[0] !== SITE_SUBID;
+}
+
+/**
  * Sub IDs padrão de cada produto — gravados no sync (sem chamada extra à Shopee).
  * 1 site | 2 canal base | 3 campanha base | 4 categoria[+sub] | 5 produto
  */
@@ -99,6 +121,8 @@ module.exports = {
   sanitizeSubId,
   buildProductSubIds,
   buildTrackedSubIds,
+  buildCampaignSubIds,
+  looksLikeCampaignSubIds,
   sectionToCampaign,
   subIdsToText,
 };
