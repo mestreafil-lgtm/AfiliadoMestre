@@ -2957,7 +2957,6 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   fbq('init', PIXEL_ID);
   fbq('set', 'autoConfig', false, PIXEL_ID);
   fbq('track', 'PageView', {}, { eventID: eid('pv') });
-  fbq('track', 'ViewContent', payload, { eventID: eid('vc') });
 
   function trackCheckout(){
     if (sentIC || typeof fbq !== 'function') return;
