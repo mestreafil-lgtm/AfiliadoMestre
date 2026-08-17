@@ -2942,7 +2942,7 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   } catch (e) {}
   var payload = ${pixelPayload};
   var checkoutPayload = Object.assign({ num_items: 1 }, payload);
-  var sent = { vc: false, ic: false };
+  var sentIC = false;
   function eid(prefix){
     return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   }
@@ -2957,21 +2957,14 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   fbq('init', PIXEL_ID);
   fbq('set', 'autoConfig', false, PIXEL_ID);
   fbq('track', 'PageView', {}, { eventID: eid('pv') });
+  fbq('track', 'ViewContent', payload, { eventID: eid('vc') });
 
-  function trackViewContent(){
-    if (sent.vc || typeof fbq !== 'function') return;
-    sent.vc = true;
-    fbq('track', 'ViewContent', payload, { eventID: eid('vc') });
-  }
   function trackCheckout(){
-    if (sent.ic || typeof fbq !== 'function') return;
-    sent.ic = true;
-    if (!sent.vc) trackViewContent();
+    if (sentIC || typeof fbq !== 'function') return;
+    sentIC = true;
     fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eid('ic') });
   }
   window.__amPixelCheckout = trackCheckout;
-  // ViewContent depois de olhar o produto — nunca no mesmo segundo do PageView
-  setTimeout(trackViewContent, 3000);
 })();
 </script>
 <noscript>
