@@ -2942,10 +2942,10 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   } catch (e) {}
   var payload = ${pixelPayload};
   var checkoutPayload = Object.assign({ num_items: 1 }, payload);
-  var now = Date.now();
-  var eidPV = 'pv_' + now;
-  var eidVC = 'vc_' + now;
-  var eidIC = 'ic_' + now;
+  var sent = { vc: false, ic: false };
+  function eid(prefix){
+    return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
   !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -2956,15 +2956,26 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   'https://connect.facebook.net/en_US/fbevents.js');
   fbq('init', PIXEL_ID);
   fbq('set', 'autoConfig', false, PIXEL_ID);
-  fbq('track', 'PageView', {}, { eventID: eidPV });
-  fbq('track', 'ViewContent', payload, { eventID: eidVC });
-  fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eidIC });
+  fbq('track', 'PageView', {}, { eventID: eid('pv') });
+
+  function trackViewContent(){
+    if (sent.vc || typeof fbq !== 'function') return;
+    sent.vc = true;
+    fbq('track', 'ViewContent', payload, { eventID: eid('vc') });
+  }
+  function trackCheckout(){
+    if (sent.ic || typeof fbq !== 'function') return;
+    sent.ic = true;
+    if (!sent.vc) trackViewContent();
+    fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eid('ic') });
+  }
+  window.__amPixelCheckout = trackCheckout;
+  // ViewContent depois de olhar o produto — nunca no mesmo segundo do PageView
+  setTimeout(trackViewContent, 3000);
 })();
 </script>
 <noscript>
 <img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=PageView&noscript=1" alt="" />
-<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=ViewContent&noscript=1" alt="" />
-<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=InitiateCheckout&noscript=1" alt="" />
 </noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -3083,11 +3094,12 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       e.preventDefault();
       return;
     }
+    try { if (typeof window.__amPixelCheckout === 'function') window.__amPixelCheckout(); } catch (_) {}
     if (inAppBrowser()) {
       e.preventDefault();
-      location.href = href;
+      setTimeout(function(){ location.href = href; }, 180);
     }
-  });
+  }, true);
   if (btnClose) btnClose.addEventListener('click', function(e){
     e.preventDefault();
     goVitrine();
