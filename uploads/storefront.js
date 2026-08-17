@@ -2664,10 +2664,14 @@ async function loadOffersFromSupabase(opts = {}) {
             const buyBtn = document.getElementById('modal-buy-btn');
             const buyLabel = document.getElementById('modal-buy-label');
             if (buyLabel) buyLabel.textContent = 'Ver na Shopee';
-            buyBtn.href = p.shortLink || p.affiliateLink || '#';
+            buyBtn.href = isTrackedAffiliateUrl(p.shortLink)
+                ? p.shortLink
+                : (isTrackedAffiliateUrl(p.affiliateLink) ? p.affiliateLink : '#');
             buyBtn.dataset.itemId = String(p.id);
             buyBtn.dataset.category = String(p.category || 'todos');
-            buyBtn.dataset.origin = p.affiliateLink || p.productLink || '';
+            buyBtn.dataset.origin = (p.productLink && !isTrackedAffiliateUrl(p.productLink))
+                ? p.productLink
+                : (p.shopId && p.id ? `https://shopee.com.br/product/${p.shopId}/${p.id}` : '');
             buyBtn.dataset.section = section || currentNavSection || 'modal_direct';
 
             const modal = document.getElementById('product-modal');
@@ -2979,13 +2983,26 @@ async function loadOffersFromSupabase(opts = {}) {
             return true;
         }
 
+        function isTrackedAffiliateUrl(url) {
+            const u = String(url || '').trim();
+            if (!u || u === '#') return false;
+            if (/shope\.ee\//i.test(u) || /\bs\.shopee\./i.test(u)) return true;
+            if (/universal-link|an_redir|uls_trackid|affiliate/i.test(u)) return true;
+            return false;
+        }
+
         async function resolveAffiliateUrl(p) {
             if (!p) return '#';
             if (hasMatchingTrackedLink(p)) return p.shortLink;
-            const origin = p.affiliateLink || p.productLink;
-            if (!origin || origin === '#') return p.shortLink || '#';
-            // Usa shortlink do DB imediatamente se existir; regenera em paralelo
-            const fallback = p.shortLink || origin;
+            const productLink = String(p.productLink || '').trim();
+            const origin = (productLink && /shopee\.com\.br/i.test(productLink) && !isTrackedAffiliateUrl(productLink))
+                ? productLink
+                : (p.shopId && p.id ? `https://shopee.com.br/product/${p.shopId}/${p.id}` : '');
+            const tracked = isTrackedAffiliateUrl(p.shortLink)
+                ? p.shortLink
+                : (isTrackedAffiliateUrl(p.affiliateLink) ? p.affiliateLink : '');
+            if (!origin) return tracked || '#';
+            const fallback = tracked || '#';
             try {
                 const section = document.getElementById('modal-buy-btn')?.dataset?.section || currentNavSection || 'modal_direct';
                 const standalone = isCampaignAttribution();
@@ -3028,7 +3045,9 @@ async function loadOffersFromSupabase(opts = {}) {
             const tab = window.open(matched || 'about:blank', '_blank');
             if (matched) return;
             if (labelEl) labelEl.textContent = 'Abrindo…';
-            const fallback = p.shortLink || p.affiliateLink || p.productLink || '';
+            const fallback = isTrackedAffiliateUrl(p.shortLink)
+                ? p.shortLink
+                : (isTrackedAffiliateUrl(p.affiliateLink) ? p.affiliateLink : '');
             let url = '';
             try {
                 url = await resolveAffiliateUrl(p);

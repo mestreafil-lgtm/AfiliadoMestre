@@ -387,7 +387,7 @@ function rowToProduct(row) {
     sales: salesLabel || "—",
     salesRaw: sales,
     image: row.image_url || "",
-    affiliateLink: row.offer_link || row.product_link || "#",
+    affiliateLink: row.offer_link || "#",
     productLink: row.product_link || "",
     shortLink: row.short_link || null,
     subIds: Array.isArray(row.sub_ids) && row.sub_ids.length

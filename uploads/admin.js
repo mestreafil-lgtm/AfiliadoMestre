@@ -1489,6 +1489,40 @@
             return campaignSelectedProducts;
         }
 
+        function isTrackedAffiliateUrl(url) {
+            const u = String(url || '').trim();
+            if (!u || u === '#') return false;
+            if (/shope\.ee\//i.test(u) || /\bs\.shopee\./i.test(u)) return true;
+            if (/universal-link|an_redir|uls_trackid|affiliate/i.test(u)) return true;
+            return false;
+        }
+
+        function productHasAffiliate(p) {
+            if (!p) return false;
+            return isTrackedAffiliateUrl(p.shortLink)
+                || isTrackedAffiliateUrl(p.affiliateLink)
+                || isTrackedAffiliateUrl(p.offerLink)
+                || isTrackedAffiliateUrl(p.offer_link);
+        }
+
+        function campaignProductPatchFrom(p, tracking = {}) {
+            const affiliate = tracking.affiliateLink
+                || p?.affiliateLink
+                || p?.offerLink
+                || p?.offer_link
+                || '';
+            const shortLink = tracking.shortLink || p?.shortLink || '';
+            return {
+                id: p.id,
+                title: p?.title || `Produto ${p.id}`,
+                category: p?.category || 'geral',
+                image: p?.image || '',
+                price: Number(p?.newPrice ?? p?.price) || 0,
+                shortLink: isTrackedAffiliateUrl(shortLink) ? shortLink : '',
+                affiliateLink: isTrackedAffiliateUrl(affiliate) ? affiliate : '',
+            };
+        }
+
         function addProductToCampaign(productOrId, { silent = false } = {}) {
             const p = typeof productOrId === 'object'
                 ? productOrId
@@ -1502,18 +1536,104 @@
                 if (!silent) showToast('Produto já está na campanha', 'error');
                 return false;
             }
-            campaignSelectedProducts.push({
-                id,
-                title: p?.title || `Produto ${id}`,
-                category: p?.category || 'geral',
-                image: p?.image || '',
-                price: Number(p?.newPrice) || 0,
-                shortLink: p?.shortLink || '',
-                affiliateLink: p?.affiliateLink && p.affiliateLink !== '#' ? p.affiliateLink : '',
-            });
+            if (!productHasAffiliate(p)) {
+                if (!silent) showToast('Esse produto ainda não tem link de afiliado — buscando na Shopee…', 'error');
+                return false;
+            }
+            campaignSelectedProducts.push(campaignProductPatchFrom(p));
             if (!silent) {
                 renderCampaignSelectedProducts();
                 updateCampaignLinkPreview();
+            }
+            return true;
+        }
+
+        async function repairCampaignProduct(id, { silent = false } = {}) {
+            const itemId = String(id || '').trim();
+            if (!itemId) return false;
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/campanha/produto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: itemId }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data?.product) throw new Error(data?.error || `HTTP ${res.status}`);
+                const product = data.product;
+                const tracking = data.tracking || {};
+                if (!AM.productsDatabase.some(p => String(p.id) === String(product.id))) {
+                    AM.productsDatabase.push(product);
+                } else {
+                    const idxDb = AM.productsDatabase.findIndex(p => String(p.id) === String(product.id));
+                    if (idxDb >= 0) {
+                        AM.productsDatabase[idxDb] = {
+                            ...AM.productsDatabase[idxDb],
+                            ...product,
+                            shortLink: tracking.shortLink || product.shortLink,
+                            affiliateLink: tracking.affiliateLink || product.affiliateLink,
+                        };
+                    }
+                }
+                const patched = campaignProductPatchFrom({ ...product, ...tracking }, tracking);
+                if (!productHasAffiliate(patched)) {
+                    throw new Error('A Shopee não devolveu link de afiliado para este item');
+                }
+                const idx = campaignSelectedProducts.findIndex(x => String(x.id) === String(patched.id));
+                if (idx >= 0) campaignSelectedProducts[idx] = { ...campaignSelectedProducts[idx], ...patched };
+                else campaignSelectedProducts.push(patched);
+                renderCampaignSelectedProducts();
+                updateCampaignLinkPreview();
+                if (!silent) showToast('Link de afiliado corrigido', 'success');
+                return true;
+            } catch (err) {
+                if (!silent) showToast(`Não foi possível gerar o link de afiliado: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function ensureCampaignProduct(productOrId, { silent = false } = {}) {
+            const p = typeof productOrId === 'object'
+                ? productOrId
+                : AM.productsDatabase.find(x => String(x.id) === String(productOrId));
+            const id = p ? p.id : Number(productOrId);
+            if (!id) {
+                if (!silent) showToast('Informe um ID de produto válido', 'error');
+                return false;
+            }
+            const existing = campaignSelectedProducts.find(x => String(x.id) === String(id));
+            if (existing && productHasAffiliate(existing)) return true;
+            if (existing && !productHasAffiliate(existing)) {
+                return repairCampaignProduct(id, { silent });
+            }
+            if (productHasAffiliate(p)) {
+                return addProductToCampaign(p, { silent });
+            }
+            return resolveCampaignProductById(String(id));
+        }
+
+        async function repairMissingCampaignAffiliates({ silent = false } = {}) {
+            const missing = campaignSelectedProducts.filter((p) => !productHasAffiliate(p));
+            if (!missing.length) return true;
+            if (!silent) {
+                setCampaignProductStatus(`<i class="fas fa-spinner fa-spin mr-1"></i> Corrigindo ${missing.length} link(s) de afiliado…`);
+            }
+            let ok = 0;
+            for (const p of missing) {
+                if (await repairCampaignProduct(p.id, { silent: true })) ok += 1;
+            }
+            renderCampaignSelectedProducts();
+            updateCampaignLinkPreview();
+            const still = campaignSelectedProducts.filter((p) => !productHasAffiliate(p));
+            if (still.length) {
+                if (!silent) {
+                    setCampaignProductStatus(`<span class="text-red-600 font-bold">Ainda falta link de afiliado em ${still.length} produto(s). Sem isso não há comissão.</span>`);
+                    showToast(`${ok} corrigido(s) · ${still.length} ainda sem link de afiliado`, 'error');
+                }
+                return false;
+            }
+            if (!silent) {
+                setCampaignProductStatus('<span class="text-emerald-600"><i class="fas fa-check mr-1"></i>Todos os produtos têm link de afiliado</span>');
+                showToast(`${ok} link(s) de afiliado corrigidos`, 'success');
             }
             return true;
         }
@@ -1573,11 +1693,15 @@
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data?.product) throw new Error(data?.error || `HTTP ${res.status}`);
                 const product = data.product;
+                const tracking = data.tracking || {};
                 if (!AM.productsDatabase.some(p => String(p.id) === String(product.id))) {
                     AM.productsDatabase.push(product);
                 }
-                const added = addProductToCampaign(product);
-                const tracking = data.tracking || {};
+                const added = addProductToCampaign({
+                    ...product,
+                    shortLink: tracking.shortLink || product.shortLink,
+                    affiliateLink: tracking.affiliateLink || product.affiliateLink,
+                });
                 setCampaignProductStatus(
                     tracking.shortLink
                         ? `<span class="text-emerald-600"><i class="fas fa-check mr-1"></i>Link de afiliado gerado pela API: <span class="font-mono">${escapeHtml(tracking.shortLink)}</span></span>`
@@ -1630,10 +1754,6 @@
 
         function addCampaignProductById() {
             return convertCampaignProduct();
-        }
-
-        function productHasAffiliate(p) {
-            return Boolean(p && (p.shortLink || (p.affiliateLink && p.affiliateLink !== '#')));
         }
 
         function pickCampaignCatalogProduct(id) {
@@ -1701,13 +1821,15 @@
             }
             box.innerHTML = campaignSelectedProducts.map(p => {
                 const price = Number(p.price) > 0 ? formatMoneyBRL(p.price) : '';
-                const affiliate = p.shortLink
+                const hasAff = productHasAffiliate(p);
+                const affiliate = p.shortLink && isTrackedAffiliateUrl(p.shortLink)
                     ? `<span class="text-emerald-600 font-bold"><i class="fas fa-link mr-0.5"></i>${escapeHtml(p.shortLink)}</span>`
-                    : p.affiliateLink
+                    : isTrackedAffiliateUrl(p.affiliateLink)
                         ? '<span class="text-emerald-600 font-bold"><i class="fas fa-check mr-0.5"></i>link de afiliado da API</span>'
-                        : '<span class="text-amber-600 font-bold"><i class="fas fa-triangle-exclamation mr-0.5"></i>sem link de afiliado</span>';
+                        : `<span class="text-amber-600 font-bold"><i class="fas fa-triangle-exclamation mr-0.5"></i>sem link de afiliado</span>
+                           <button type="button" onclick="repairCampaignProduct('${String(p.id).replace(/'/g, '')}')" class="ml-1 underline font-black">Corrigir agora</button>`;
                 return `
-                <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-2">
+                <div class="flex items-center gap-2 bg-white border ${hasAff ? 'border-slate-200' : 'border-amber-300'} rounded-lg p-2">
                     <img src="${escapeAttr(thumbUrl(p.image) || p.image || '')}" class="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0" alt=""
                         onerror="this.style.display='none'">
                     <div class="min-w-0 flex-1">
@@ -1717,12 +1839,12 @@
                             ${p.category ? ` · ${escapeHtml(p.category)}` : ''}
                             ${price ? ` · <span class="text-emerald-600 font-bold">${price}</span>` : ''}
                         </p>
-                        <p class="text-[9px] truncate">${affiliate}</p>
+                        <p class="text-[9px]">${affiliate}</p>
                     </div>
                     <button type="button" onclick="removeProductFromCampaign('${String(p.id).replace(/'/g, '')}')"
                         class="text-red-400 hover:text-red-600 px-2" title="Remover"><i class="fas fa-times"></i></button>
                 </div>`;
-            }).join('');
+            }).join("");
         }
 
         /**
@@ -1894,6 +2016,12 @@
                 showToast('Converta pelo menos um produto', 'error');
                 return;
             }
+            const repaired = await repairMissingCampaignAffiliates({ silent: true });
+            if (!repaired || campaignSelectedProducts.some((p) => !productHasAffiliate(p))) {
+                showToast('Não dá para salvar: produto sem link de afiliado da Shopee. Sem isso não há comissão.', 'error');
+                renderCampaignSelectedProducts();
+                return;
+            }
             const title = getCampaignTitle();
             if (!title) {
                 showToast('Escreva o título da campanha', 'error');
@@ -1919,7 +2047,7 @@
             }
             lockCampaignSlug(slug, { freeze: true });
             const channel = getCampaignChannel();
-            const mapped = products.map(p => ({
+            const mapped = getCampaignSelectedProducts().map(p => ({
                 id: p.id,
                 title: p.title,
                 category: p.category,
@@ -2168,6 +2296,7 @@
             updateCampaignLinkPreview();
             document.getElementById('campaign-link-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             showToast('Campanha carregada — o Sub ID permanece o mesmo', 'success');
+            repairMissingCampaignAffiliates({ silent: false });
         }
 
         function copySavedCampaignLinks(id, kind = 'site') {
@@ -3684,29 +3813,40 @@
             renderConsoleProducts();
         }
 
-        function addSelectedProductsToCampaign() {
+        async function addSelectedProductsToCampaign() {
             if (!adminSelectedIds.size) {
                 showToast('Selecione ao menos um produto', 'error');
                 return;
             }
+            const ids = [...adminSelectedIds];
             let added = 0;
             let skipped = 0;
-            for (const id of adminSelectedIds) {
-                const ok = addProductToCampaign(id, { silent: true });
-                if (ok) added += 1;
-                else skipped += 1;
+            let failed = 0;
+            showToast(`Preparando ${ids.length} produto(s) com link de afiliado…`, 'info');
+            for (const id of ids) {
+                const before = campaignSelectedProducts.length;
+                const already = campaignSelectedProducts.some(x => String(x.id) === String(id));
+                const ok = await ensureCampaignProduct(id, { silent: true });
+                if (ok && !already && campaignSelectedProducts.length > before) added += 1;
+                else if (already) skipped += 1;
+                else failed += 1;
             }
             renderCampaignSelectedProducts();
             updateCampaignLinkPreview();
             adminSelectedIds.clear();
             renderConsoleProducts();
-            showToast(
-                added
-                    ? `${added} produto(s) adicionados à campanha${skipped ? ` (${skipped} já estavam)` : ''}`
-                    : 'Nenhum produto novo para adicionar',
-                added ? 'success' : 'error'
-            );
-            if (added) switchAdminView('campanhas');
+            const missing = campaignSelectedProducts.filter((p) => !productHasAffiliate(p)).length;
+            if (failed || missing) {
+                showToast(`${added} na campanha · ${failed || missing} sem link de afiliado da Shopee`, 'error');
+            } else {
+                showToast(
+                    added
+                        ? `${added} produto(s) adicionados à campanha${skipped ? ` (${skipped} já estavam)` : ''}`
+                        : 'Nenhum produto novo para adicionar',
+                    added ? 'success' : 'error'
+                );
+            }
+            if (added || campaignSelectedProducts.length) switchAdminView('campanhas');
         }
 
         function adminPrevPage() {
@@ -4978,6 +5118,7 @@
         convertCampaignProduct, obterCampaignLink, renameSavedCampaign, renderSavedCampaignsList,
         pickCampaignCatalogProduct, resetCampaignForm,
         renderCampaignProductPicker, resolveCampaignProductById, clearCampaignProductSearch,
+        repairCampaignProduct, ensureCampaignProduct, repairMissingCampaignAffiliates,
         onCampaignProductSearchKey, syncSavedCampaigns,
         generateCampaignShopeeLinks, copyCampaignShopeeLinks,
         updateCampaignLinkPreview, updateSubIdPreview, loadCampaignPerformance, openCampaignPerfDetail,

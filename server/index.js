@@ -389,6 +389,44 @@ const ofertasCache = new Map();
 const OFERTAS_TTL_MS = 150 * 1000;
 const OFERTAS_CACHE_MAX = 40;
 
+function isTrackedAffiliateUrl(url) {
+  const u = String(url || "").trim();
+  if (!u || u === "#") return false;
+  if (/shope\.ee\//i.test(u) || /\bs\.shopee\./i.test(u)) return true;
+  if (/universal-link|an_redir|uls_trackid|affiliate/i.test(u)) return true;
+  return false;
+}
+
+/**
+ * Garante offer_link de afiliado no banco. Sem isso o /p/:id e a campanha
+ * mandam o visitante pra Shopee sem comissão.
+ */
+async function ensureAffiliateOffer(itemId) {
+  const id = Number(itemId);
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  const existing = await getOffersByItemIds([id], { full: true });
+  let row = Array.isArray(existing) && existing.length ? existing[0] : null;
+  if (row && isTrackedAffiliateUrl(row.offer_link)) return row;
+
+  const nodes = await fetchProductDetailsByIds([id]);
+  const node = Array.isArray(nodes) && nodes.length ? nodes[0] : null;
+  if (!node || !node.offerLink) return row;
+
+  const keyword = String(node.productName || "").trim().toLowerCase().slice(0, 80);
+  const fresh = mapOfferToRow(node, keyword, null);
+  if (!fresh.item_id || !fresh.offer_link) return row;
+  if (row) {
+    fresh.category = row.category || fresh.category;
+    fresh.subcategory = row.subcategory || fresh.subcategory;
+    if (row.short_link) fresh.short_link = row.short_link;
+  }
+  await saveOffersWithShortlinks([fresh], { withShortlinks: true, skipExisting: false, gapMs: 100 });
+  categoriasCache = { at: 0, data: null };
+  ofertasCache.clear();
+  const saved = await getOffersByItemIds([id], { full: true });
+  return Array.isArray(saved) && saved.length ? saved[0] : fresh;
+}
+
 function setCacheHeaders(res, { maxAge = 60, sMaxAge = 300, swr = 600 } = {}) {
   res.set(
     "Cache-Control",
@@ -1954,41 +1992,19 @@ app.post("/api/admin/campanha/produto", requireAdmin, async (req, res) => {
     }
 
     const existing = await getOffersByItemIds([itemId], { full: true });
-    let row = Array.isArray(existing) && existing.length ? existing[0] : null;
-    let added = false;
-    let repaired = false;
+    const hadRow = Array.isArray(existing) && existing.length;
+    const hadOffer = hadRow && isTrackedAffiliateUrl(existing[0].offer_link);
+    let row = await ensureAffiliateOffer(itemId);
+    let added = !hadRow && !!row;
+    let repaired = hadRow && !hadOffer && !!row;
 
-    if (!row || !row.offer_link) {
-      // Produto novo — ou já publicado, mas sem o offerLink de afiliado da Shopee.
-      // Nos dois casos os dados vêm de productOfferV2, nunca do link colado.
-      const nodes = await fetchProductDetailsByIds([itemId]);
-      const node = Array.isArray(nodes) && nodes.length ? nodes[0] : null;
-      if (!node || !node.offerLink) {
-        return res.status(404).json({
-          error: "A Shopee não devolveu link de afiliado para este item — confira se ele continua ativo e dentro do seu programa.",
-        });
-      }
+    if (!row || !isTrackedAffiliateUrl(row.offer_link)) {
+      return res.status(404).json({
+        error: "A Shopee não devolveu link de afiliado para este item — confira se ele continua ativo e dentro do seu programa.",
+      });
+    }
 
-      const keyword = String(node.productName || "").trim().toLowerCase().slice(0, 80);
-      const fresh = mapOfferToRow(node, keyword, null);
-      if (!fresh.item_id || !fresh.offer_link) {
-        return res.status(502).json({ error: "Dados incompletos da Shopee — não foi possível publicar o produto" });
-      }
-      // Mantém a curadoria de categoria que já existia na vitrine.
-      if (row) {
-        fresh.category = row.category || fresh.category;
-        fresh.subcategory = row.subcategory || fresh.subcategory;
-      }
-
-      await saveOffersWithShortlinks([fresh], { withShortlinks: true, skipExisting: false, gapMs: 100 });
-      categoriasCache = { at: 0, data: null };
-      ofertasCache.clear();
-      added = !row;
-      repaired = Boolean(row);
-
-      const saved = await getOffersByItemIds([itemId], { full: true });
-      row = Array.isArray(saved) && saved.length ? saved[0] : fresh;
-    } else if (!row.short_link) {
+    if (!row.short_link) {
       // Tem o link de afiliado, só falta o shope.ee com os Sub IDs.
       const { ensureLinkedRows } = require("./linking");
       const linked = await ensureLinkedRows([{ ...row }], { regenerate: false, gapMs: 100 });
@@ -2055,8 +2071,11 @@ app.post("/api/admin/campanha/links", requireAdmin, async (req, res) => {
     const payload = [];
     const missing = [];
     for (const id of ids) {
-      const row = byId.get(String(id));
-      if (!row || !row.offer_link) {
+      let row = byId.get(String(id));
+      if (!row || !isTrackedAffiliateUrl(row.offer_link)) {
+        row = await ensureAffiliateOffer(id);
+      }
+      if (!row || !isTrackedAffiliateUrl(row.offer_link)) {
         missing.push(id);
         continue;
       }
@@ -2733,8 +2752,7 @@ app.get("/p/:itemId", async (req, res) => {
   };
 
   try {
-    const rows = await getOffersByItemIds([itemId], { full: true });
-    const row = Array.isArray(rows) ? rows[0] : null;
+    let row = await ensureAffiliateOffer(itemId);
     if (!row) {
       const back = new URLSearchParams({
         produto: String(itemId),
@@ -2745,29 +2763,32 @@ app.get("/p/:itemId", async (req, res) => {
       return res.redirect(302, `/?${back}`);
     }
     const product = rowToProduct(row);
-    // Para generateShortLink precisamos do URL "cru" (shopee.com.br/product/...);
-    // affiliateLink já vem encurtado (s.shopee.com.br) e o Shopee rejeita.
-    const rawOrigin = product.productLink && /shopee\.com\.br\/(product|(?:i\/)?[^\/]+\/[^\/]+)/i.test(product.productLink)
-      ? product.productLink
-      : (product.affiliateLink && product.affiliateLink !== "#" ? product.affiliateLink : "");
-    const buyFallback = product.affiliateLink && product.affiliateLink !== "#"
-      ? product.affiliateLink
-      : (product.productLink || "");
+    const rawOrigin = resolveProductOriginUrl(row);
+    const buyFallback = isTrackedAffiliateUrl(row.offer_link)
+      ? row.offer_link
+      : (isTrackedAffiliateUrl(product.shortLink) ? product.shortLink : "");
 
-    let shortLink = product.shortLink || null;
-    const isDefaultAttribution =
-      attribution.channel === "organico" &&
-      attribution.campaign === "vitrine";
+    let shortLink = isTrackedAffiliateUrl(product.shortLink) ? product.shortLink : null;
+    const channelSlug = sanitizeSubId(attribution.channel, "organico");
+    const campaignSlug = sanitizeSubId(attribution.campaign, "vitrine");
+    const isDefaultAttribution = channelSlug === "organico" && campaignSlug === "vitrine";
+    const useStandalone = !isDefaultAttribution && campaignSlug && campaignSlug !== "vitrine";
     // Gera shortlink com Sub IDs da campanha (ou usa o cacheado quando é orgânico)
     if (rawOrigin && (!shortLink || !isDefaultAttribution)) {
       try {
-        const subIds = buildTrackedSubIds(
-          product.category,
-          itemId,
-          product.subcategory,
-          attribution
+        const subIds = useStandalone
+          ? buildCampaignSubIds(campaignSlug)
+          : buildTrackedSubIds(
+            product.category,
+            itemId,
+            product.subcategory,
+            attribution
+          );
+        const generated = await generateShortLink(
+          rawOrigin,
+          subIds,
+          useStandalone ? { preserveExact: true } : {}
         );
-        const generated = await generateShortLink(rawOrigin, subIds);
         if (generated) {
           shortLink = generated;
           if (isDefaultAttribution) {
@@ -2780,7 +2801,9 @@ app.get("/p/:itemId", async (req, res) => {
       }
     }
 
-    const buyHref = shortLink || buyFallback || "#";
+    const buyHref = isTrackedAffiliateUrl(shortLink)
+      ? shortLink
+      : (isTrackedAffiliateUrl(buyFallback) ? buyFallback : (isTrackedAffiliateUrl(row.offer_link) ? row.offer_link : "#"));
     const priceNew = Number(product.newPrice) || 0;
     const priceOld = Number(product.oldPrice) || 0;
     const brl = (n) => "R$ " + n.toFixed(2).replace(".", ",");
