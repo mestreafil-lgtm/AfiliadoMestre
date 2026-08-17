@@ -1772,9 +1772,11 @@
             if (!box) return;
             if (!raw || raw.length < 2) {
                 box.innerHTML = '';
+                box.style.display = 'none';
                 setCampaignProductStatus('');
                 return;
             }
+            box.style.display = 'block';
             const q = raw.toLowerCase();
             const hits = AM.productsDatabase
                 .filter(p =>
@@ -1788,14 +1790,13 @@
                         class="w-full flex items-center gap-2 p-2 rounded-lg bg-orange-50 border border-orange-100 text-left hover:bg-orange-100">
                         <i class="fas fa-cloud-arrow-down text-shopee-orange"></i>
                         <span class="min-w-0 flex-1">
-                            <span class="block text-[11px] font-bold text-slate-700">Converter pela API de afiliado</span>
-                            <span class="block text-[9px] text-slate-500">Gera o offerLink oficial e publica na vitrine se precisar</span>
+                            <span class="block text-[11px] font-bold text-slate-700">Buscar este ID na Shopee</span>
                         </span>
                     </button>`
                 : '';
             if (!hits.length) {
                 box.innerHTML = lookupRow
-                    || `<p class="text-[10px] text-slate-400 px-1">Nenhum produto do catálogo com esse termo. Cole o ID ou o link da Shopee.</p>`;
+                    || `<p class="text-[10px] text-slate-400 px-1">Nada no catálogo. Cole o ID ou o link.</p>`;
                 return;
             }
             box.innerHTML = lookupRow + hits.map(p => `
@@ -1816,7 +1817,7 @@
             const box = document.getElementById('campaign-selected-products');
             if (!box) return;
             if (!campaignSelectedProducts.length) {
-                box.innerHTML = `<p class="text-[10px] text-slate-400">Converta um produto para gerar o link do popup.</p>`;
+                box.innerHTML = '';
                 return;
             }
             box.innerHTML = campaignSelectedProducts.map(p => {
@@ -1897,7 +1898,7 @@
             const typed = String(document.getElementById('campaign-link-name')?.value || '').trim();
             const slug = getCampaignSlug();
             if (!typed) {
-                el.textContent = 'Você escreve a Sub ID. A Shopee só aceita letras e números.';
+                el.textContent = '';
                 return;
             }
             if (!slug) {
@@ -1934,12 +1935,12 @@
             renderCampaignNameHint(getCampaignTitle());
 
             if (!selected.length) {
-                el.innerHTML = `<p class="text-[10px] text-slate-400">Converta um produto para gerar o link do popup.</p>`;
+                el.innerHTML = '';
                 updateSubIdPreview(channel, campaign, null);
                 return;
             }
             if (!campaign) {
-                el.innerHTML = `<p class="text-[10px] text-slate-400">Preencha a Sub ID da campanha para ver o link.</p>`;
+                el.innerHTML = '';
                 updateSubIdPreview(channel, '', selected[0]);
                 return;
             }
@@ -1978,12 +1979,10 @@
 
         function updateSubIdPreview(channel, campaign, product) {
             const preview = document.getElementById('subid-preview');
-            if (!preview) return;
-            const camp = sanitizeSubId(campaign || getCampaignSlug(), '') || 'SUBID';
-            // Formato standalone: só o nome da campanha aparece no relatório da
-            // Shopee (`Sub_id1 = teste211`). Bate 1:1 com o filtro `Sub_id` do
-            // painel da Shopee — igual às campanhas manuais dele.
-            preview.textContent = `${camp} (Sub_id de 1 slot — filtra igual no painel Shopee)`;
+            const box = document.getElementById('campaign-subid-box');
+            const camp = sanitizeSubId(campaign || getCampaignSlug(), '');
+            if (preview) preview.textContent = camp || '';
+            if (box) box.style.display = camp ? 'block' : 'none';
         }
 
         function loadSubIdSettings() {
@@ -2045,6 +2044,11 @@
                 document.getElementById('campaign-link-name')?.focus();
                 return;
             }
+            if (['vitrine', 'organico', 'afiliadamestre', 'geral'].includes(slug)) {
+                showToast('Escolha uma Sub ID própria — "vitrine" é o fluxo orgânico, não uma campanha de anúncio', 'error');
+                document.getElementById('campaign-link-name')?.focus();
+                return;
+            }
             lockCampaignSlug(slug, { freeze: true });
             const channel = getCampaignChannel();
             const mapped = getCampaignSelectedProducts().map(p => ({
@@ -2066,18 +2070,24 @@
                 // na venda. Retrocompat: o array ainda existe com 1 item.
                 subIds: [slug],
             }));
+            const sameSlug = !prev
+                ? readSavedCampaigns().find((c) => sanitizeSubId(c.campaign || '', '') === slug)
+                : null;
             const entry = {
-                id: prev?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                id: prev?.id || sameSlug?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 channel,
                 campaign: slug,
                 title,
                 products: mapped,
                 links,
-                createdAt: prev?.createdAt || new Date().toISOString(),
+                createdAt: prev?.createdAt || sameSlug?.createdAt || new Date().toISOString(),
                 exampleSubIds: links[0]?.subIds || [],
             };
             campaignEditingId = entry.id;
-            const list = readSavedCampaigns().filter(c => String(c.id) !== String(entry.id));
+            const list = readSavedCampaigns().filter((c) =>
+                String(c.id) !== String(entry.id)
+                && sanitizeSubId(c.campaign || '', '') !== slug
+            );
             list.unshift(entry);
             writeSavedCampaigns(list);
             campaignSavedList = list;
@@ -2145,32 +2155,63 @@
             showToast('Título atualizado — Sub ID não mudou', 'success');
         }
 
+        function campaignScore(c) {
+            const n = Array.isArray(c?.products) ? c.products.length : 0;
+            const t = new Date(c?.createdAt || 0).getTime() || 0;
+            return n * 1e13 + t;
+        }
+
+        function dedupeCampaignsBySlug(list) {
+            const bySlug = new Map();
+            for (const c of Array.isArray(list) ? list : []) {
+                const slug = sanitizeSubId(c?.campaign || '', '');
+                if (!slug) continue;
+                const prev = bySlug.get(slug);
+                if (!prev || campaignScore(c) >= campaignScore(prev)) {
+                    bySlug.set(slug, {
+                        ...prev,
+                        ...c,
+                        title: c.title || prev?.title || '',
+                    });
+                } else if (prev && !prev.title && c.title) {
+                    bySlug.set(slug, { ...prev, title: c.title });
+                }
+            }
+            return [...bySlug.values()].sort(
+                (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+            );
+        }
+
         function renderSavedCampaignsList() {
             const box = document.getElementById('campaigns-saved-list');
             if (!box) return;
-            const list = campaignSavedList.length ? campaignSavedList : readSavedCampaigns();
+            const list = dedupeCampaignsBySlug(
+                campaignSavedList.length ? campaignSavedList : readSavedCampaigns()
+            );
             if (!list.length) {
-                box.innerHTML = `<p style="font-size:12px;color:#94a3b8;margin:0">Nenhuma campanha ainda. Converta um produto e clique em Obter Link.</p>`;
+                box.innerHTML = `<p style="font-size:12px;color:#94a3b8;margin:0">Nenhuma campanha ainda.</p>`;
                 return;
             }
             box.innerHTML = list.map(c => {
-                const name = c.title || c.campaign || 'Campanha';
+                const slug = c.campaign || '';
+                const name = String(c.title || '').trim();
+                const showTitle = name && sanitizeSubId(name, '') !== sanitizeSubId(slug, '');
                 const n = (c.products || []).length;
                 const thumb = c.products?.[0]?.image || c.links?.[0]?.image || '';
                 return `
-                <article style="border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#f8fafc">
+                <article style="border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:8px">
                     <div style="display:flex;gap:8px;align-items:flex-start">
                         ${thumb ? `<img src="${escapeAttr(thumbUrl(thumb) || thumb)}" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover;background:#e2e8f0" onerror="this.style.display='none'">` : ''}
                         <div style="min-width:0;flex:1">
-                            <p style="margin:0;font-size:12.5px;font-weight:700;color:#0f172a">${escapeHtml(name)}</p>
-                            <p style="margin:2px 0 0;font-size:10px;color:#64748b;font-family:ui-monospace,monospace">${escapeHtml(c.campaign || '')} · ${n} produto(s)</p>
+                            <p style="margin:0;font-size:12.5px;font-weight:700;color:#0f172a">${escapeHtml(showTitle ? name : slug || 'Campanha')}</p>
+                            <p style="margin:2px 0 0;font-size:10px;color:#64748b">${showTitle ? `<span style="font-family:ui-monospace,monospace">${escapeHtml(slug)}</span> · ` : ''}${n} produto${n === 1 ? '' : 's'}</p>
                         </div>
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
                         <button type="button" onclick="copySavedCampaignLinks('${escapeAttr(String(c.id))}')" class="btn-dark" style="padding:5px 8px;font-size:10px">Copiar link</button>
-                        <button type="button" onclick="regenerateCampaignShortlinks('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px" title="Gera shortlink Shopee no formato standalone (Sub_id = nome, 1 slot)">Regerar link Shopee</button>
-                        <button type="button" onclick="renameSavedCampaign('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Renomear</button>
                         <button type="button" onclick="loadSavedCampaignIntoEditor('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Editar</button>
+                        <button type="button" onclick="renameSavedCampaign('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Renomear</button>
+                        <button type="button" onclick="deleteSavedCampaign('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px;color:#be123c">Apagar</button>
                     </div>
                 </article>`;
             }).join('');
@@ -2333,11 +2374,16 @@
                 if (c?.id && !deletedCampaignIds.has(String(c.id))) byId.set(String(c.id), c);
             }
             for (const c of remote) {
-                if (c?.id && !deletedCampaignIds.has(String(c.id))) byId.set(String(c.id), c);
+                if (!c?.id || deletedCampaignIds.has(String(c.id))) continue;
+                const prev = byId.get(String(c.id));
+                byId.set(String(c.id), {
+                    ...prev,
+                    ...c,
+                    title: c.title || prev?.title || '',
+                    createdAt: c.createdAt || prev?.createdAt,
+                });
             }
-            const merged = [...byId.values()].sort(
-                (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-            );
+            const merged = dedupeCampaignsBySlug([...byId.values()]);
             writeSavedCampaigns(merged);
             campaignSavedList = merged;
             renderSavedCampaignsList();

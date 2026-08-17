@@ -1922,51 +1922,49 @@
       <section id="admin-view-campanhas" class="admin-view">
         <div class="am-card am-section" style="max-width:820px">
           <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Nova campanha</h2>
-          <p style="margin:0 0 16px;font-size:12px;color:#64748b">Converta o produto pela API de afiliado e obtenha o link do popup (Pixel).</p>
+          <p style="margin:0 0 16px;font-size:12px;color:#64748b">Cole o produto, defina a Sub ID e clique em Obter Link.</p>
 
           <div>
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Buscar produto ou colar link da Shopee</label>
+            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Produto</label>
             <div style="display:flex;gap:8px;align-items:stretch">
-              <input id="campaign-product-search" type="search" oninput="renderCampaignProductPicker()" onkeydown="onCampaignProductSearchKey(event)" placeholder="Busque pelo nome ou cole o link / ID da Shopee" style="flex:1;min-width:0;padding:9px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
-              <button type="button" onclick="convertCampaignProduct()" class="btn-primary" style="padding:9px 16px;white-space:nowrap">Converter</button>
+              <input id="campaign-product-search" type="search" oninput="renderCampaignProductPicker()" onkeydown="onCampaignProductSearchKey(event)" placeholder="Nome, ID ou link da Shopee" style="flex:1;min-width:0;padding:9px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+              <button type="button" onclick="convertCampaignProduct()" class="btn-primary" style="padding:9px 16px;white-space:nowrap">Adicionar</button>
             </div>
             <div id="campaign-product-status" style="font-size:11px;color:#64748b;margin-top:4px"></div>
-            <div id="campaign-product-picker" style="margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;background:#f8fafc"></div>
+            <div id="campaign-product-picker" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;background:#f8fafc"></div>
           </div>
 
           <div style="margin-top:14px">
-            <div style="font-size:11px;font-weight:600;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Produtos selecionados</div>
-            <div id="campaign-selected-products" style="display:flex;flex-direction:column;gap:6px;min-height:60px"></div>
+            <div id="campaign-selected-products" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
 
           <div style="margin-top:14px">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Título da campanha</label>
+            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Título</label>
             <input id="campaign-link-title" type="text" value="" oninput="updateCampaignLinkPreview()" placeholder="ex: Vestidos verão Ads" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
           </div>
           <div style="margin-top:14px">
-            <label for="campaign-link-name" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Sub ID da campanha</label>
-            <input id="campaign-link-name" type="text" value="" oninput="updateCampaignLinkPreview()" placeholder="ex: vestidosverao" autocomplete="off" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc;font-family:ui-monospace,monospace"/>
+            <label for="campaign-link-name" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Sub ID</label>
+            <input id="campaign-link-name" type="text" value="" oninput="updateCampaignLinkPreview()" placeholder="só letras e números — ex: vestidosverao" autocomplete="off" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc;font-family:ui-monospace,monospace"/>
             <div id="campaign-name-normalized" style="font-size:10.5px;color:#94a3b8;margin-top:3px;font-family:'JetBrains Mono',monospace"></div>
           </div>
 
           <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
             <button type="button" onclick="obterCampaignLink()" class="btn-primary" style="padding:10px 18px;font-size:13px">Obter Link</button>
             <button type="button" onclick="resetCampaignForm()" class="btn-ghost" style="padding:8px 14px;font-size:12px">Limpar</button>
-            <button type="button" onclick="switchAdminView('produtos')" class="btn-ghost" style="padding:8px 14px;font-size:12px">Escolher da lista</button>
+            <button type="button" onclick="switchAdminView('produtos')" class="btn-ghost" style="padding:8px 14px;font-size:12px">Lista de produtos</button>
             <button type="button" onclick="switchAdminView('campanha-desempenho')" class="btn-ghost" style="padding:8px 14px;font-size:12px">Desempenho</button>
           </div>
 
-          <div style="margin-top:14px;padding:12px;background:#0b1220;border-radius:9px">
-            <div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Sub ID (fixo nesta campanha)</div>
+          <div id="campaign-subid-box" style="display:none;margin-top:14px;padding:12px;background:#0b1220;border-radius:9px">
             <div id="subid-preview" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#f97316;word-break:break-all"></div>
           </div>
-          <div id="campaign-link-preview" style="margin-top:8px;padding:12px;background:#f8fafc;border-radius:9px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;word-break:break-all;min-height:40px"></div>
+          <div id="campaign-link-preview" style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;word-break:break-all"></div>
         </div>
         <div class="am-card am-section" style="max-width:820px;margin-top:16px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
             <div style="min-width:0;flex:1">
               <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Campanhas salvas</h2>
-              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Os links copiados daqui são os mesmos anunciados no Facebook.</p>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Links para anunciar no Facebook.</p>
             </div>
             <button type="button" id="regen-all-campaigns-btn" onclick="regenerateAllCampaignShortlinks()" class="btn-dark" style="padding:8px 12px;font-size:12px;white-space:nowrap" title="Gera shortlinks Shopee no formato standalone (Sub_id = nome da campanha, 1 slot só)">Regerar links Shopee</button>
           </div>

@@ -1799,6 +1799,7 @@ app.get("/api/campanhas-rastreio", async (_req, res) => {
     const rows = await listCampanhasRastreio();
     const campaigns = (Array.isArray(rows) ? rows : []).map((r) => ({
       id: r.id,
+      title: r.title || "",
       channel: r.channel,
       campaign: r.campaign,
       products: r.products || [],
