@@ -2660,31 +2660,10 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   } catch (e) {}
   var payload = ${pixelPayload};
   var checkoutPayload = Object.assign({ num_items: 1 }, payload);
-  function ping(ev, data, eid){
-    try {
-      var p = data || {};
-      var q = 'id=' + encodeURIComponent(PIXEL_ID)
-        + '&ev=' + encodeURIComponent(ev)
-        + '&noscript=1'
-        + '&dl=' + encodeURIComponent(location.href)
-        + '&ts=' + String(Date.now());
-      if (eid) q += '&eid=' + encodeURIComponent(eid);
-      if (p.value != null) q += '&cd[value]=' + encodeURIComponent(p.value);
-      if (p.currency) q += '&cd[currency]=' + encodeURIComponent(p.currency);
-      if (p.content_type) q += '&cd[content_type]=' + encodeURIComponent(p.content_type);
-      if (p.content_name) q += '&cd[content_name]=' + encodeURIComponent(p.content_name);
-      if (p.content_category) q += '&cd[content_category]=' + encodeURIComponent(p.content_category);
-      if (p.num_items != null) q += '&cd[num_items]=' + encodeURIComponent(p.num_items);
-      if (p.content_ids) q += '&cd[content_ids]=' + encodeURIComponent(JSON.stringify(p.content_ids));
-      (new Image(1, 1)).src = 'https://www.facebook.com/tr?' + q;
-    } catch (err) {}
-  }
-  var eidPV = 'pv_' + Date.now();
-  var eidVC = 'vc_' + Date.now();
-  var eidIC = 'ic_' + Date.now();
-  ping('PageView', payload, eidPV);
-  ping('ViewContent', payload, eidVC);
-  ping('InitiateCheckout', checkoutPayload, eidIC);
+  var now = Date.now();
+  var eidPV = 'pv_' + now;
+  var eidVC = 'vc_' + now;
+  var eidIC = 'ic_' + now;
   !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
   n.callMethod.apply(n,arguments):n.queue.push(arguments)};
