@@ -1838,6 +1838,134 @@ app.delete("/api/campanhas-rastreio/:id", requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
+  try {
+    const token   = process.env.CF_API_TOKEN;
+    const zone    = process.env.CF_ZONE_ID;
+    const account = process.env.CF_ACCOUNT_ID || "0ecea92475c1c5c536737716ec461a6e";
+    if (!token) return res.status(500).json({ error: "Cloudflare não configurado" });
+
+    const minutesMap = { "-1440": 1, "-10080": 7, "-43200": 30 };
+    const days = minutesMap[req.query.since] || 7;
+    const now = new Date();
+    const start = new Date(now); start.setDate(start.getDate() - days);
+    const dateSince = start.toISOString().slice(0, 10);
+    const dateUntil = now.toISOString().slice(0, 10);
+
+    const dailyQuery = `query {
+      viewer {
+        zones(filter: { zoneTag: "${zone}" }) {
+          httpRequests1dGroups(limit: 60, filter: { date_geq: "${dateSince}", date_leq: "${dateUntil}" }) {
+            dimensions { date }
+            sum {
+              requests pageViews bytes
+              countryMap { clientCountryName requests }
+              browserMap { uaBrowserFamily pageViews }
+              responseStatusMap { edgeResponseStatus requests }
+            }
+            uniq { uniques }
+          }
+        }
+      }
+    }`;
+
+    const granularQuery = `query {
+      viewer {
+        zones(filter: { zoneTag: "${zone}" }) {
+          deviceBreakdown: httpRequestsAdaptiveGroups(
+            limit: 10,
+            filter: { date_geq: "${dateSince}", date_leq: "${dateUntil}" },
+            dimensions: [clientDeviceType]
+          ) {
+            dimensions { clientDeviceType }
+            count
+          }
+          topPaths: httpRequestsAdaptiveGroups(
+            limit: 25,
+            filter: { date_geq: "${dateSince}", date_leq: "${dateUntil}" },
+            dimensions: [clientRequestPath],
+            orderBy: [count_DESC]
+          ) {
+            dimensions { clientRequestPath }
+            count
+          }
+        }
+      }
+    }`;
+
+    const cfHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const [dailyRes, granularRes] = await Promise.all([
+      fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: cfHeaders, body: JSON.stringify({ query: dailyQuery }) }),
+      fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: cfHeaders, body: JSON.stringify({ query: granularQuery }) }),
+    ]);
+    const [dailyData, granularData] = await Promise.all([dailyRes.json(), granularRes.json()]);
+
+    const groups = dailyData?.data?.viewer?.zones?.[0]?.httpRequests1dGroups;
+    if (!groups) {
+      return res.status(502).json({ error: "Cloudflare error", details: dailyData.errors || dailyData });
+    }
+
+    let totalRequests = 0, totalPageviews = 0, totalUniques = 0, totalBytes = 0;
+    const countries = {}, browsers = {}, statusCodes = {};
+    const series = [];
+
+    for (const g of groups) {
+      const reqs = g.sum?.requests || 0;
+      const pvs  = g.sum?.pageViews || 0;
+      const uniqs = g.uniq?.uniques || 0;
+      const bytes = g.sum?.bytes || 0;
+      totalRequests  += reqs;
+      totalPageviews += pvs;
+      totalUniques   += uniqs;
+      totalBytes     += bytes;
+      for (const c of g.sum?.countryMap || []) {
+        countries[c.clientCountryName] = (countries[c.clientCountryName] || 0) + c.requests;
+      }
+      for (const b of g.sum?.browserMap || []) {
+        const name = b.uaBrowserFamily || "Outros";
+        browsers[name] = (browsers[name] || 0) + (b.pageViews || 0);
+      }
+      for (const s of g.sum?.responseStatusMap || []) {
+        const code = String(s.edgeResponseStatus);
+        statusCodes[code] = (statusCodes[code] || 0) + (s.requests || 0);
+      }
+      series.push({ since: g.dimensions.date, requests: reqs, pageviews: pvs, uniques: uniqs });
+    }
+
+    series.sort((a, b) => a.since.localeCompare(b.since));
+
+    const gZone = granularData?.data?.viewer?.zones?.[0] || {};
+    const devices = (gZone.deviceBreakdown || []).map(d => ({
+      device: d.dimensions?.clientDeviceType || "unknown",
+      requests: d.count || 0,
+    })).sort((a, b) => b.requests - a.requests);
+
+    const topPaths = (gZone.topPaths || []).map(p => ({
+      path: p.dimensions?.clientRequestPath || "/",
+      requests: p.count || 0,
+    }));
+
+    res.json({
+      ok: true,
+      summary: {
+        requests:  totalRequests,
+        pageviews: totalPageviews,
+        uniques:   totalUniques,
+        bandwidth: totalBytes,
+        countries,
+        browsers,
+        statusCodes,
+      },
+      series,
+      devices,
+      topPaths,
+    });
+  } catch (err) {
+    console.error("[/api/admin/analytics]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /**
  * Regenera os shortlinks de UMA (ou TODAS) as campanhas no formato standalone
  * (sub_id de 1 slot só com o nome). Pra migrar rastreamento antigo (5 slots

@@ -213,6 +213,7 @@
         "campanha-desempenho": { title: "Resultado das campanhas", subtitle: "Resultados por Sub ID" },
         desempenho: { title: "Todas as conversões", subtitle: "Conversões e comissões da Shopee" },
         "meu-site": { title: "Vendas do site", subtitle: "Vendas atribuídas à vitrine pública" },
+        visualizacoes: { title: "Visualizações", subtitle: "Visitas e tráfego via Cloudflare" },
     };
 
         function getAdminToken() {
@@ -618,6 +619,8 @@
                 loadShortlinkStatus();
             } else if (view === "catalogo-saude") {
                 loadShopeeHealth();
+            } else if (view === "visualizacoes") {
+                loadAnalytics();
             } else if (view === "produtos") {
                 adminPage = 1;
                 populateAdminProductCategoryFilter();
@@ -5147,6 +5150,191 @@
         populateAdminCategorySelect, loadAdminCatalogFull,
     };
     // Expõe handlers usados por onclick no HTML do painel
+    let _analyticsChart = null;
+    let _analyticsPeriod = "-10080";
+    let _chartJsLoaded = false;
+    function ensureChartJs() {
+        if (_chartJsLoaded || typeof Chart !== "undefined") { _chartJsLoaded = true; return Promise.resolve(); }
+        return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js";
+            s.onload = () => { _chartJsLoaded = true; resolve(); };
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+    const DEVICE_LABELS = { desktop: "Desktop", mobile: "Mobile", tablet: "Tablet", other: "Outros" };
+    const DEVICE_COLORS = { desktop: "#3b82f6", mobile: "#ee4d2d", tablet: "#8b5cf6", other: "#94a3b8" };
+    const BROWSER_COLORS = ["#ee4d2d","#3b82f6","#10b981","#f59e0b","#8b5cf6","#ec4899","#6366f1","#94a3b8"];
+
+    function analyticsBar(label, value, max, color, pct) {
+        const w = max > 0 ? Math.max(2, (value / max) * 100) : 0;
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="min-width:70px;font-weight:600;font-size:12px;color:#0f172a">${label}</span>
+            <div style="flex:1;height:22px;background:#f1f5f9;border-radius:6px;overflow:hidden;position:relative">
+                <div style="height:100%;width:${w.toFixed(1)}%;background:${color};border-radius:6px;transition:width .3s"></div>
+            </div>
+            <span style="min-width:60px;text-align:right;font-size:11px;color:#64748b;font-weight:600">${pct} (${Number(value).toLocaleString("pt-BR")})</span>
+        </div>`;
+    }
+
+    function statusChip(code, count, fmt) {
+        const c = code.startsWith("2") ? "#10b981" : code.startsWith("3") ? "#3b82f6" : code.startsWith("4") ? "#f59e0b" : "#ef4444";
+        return `<span style="display:inline-block;margin:0 6px 6px 0;padding:5px 10px;background:${c}18;color:${c};border-radius:6px;font-weight:700;font-size:12px">${code} <span style="font-weight:400;opacity:.8">${fmt(count)}</span></span>`;
+    }
+
+    async function loadAnalytics(since) {
+        if (since) _analyticsPeriod = since;
+        const s = _analyticsPeriod;
+        const labels = { "-1440": "24h", "-10080": "7d", "-43200": "30d" };
+        ["24h", "7d", "30d"].forEach(k => {
+            const btn = document.getElementById("analytics-btn-" + k);
+            if (!btn) return;
+            const on = labels[s] === k;
+            btn.className = on ? "btn-primary" : "btn-ghost";
+        });
+        const el = id => document.getElementById(id);
+        const loading = "Carregando…";
+        el("analytics-uniques").textContent = "…";
+        el("analytics-pageviews").textContent = "…";
+        el("analytics-requests").textContent = "…";
+        el("analytics-bandwidth").textContent = "…";
+        el("analytics-countries").textContent = loading;
+        el("analytics-devices").textContent = loading;
+        el("analytics-browsers").textContent = loading;
+        el("analytics-status").textContent = loading;
+        el("analytics-paths").textContent = loading;
+        try {
+            const res = await fetch(`/api/admin/analytics?since=${s}`, {
+                headers: { Authorization: `Bearer ${getAdminToken()}` }
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || "Erro");
+            const fmt = n => Number(n).toLocaleString("pt-BR");
+            el("analytics-uniques").textContent   = fmt(data.summary.uniques);
+            el("analytics-pageviews").textContent  = fmt(data.summary.pageviews);
+            el("analytics-requests").textContent   = fmt(data.summary.requests);
+            el("analytics-bandwidth").textContent  = (data.summary.bandwidth / 1048576).toFixed(1);
+
+            const countries = Object.entries(data.summary.countries || {})
+                .sort((a, b) => b[1] - a[1]).slice(0, 10);
+            const cMax = countries.length ? countries[0][1] : 0;
+            const cTotal = countries.reduce((s, [, n]) => s + n, 0) || 1;
+            el("analytics-countries").innerHTML = countries.length
+                ? countries.map(([c, n]) => analyticsBar(c, n, cMax, "#3b82f6", ((n / cTotal) * 100).toFixed(1) + "%")).join("")
+                : "Sem dados";
+
+            const devs = data.devices || [];
+            const dTotal = devs.reduce((s, d) => s + d.requests, 0) || 1;
+            const dMax = devs.length ? devs[0].requests : 0;
+            el("analytics-devices").innerHTML = devs.length
+                ? devs.map(d => {
+                    const label = DEVICE_LABELS[d.device] || d.device;
+                    const color = DEVICE_COLORS[d.device] || "#94a3b8";
+                    return analyticsBar(label, d.requests, dMax, color, ((d.requests / dTotal) * 100).toFixed(1) + "%");
+                }).join("")
+                : "Sem dados";
+
+            const bEntries = Object.entries(data.summary.browsers || {})
+                .sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const bMax = bEntries.length ? bEntries[0][1] : 0;
+            const bTotal = bEntries.reduce((s, [, n]) => s + n, 0) || 1;
+            el("analytics-browsers").innerHTML = bEntries.length
+                ? bEntries.map(([b, n], i) => analyticsBar(b, n, bMax, BROWSER_COLORS[i % BROWSER_COLORS.length], ((n / bTotal) * 100).toFixed(1) + "%")).join("")
+                : "Sem dados";
+
+            const sEntries = Object.entries(data.summary.statusCodes || {})
+                .sort((a, b) => b[1] - a[1]);
+            el("analytics-status").innerHTML = sEntries.length
+                ? sEntries.map(([c, n]) => statusChip(c, n, fmt)).join("")
+                : "Sem dados";
+
+            const paths = data.topPaths || [];
+            const pTotal = paths.reduce((s, p) => s + p.requests, 0) || 1;
+            if (paths.length) {
+                let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:2px solid #e2e8f0">';
+                html += '<th style="text-align:left;padding:6px 8px;font-size:11px;font-weight:700;color:#475569">Página</th>';
+                html += '<th style="text-align:right;padding:6px 8px;font-size:11px;font-weight:700;color:#475569">Acessos</th>';
+                html += '<th style="text-align:right;padding:6px 8px;font-size:11px;font-weight:700;color:#475569">%</th>';
+                html += '</tr></thead><tbody>';
+                for (const p of paths) {
+                    html += `<tr style="border-bottom:1px solid #f1f5f9">`;
+                    html += `<td style="padding:6px 8px;font-size:12px;font-weight:500;color:#0f172a;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.path}">${p.path}</td>`;
+                    html += `<td style="text-align:right;padding:6px 8px;font-size:12px;color:#475569;font-weight:600">${fmt(p.requests)}</td>`;
+                    html += `<td style="text-align:right;padding:6px 8px;font-size:12px;color:#94a3b8">${((p.requests / pTotal) * 100).toFixed(1)}%</td>`;
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+                el("analytics-paths").innerHTML = html;
+            } else {
+                el("analytics-paths").textContent = "Sem dados";
+            }
+
+            renderAnalyticsChart(data.series || []);
+        } catch (err) {
+            el("analytics-uniques").textContent = "—";
+            el("analytics-pageviews").textContent = "—";
+            el("analytics-requests").textContent = "—";
+            el("analytics-bandwidth").textContent = "—";
+            ["analytics-countries","analytics-devices","analytics-browsers","analytics-status","analytics-paths"]
+                .forEach(id => el(id).textContent = err.message);
+        }
+    }
+
+    async function renderAnalyticsChart(series) {
+        const canvas = document.getElementById("analytics-canvas");
+        if (!canvas) return;
+        const wrap = canvas.parentElement;
+        if (wrap) { wrap.style.height = "140px"; wrap.style.maxHeight = "140px"; }
+        canvas.style.height = "140px";
+        canvas.style.maxHeight = "140px";
+        const ctx = canvas.getContext("2d");
+        if (_analyticsChart && typeof _analyticsChart.destroy === "function") _analyticsChart.destroy();
+
+        try { await ensureChartJs(); } catch (_) {}
+
+        if (typeof Chart !== "undefined") {
+            const labels = series.map(t => {
+                const d = new Date(t.since);
+                return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+            });
+            _analyticsChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [
+                        { label: "Visitas únicas", data: series.map(t => t.uniques), backgroundColor: "#ee4d2d", borderRadius: 4 },
+                        { label: "Pageviews",      data: series.map(t => t.pageviews), backgroundColor: "#fbbf24", borderRadius: 4 },
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } },
+                    scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } }
+                }
+            });
+            return;
+        }
+
+        const maxVal = Math.max(1, ...series.map(t => t.uniques));
+        const barW = Math.max(6, Math.floor((canvas.width - 40) / Math.max(series.length, 1)) - 4);
+        const h = canvas.height - 30;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        series.forEach((t, i) => {
+            const bh = Math.max(1, (t.uniques / maxVal) * h);
+            const x = 30 + i * (barW + 4);
+            ctx.fillStyle = "#ee4d2d";
+            ctx.fillRect(x, h - bh + 10, barW, bh);
+            if (series.length <= 31) {
+                ctx.fillStyle = "#94a3b8";
+                ctx.font = "9px sans-serif";
+                ctx.textAlign = "center";
+                const d = new Date(t.since);
+                ctx.fillText(`${d.getDate()}/${d.getMonth()+1}`, x + barW / 2, h + 24);
+            }
+        });
+    }
+
     const exposeMap = {
         switchAdminView, toggleAdminSidebar, toggleMobileSidebar, setPreviewDevice,
         switchCatalogTab, switchCatalogoBuscarTab,
@@ -5189,6 +5377,7 @@
         resetVitrineAndRefill, loadAdminCatalogFull, syncDefaultKeywords, fetchLiveOffers,
         populateAdminCategorySelect, renderAdminCategoriesPanel, renderConsoleProducts,
         loadAdminStats, loadAutoStatus, loadShortlinkStatus,
+        loadAnalytics,
     };
     for (const [k, v] of Object.entries(exposeMap)) {
         if (typeof v === "function") window[k] = v;
