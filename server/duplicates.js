@@ -27,22 +27,34 @@ function normalizeText(s) {
 }
 
 /**
- * Extrai o item_id real de URLs Shopee.
- * Formatos: ...-i.{shopId}.{itemId} | /product/{shopId}/{itemId} | itemid=
+ * Extrai o item_id real de URLs Shopee (desktop, mobile, universal-link, query).
+ * Formatos: ...-i.{shopId}.{itemId} | /product/{shopId}/{itemId} | itemid= | deeplink_url=
  * Nunca retorna o shopId no lugar do item.
  */
-function extractItemIdFromUrl(url) {
-  const s = String(url || "").trim();
-  if (!s) return null;
+function extractItemIdFromUrl(url, depth = 0) {
+  let s = String(url || "").trim();
+  if (!s || depth > 4) return null;
 
-  // Nome-do-Produto-i.{shopId}.{itemId}
+  // Deeplink / universal-link mobile: ?deeplink_url=... ou ?url=...
+  try {
+    const u = new URL(s.includes("://") ? s : `https://${s}`);
+    for (const key of ["deeplink_url", "url", "smtt_url", "redirect"]) {
+      const nested = u.searchParams.get(key);
+      if (nested) {
+        const fromNested = extractItemIdFromUrl(nested, depth + 1);
+        if (fromNested) return fromNested;
+      }
+    }
+  } catch (_) { /* URL inválida — segue com regex no texto bruto */ }
+
+  // Nome-do-Produto-i.{shopId}.{itemId} (também em m.shopee / universal-link)
   let m = s.match(/-i\.(\d+)\.(\d+)/i);
   if (m) {
     const itemId = Number(m[2]);
     return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
   }
 
-  // /product/{shopId}/{itemId}
+  // /product/{shopId}/{itemId} — desktop, m.shopee, universal-link/product/...
   m = s.match(/\/product\/(\d+)\/(\d+)/i);
   if (m) {
     const itemId = Number(m[2]);
@@ -56,7 +68,47 @@ function extractItemIdFromUrl(url) {
     return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
   }
 
+  // Só números (ID colado direto)
+  if (/^\d+$/.test(s)) {
+    const itemId = Number(s);
+    return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
+  }
+
   return null;
+}
+
+/** Extrai shopId + itemId quando o link traz os dois. */
+function extractShopAndItemFromUrl(url) {
+  const s = String(url || "").trim();
+  if (!s) return { shopId: null, itemId: null };
+
+  try {
+    const u = new URL(s.includes("://") ? s : `https://${s}`);
+    for (const key of ["deeplink_url", "url", "smtt_url", "redirect"]) {
+      const nested = u.searchParams.get(key);
+      if (nested) {
+        const fromNested = extractShopAndItemFromUrl(nested);
+        if (fromNested.itemId) return fromNested;
+      }
+    }
+  } catch (_) {}
+
+  let m = s.match(/-i\.(\d+)\.(\d+)/i);
+  if (m) {
+    return { shopId: Number(m[1]) || null, itemId: Number(m[2]) || null };
+  }
+  m = s.match(/\/product\/(\d+)\/(\d+)/i);
+  if (m) {
+    return { shopId: Number(m[1]) || null, itemId: Number(m[2]) || null };
+  }
+  const itemId = extractItemIdFromUrl(s);
+  return { shopId: null, itemId };
+}
+
+/** True se parece link curto Shopee (precisa seguir redirect). */
+function isShopeeShortLink(url) {
+  const s = String(url || "").trim();
+  return /(?:^https?:\/\/)?(?:s\.shopee\.|shope\.ee\/|shp\.ee\/)/i.test(s);
 }
 
 function canonicalizeProductUrl(url) {
@@ -266,5 +318,7 @@ module.exports = {
   findDuplicateGroups,
   normalizeText,
   extractItemIdFromUrl,
+  extractShopAndItemFromUrl,
+  isShopeeShortLink,
   canonicalizeProductUrl,
 };

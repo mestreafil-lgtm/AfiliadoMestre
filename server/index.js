@@ -50,7 +50,52 @@ const {
 const { CATEGORIAS, categoryForKeyword, weightedKeywords, allKeywords, metaOnly, sortCategoriesForHome, DEFAULT_FEMALE_PERCENT, normalizeKeywordEntry, isFemaleAudience } = require("./categorias");
 const { buildCoverageReport, buildCoverageQueue } = require("./coverage");
 const { refillVitrine } = require("./refillVitrine");
-const { scanDuplicates, removeDuplicates } = require("./duplicates");
+const { scanDuplicates, removeDuplicates, extractItemIdFromUrl, isShopeeShortLink } = require("./duplicates");
+
+/** Resolve item_id a partir de ID puro, link desktop/mobile ou shortlink (segue redirects). */
+async function resolveShopeeItemIdFromInput(rawInput) {
+  const raw = String(rawInput || "").trim();
+  if (!raw) return null;
+  let itemId = extractItemIdFromUrl(raw);
+  if (itemId) return itemId;
+
+  const looksShort = isShopeeShortLink(raw);
+  const looksHttp = /^https?:\/\//i.test(raw) || /^[\w.-]*shopee\./i.test(raw) || /shope\.ee|shp\.ee/i.test(raw);
+  if (!looksShort && !looksHttp) return null;
+
+  let url = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/\//, "")}`;
+  try {
+    for (let i = 0; i < 6; i++) {
+      const res = await fetch(url, {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; AfiliadaMestre/1.0)",
+          Accept: "text/html,*/*",
+        },
+      });
+      const loc = res.headers.get("location");
+      if (loc) {
+        url = new URL(loc, url).href;
+        itemId = extractItemIdFromUrl(url);
+        if (itemId) return itemId;
+        continue;
+      }
+      itemId = extractItemIdFromUrl(url);
+      if (itemId) return itemId;
+      // Último recurso: corpo HTML com -i.shop.item ou /product/
+      if (res.status >= 200 && res.status < 400) {
+        const text = await res.text().catch(() => "");
+        itemId = extractItemIdFromUrl(text.slice(0, 200000));
+        if (itemId) return itemId;
+      }
+      break;
+    }
+  } catch (err) {
+    console.warn("[resolveShopeeItemIdFromInput]", err.message);
+  }
+  return null;
+}
 const {
   scanWeakOffers,
   purgeWeakOffers,
@@ -1409,14 +1454,10 @@ app.post("/api/admin/produto-manual", requireAdmin, async (req, res) => {
       if (!raw) {
         return res.status(400).json({ error: "URL Shopee do produto é obrigatória (ex: shopee.com.br/product/SHOPID/ITEMID)" });
       }
-      // shopee.com.br/product/{shop}/{item} ou shopee.com.br/{slug}-i.{shop}.{item}
-      const m1 = raw.match(/shopee\.com\.br\/product\/(\d+)\/(\d+)/i);
-      const m2 = raw.match(/-i\.(\d+)\.(\d+)/i);
-      if (m1) { shopId = Number(m1[1]); itemId = Number(m1[2]); }
-      else if (m2) { shopId = Number(m2[1]); itemId = Number(m2[2]); }
-      else {
+      itemId = await resolveShopeeItemIdFromInput(raw);
+      if (!itemId) {
         return res.status(400).json({
-          error: "URL não reconhecida. Use o formato: https://shopee.com.br/product/SHOPID/ITEMID ou https://shopee.com.br/produto-i.SHOPID.ITEMID",
+          error: "URL não reconhecida. Cole o link do produto (desktop ou mobile), o ID, ou um shortlink s.shopee / shope.ee.",
         });
       }
     }
@@ -2213,16 +2254,11 @@ app.post("/api/admin/campanha/produto", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Informe o ID do produto ou o link da Shopee" });
     }
 
-    const byProductPath = raw.match(/shopee\.com\.br\/product\/(\d+)\/(\d+)/i);
-    const bySlug = raw.match(/-i\.(\d+)\.(\d+)/i);
-    let itemId = null;
-    if (byProductPath) itemId = Number(byProductPath[2]);
-    else if (bySlug) itemId = Number(bySlug[2]);
-    else if (/^\d+$/.test(raw)) itemId = Number(raw);
+    const itemId = await resolveShopeeItemIdFromInput(raw);
 
     if (!Number.isSafeInteger(itemId) || itemId <= 0) {
       return res.status(400).json({
-        error: "ID inválido. Use o número do item ou o link do produto na Shopee.",
+        error: "Link não reconhecido. Cole o link do produto (app/mobile ou desktop), o ID numérico, ou um shortlink s.shopee / shope.ee.",
       });
     }
 

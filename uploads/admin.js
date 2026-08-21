@@ -1664,14 +1664,34 @@
             if (el) el.innerHTML = html || '';
         }
 
-        /** Extrai o item_id de um ID puro ou de qualquer formato de link da Shopee. */
+        /** Extrai o item_id de um ID puro ou de qualquer formato de link da Shopee (desktop/mobile). */
         function parseShopeeItemId(raw) {
-            const value = String(raw || '').trim();
+            const value = String(raw || "").trim();
+            if (!value) return "";
+            try {
+                const u = new URL(value.includes("://") ? value : `https://${value}`);
+                for (const key of ["deeplink_url", "url", "smtt_url", "redirect"]) {
+                    const nested = u.searchParams.get(key);
+                    if (nested) {
+                        const nestedId = parseShopeeItemId(nested);
+                        if (nestedId) return nestedId;
+                    }
+                }
+            } catch (_) { /* segue com regex */ }
             const bySlug = value.match(/-i\.\d+\.(\d+)/i);
             if (bySlug) return bySlug[1];
             const byPath = value.match(/\/product\/\d+\/(\d+)/i);
             if (byPath) return byPath[1];
-            return /^\d+$/.test(value) ? value : '';
+            const byQuery = value.match(/[?&#](?:item[_-]?id|itemid)=(\d{6,})/i);
+            if (byQuery) return byQuery[1];
+            return /^\d+$/.test(value) ? value : "";
+        }
+
+        function looksLikeShopeeProductInput(raw) {
+            const value = String(raw || "").trim();
+            if (!value) return false;
+            if (parseShopeeItemId(value)) return true;
+            return /(?:^https?:\/\/)?(?:[\w.-]*shopee\.|shope\.ee\/|shp\.ee\/|s\.shopee\.)/i.test(value);
         }
 
         /**
@@ -1759,7 +1779,7 @@
                 showToast('Busque pelo nome ou cole o link da Shopee', 'error');
                 return false;
             }
-            if (!parseShopeeItemId(typed)) {
+            if (!looksLikeShopeeProductInput(typed)) {
                 showToast('Escolha o produto na lista ou cole o link / ID da Shopee', 'error');
                 renderCampaignProductPicker();
                 return false;
@@ -1799,13 +1819,13 @@
                     || String(p.title || '').toLowerCase().includes(q)
                 )
                 .slice(0, 8);
-            const looksLikeId = Boolean(parseShopeeItemId(raw));
+            const looksLikeId = looksLikeShopeeProductInput(raw);
             const lookupRow = looksLikeId
                 ? `<button type="button" onclick="resolveCampaignProductById('${escapeAttr(raw)}')"
                         class="w-full flex items-center gap-2 p-2 rounded-lg bg-orange-50 border border-orange-100 text-left hover:bg-orange-100">
                         <i class="fas fa-cloud-arrow-down text-shopee-orange"></i>
                         <span class="min-w-0 flex-1">
-                            <span class="block text-[11px] font-bold text-slate-700">Buscar este ID na Shopee</span>
+                            <span class="block text-[11px] font-bold text-slate-700">Buscar este link/ID na Shopee</span>
                         </span>
                     </button>`
                 : '';
