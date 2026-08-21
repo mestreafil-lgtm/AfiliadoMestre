@@ -213,6 +213,7 @@
         "campanha-desempenho": { title: "Resultado das campanhas", subtitle: "Resultados por Sub ID" },
         desempenho: { title: "Todas as conversões", subtitle: "Conversões e comissões da Shopee" },
         "meu-site": { title: "Vendas do site", subtitle: "Vendas atribuídas à vitrine pública" },
+        financeiro: { title: "Financeiro", subtitle: "Resumo financeiro das conversões no período selecionado" },
         visualizacoes: { title: "Visualizações", subtitle: "Visitas e tráfego via Cloudflare" },
     };
 
@@ -474,7 +475,15 @@
             if (!sidebar) return;
             const open = forceOpen === undefined ? !sidebar.classList.contains("open") : !!forceOpen;
             sidebar.classList.toggle("open", open);
-            if (backdrop) backdrop.classList.toggle("hidden", !open);
+            if (backdrop) {
+                backdrop.classList.toggle("hidden", !open);
+                backdrop.style.display = open ? "block" : "none";
+            }
+            try {
+                document.body.style.overflow = open && window.matchMedia("(max-width: 900px)").matches
+                    ? "hidden"
+                    : "";
+            } catch (_) {}
         }
         /** Alias do mock / HTML alternativo */
         function toggleMobileSidebar(forceOpen) {
@@ -588,6 +597,7 @@
             }
 
             toggleAdminSidebar(false);
+            try { document.body.style.overflow = ""; } catch (_) {}
             if (view === "dashboard") {
                 loadAdminStats();
                 loadAutoStatus();
@@ -642,6 +652,8 @@
                 loadConversions({ reset: true, pull: true });
             } else if (view === "meu-site") {
                 loadMeuSiteSummary({ pull: true });
+            } else if (view === "financeiro") {
+                loadFinanceiro({ pull: true });
             }
         }
 
@@ -2669,10 +2681,6 @@
             setTxt("conversion-estimated", estimatedText);
             setTxt("conversion-cancelled", String(cancelledCount));
             setTxt("conversion-subids", String(subIds.size));
-            const dashTotal = document.getElementById("dash-conversion-total");
-            const dashComm = document.getElementById("dash-conversion-commission");
-            if (dashTotal) dashTotal.textContent = String(conversionRows.length);
-            if (dashComm) dashComm.textContent = confirmedText;
 
             renderConversionStatusTabs(allOrders, orders.length);
 
@@ -2742,21 +2750,23 @@
                     <article class="conv-row">
                         <img src="${image}" alt="" class="conv-thumb"
                             onerror="this.onerror=null;this.src='https://placehold.co/96x96/ffebd7/ee4d2d?text=Shopee'">
-                        <div class="min-w-0">
-                            <p class="font-semibold text-slate-800 truncate">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
-                            <p class="text-[10px] text-slate-500 truncate">
-                                Pedido ${escapeHtml(String(order.orderId || "—"))}
-                                · ${escapeHtml(conversionDate(conversion.purchaseTime))}
-                                · ${escapeHtml(String(item.shopName || "Loja"))}
+                        <div class="conv-main min-w-0">
+                            <p class="conv-title font-semibold text-slate-800 truncate" title="${escapeAttr(String(item.itemName || `Item ${item.itemId || ""}`))}">${escapeHtml(String(item.itemName || `Item ${item.itemId || ""}`))}</p>
+                            <p class="conv-meta-line text-[10px] text-slate-500 truncate" title="${escapeAttr(`${order.orderId || ""} · ${conversionDate(conversion.purchaseTime)} · ${item.shopName || ""}`)}">
+                                <span class="conv-order-wrap"><span class="conv-order-prefix">Pedido </span><span class="conv-order-id">${escapeHtml(String(order.orderId || "—"))}</span></span>
+                                <span class="conv-meta-sep"> · </span>
+                                <span class="conv-date">${escapeHtml(conversionDate(conversion.purchaseTime))}</span>
+                                <span class="conv-meta-sep"> · </span>
+                                <span class="conv-shop">${escapeHtml(String(item.shopName || "Loja"))}</span>
                             </p>
                         </div>
-                        <div class="min-w-0 text-[10px] text-slate-600">
+                        <div class="min-w-0 text-[10px] text-slate-600 conv-campaign">
                             <p class="font-bold text-slate-800 truncate">${escapeHtml(parsed.campaign || "—")}</p>
                             <p class="text-slate-400 truncate">${escapeHtml(parsed.channel || "—")}</p>
                         </div>
-                        <div>
+                        <div class="conv-status">
                             <span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${meta.chip}">${escapeHtml(meta.label)}</span>
-                            <p class="text-[9px] font-bold mt-0.5 ${moneyKind.className}">${escapeHtml(moneyKind.label)}</p>
+                            <p class="conv-money-kind text-[9px] font-bold mt-0.5 ${moneyKind.className}">${escapeHtml(moneyKind.label)}</p>
                         </div>
                         <div class="conv-money ${moneyClass}">${moneyVal}</div>
                     </article>`);
@@ -3240,6 +3250,97 @@
             renderCampaignPerformance();
         }
 
+        async function loadFinanceiro({ pull = false } = {}) {
+            if (!isAdminMode()) return;
+            const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            const byCampEl = document.getElementById("fin-by-campaign");
+            setText("fin-total", "…");
+            setText("fin-confirmed", "…");
+            setText("fin-estimated", "…");
+            setText("fin-cancelled", "…");
+            if (byCampEl) byCampEl.textContent = "Carregando…";
+            try {
+                if (pull) await ensureConversionsFresh({ force: false });
+                await syncSavedCampaigns();
+                const days = document.getElementById("fin-days")?.value || "30";
+                const params = new URLSearchParams({ days: String(days) });
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Não foi possível carregar o financeiro");
+                const rows = Array.isArray(data.conversions) ? data.conversions : [];
+
+                let confirmed = 0;
+                let estimated = 0;
+                let completed = 0;
+                let pending = 0;
+                let unpaid = 0;
+                let cancelled = 0;
+                let orders = 0;
+
+                for (const conversion of rows) {
+                    for (const order of (conversion.orders || [])) {
+                        orders += 1;
+                        const st = String(order.orderStatus || "").toUpperCase();
+                        const money = commissionNumber(conversion.totalCommission);
+                        if (st === "COMPLETED") {
+                            completed += 1;
+                            confirmed += money;
+                        } else if (st === "PENDING") {
+                            pending += 1;
+                            estimated += money;
+                        } else if (st === "UNPAID") {
+                            unpaid += 1;
+                            estimated += money;
+                        } else if (st === "CANCELLED") {
+                            cancelled += 1;
+                        }
+                    }
+                }
+
+                const total = confirmed + estimated;
+                const cancelPct = orders ? Math.round((cancelled / orders) * 1000) / 10 : 0;
+                const unpaidLabel = unpaid === 1 ? "1 não pago" : `${unpaid} não pagos`;
+
+                setText("fin-total", formatMoneyBRL(total));
+                setText("fin-confirmed", formatMoneyBRL(confirmed));
+                setText("fin-confirmed-hint", `${completed} pedido${completed === 1 ? "" : "s"} concluído${completed === 1 ? "" : "s"}`);
+                setText("fin-estimated", formatMoneyBRL(estimated));
+                setText("fin-estimated-hint", `${pending} pendente${pending === 1 ? "" : "s"} + ${unpaidLabel}`);
+                setText("fin-cancelled", String(cancelled));
+                setText("fin-cancelled-hint", `${String(cancelPct).replace(".", ",")}% dos pedidos`);
+                setText("fin-orders-total", String(orders));
+                setText("fin-orders-completed", String(completed));
+                setText("fin-orders-pending", String(pending));
+                setText("fin-orders-unpaid", String(unpaid));
+                setText("fin-orders-cancelled", String(cancelled));
+
+                const campaigns = buildCampaignPerformanceMap(rows)
+                    .filter((c) => c.commission > 0 || c.orders > 0)
+                    .sort((a, b) => b.commission - a.commission);
+                const campTotal = campaigns.reduce((s, c) => s + c.commission, 0);
+                setText("fin-by-campaign-total", formatMoneyBRL(campTotal));
+
+                if (!campaigns.length) {
+                    if (byCampEl) byCampEl.textContent = "Nenhuma comissão no período.";
+                    return;
+                }
+                if (byCampEl) {
+                    byCampEl.innerHTML = campaigns.map((c) => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9">
+                            <span style="font-weight:600;color:#0f172a">${escapeHtml(c.name)}</span>
+                            <span style="font-weight:800;color:#0f172a;white-space:nowrap">${formatMoneyBRL(c.commission)}</span>
+                        </div>
+                    `).join("");
+                }
+            } catch (err) {
+                setText("fin-total", "—");
+                setText("fin-confirmed", "—");
+                setText("fin-estimated", "—");
+                setText("fin-cancelled", "—");
+                if (byCampEl) byCampEl.textContent = err.message || "Erro ao carregar";
+            }
+        }
+
         async function loadMeuSiteSummary({ pull = false } = {}) {
             if (!isAdminMode()) return;
             const daysSel = document.getElementById("ms-days");
@@ -3476,13 +3577,17 @@
             const dashComm = document.getElementById("dash-conversion-commission");
             if (!dashTotal && !dashComm) return;
             try {
-                const res = await adminFetch(`${API_BASE}/api/conversions/summary?days=30`);
+                // Mesma fonte do Meu Site / Todas as conversões (banco), não o report ao vivo (limit 50).
+                const res = await adminFetch(`${API_BASE}/api/admin/meu-site/summary?days=30&onlyMeuSite=true`);
                 const d = await res.json();
-                if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
-                const total = Number(d.conversions) || 0;
-                const commission = (d.channels || []).reduce((s, c) => s + (Number(c.commission) || 0), 0);
-                if (dashTotal) dashTotal.textContent = String(total);
-                if (dashComm) dashComm.textContent = commission.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                if (!res.ok || !d?.ok) throw new Error(d.error || `HTTP ${res.status}`);
+                const t = d.totals || {};
+                if (dashTotal) dashTotal.textContent = String(t.orders || 0);
+                // Confirmado = COMPLETED (bruto/total_commission), alinhado ao card verde de conversões.
+                const confirmed = Number(t.gross) || 0;
+                if (dashComm) {
+                    dashComm.textContent = confirmed.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                }
             } catch (_) {
                 if (dashTotal && dashTotal.textContent === "—") dashTotal.textContent = "0";
             }
@@ -5183,6 +5288,23 @@
         return `<span style="display:inline-block;margin:0 6px 6px 0;padding:5px 10px;background:${c}18;color:${c};border-radius:6px;font-weight:700;font-size:12px">${code} <span style="font-weight:400;opacity:.8">${fmt(count)}</span></span>`;
     }
 
+    function refererLabel(host) {
+        if (!host) return "Direto / sem referer";
+        const h = host.toLowerCase();
+        if (h.includes("facebook") || h.includes("fb.com") || h === "m.facebook.com") return "Facebook";
+        if (h.includes("instagram")) return "Instagram";
+        if (h.includes("google")) return "Google";
+        if (h.includes("tiktok")) return "TikTok";
+        if (h.includes("twitter") || h.includes("t.co")) return "Twitter / X";
+        if (h.includes("whatsapp")) return "WhatsApp";
+        if (h.includes("youtube")) return "YouTube";
+        if (h.includes("bing")) return "Bing";
+        return host;
+    }
+
+    const CACHE_LABELS = { hit: "Cache hit", miss: "Cache miss", dynamic: "Dinâmico", expired: "Expirado", stale: "Stale", bypass: "Bypass", revalidated: "Revalidado", none: "Sem cache", unknown: "Desconhecido" };
+    const CACHE_COLORS = { hit: "#10b981", miss: "#ef4444", dynamic: "#3b82f6", expired: "#f59e0b", stale: "#8b5cf6", bypass: "#94a3b8", revalidated: "#06b6d4", none: "#cbd5e1" };
+
     async function loadAnalytics(since) {
         if (since) _analyticsPeriod = since;
         const s = _analyticsPeriod;
@@ -5196,13 +5318,17 @@
         const el = id => document.getElementById(id);
         const loading = "Carregando…";
         el("analytics-uniques").textContent = "…";
+        el("analytics-visits").textContent = "…";
         el("analytics-pageviews").textContent = "…";
         el("analytics-requests").textContent = "…";
         el("analytics-bandwidth").textContent = "…";
+        el("analytics-cache-rate").textContent = "…";
         el("analytics-countries").textContent = loading;
         el("analytics-devices").textContent = loading;
         el("analytics-browsers").textContent = loading;
-        el("analytics-status").textContent = loading;
+        el("analytics-referrers").textContent = loading;
+        el("analytics-traffic-split").textContent = loading;
+        el("analytics-cache").textContent = loading;
         el("analytics-paths").textContent = loading;
         try {
             const res = await fetch(`/api/admin/analytics?since=${s}`, {
@@ -5212,9 +5338,14 @@
             if (!data.ok) throw new Error(data.error || "Erro");
             const fmt = n => Number(n).toLocaleString("pt-BR");
             el("analytics-uniques").textContent   = fmt(data.summary.uniques);
+            el("analytics-visits").textContent    = fmt(data.summary.visits || 0);
             el("analytics-pageviews").textContent  = fmt(data.summary.pageviews);
             el("analytics-requests").textContent   = fmt(data.summary.requests);
             el("analytics-bandwidth").textContent  = (data.summary.bandwidth / 1048576).toFixed(1);
+            el("analytics-cache-rate").textContent = (data.summary.cacheHitRate != null ? data.summary.cacheHitRate + "%" : "—");
+
+            const chartTitle = document.getElementById("analytics-chart-title");
+            if (chartTitle) chartTitle.textContent = data.seriesGranularity === "hour" ? "Visitas por hora" : "Visitas por dia";
 
             const countries = Object.entries(data.summary.countries || {})
                 .sort((a, b) => b[1] - a[1]).slice(0, 10);
@@ -5243,10 +5374,34 @@
                 ? bEntries.map(([b, n], i) => analyticsBar(b, n, bMax, BROWSER_COLORS[i % BROWSER_COLORS.length], ((n / bTotal) * 100).toFixed(1) + "%")).join("")
                 : "Sem dados";
 
-            const sEntries = Object.entries(data.summary.statusCodes || {})
-                .sort((a, b) => b[1] - a[1]);
-            el("analytics-status").innerHTML = sEntries.length
-                ? sEntries.map(([c, n]) => statusChip(c, n, fmt)).join("")
+            const refs = data.referrers || [];
+            if (data.referrersUnavailable) {
+                el("analytics-referrers").innerHTML = '<p style="color:#94a3b8;font-size:12px;line-height:1.5">Origem detalhada (referrer) não disponível no plano Free da Cloudflare. Para saber de qual anúncio veio o tráfego, use o Meta Events Manager.</p>';
+            } else {
+                const rMax = refs.length ? refs[0].requests : 0;
+                const rTotal = refs.reduce((s, r) => s + r.requests, 0) || 1;
+                el("analytics-referrers").innerHTML = refs.length
+                    ? refs.slice(0, 10).map(r => analyticsBar(refererLabel(r.host), r.requests, rMax, "#6366f1", ((r.requests / rTotal) * 100).toFixed(1) + "%")).join("")
+                    : "Sem dados de origem no período";
+            }
+
+            const split = data.trafficSplit || {};
+            const splitTotal = (split.campaign || 0) + (split.vitrine || 0) + (split.other || 0) || 1;
+            const splitMax = Math.max(split.campaign || 0, split.vitrine || 0, split.other || 0);
+            el("analytics-traffic-split").innerHTML =
+                analyticsBar("Campanhas (/p/*)", split.campaign || 0, splitMax, "#ee4d2d", (((split.campaign || 0) / splitTotal) * 100).toFixed(1) + "%") +
+                analyticsBar("Vitrine", split.vitrine || 0, splitMax, "#3b82f6", (((split.vitrine || 0) / splitTotal) * 100).toFixed(1) + "%") +
+                analyticsBar("Outros (API, assets)", split.other || 0, splitMax, "#94a3b8", (((split.other || 0) / splitTotal) * 100).toFixed(1) + "%");
+
+            const cacheItems = data.cache || [];
+            const cacheMax = cacheItems.length ? cacheItems[0].requests : 0;
+            const cacheTotalReq = cacheItems.reduce((s, c) => s + c.requests, 0) || 1;
+            el("analytics-cache").innerHTML = cacheItems.length
+                ? cacheItems.map(c => {
+                    const label = CACHE_LABELS[c.status] || c.status;
+                    const color = CACHE_COLORS[c.status] || "#94a3b8";
+                    return analyticsBar(label, c.requests, cacheMax, color, ((c.requests / cacheTotalReq) * 100).toFixed(1) + "%");
+                }).join("")
                 : "Sem dados";
 
             const paths = data.topPaths || [];
@@ -5270,18 +5425,20 @@
                 el("analytics-paths").textContent = "Sem dados";
             }
 
-            renderAnalyticsChart(data.series || []);
+            renderAnalyticsChart(data.series || [], data.seriesGranularity);
         } catch (err) {
             el("analytics-uniques").textContent = "—";
+            el("analytics-visits").textContent = "—";
             el("analytics-pageviews").textContent = "—";
             el("analytics-requests").textContent = "—";
             el("analytics-bandwidth").textContent = "—";
-            ["analytics-countries","analytics-devices","analytics-browsers","analytics-status","analytics-paths"]
-                .forEach(id => el(id).textContent = err.message);
+            el("analytics-cache-rate").textContent = "—";
+            ["analytics-countries","analytics-devices","analytics-browsers","analytics-referrers","analytics-traffic-split","analytics-cache","analytics-paths"]
+                .forEach(id => { const n = el(id); if (n) n.textContent = err.message; });
         }
     }
 
-    async function renderAnalyticsChart(series) {
+    async function renderAnalyticsChart(series, granularity) {
         const canvas = document.getElementById("analytics-canvas");
         if (!canvas) return;
         const wrap = canvas.parentElement;
@@ -5296,6 +5453,9 @@
         if (typeof Chart !== "undefined") {
             const labels = series.map(t => {
                 const d = new Date(t.since);
+                if (granularity === "hour") {
+                    return `${String(d.getHours()).padStart(2,"0")}h`;
+                }
                 return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
             });
             _analyticsChart = new Chart(ctx, {
@@ -5356,7 +5516,7 @@
         onCampaignProductSearchKey, syncSavedCampaigns,
         generateCampaignShopeeLinks, copyCampaignShopeeLinks,
         updateCampaignLinkPreview, updateSubIdPreview, loadCampaignPerformance, openCampaignPerfDetail,
-        closeCampaignPerfDetail, openCampaignPerfByName, loadMeuSiteSummary, pullConversionsNow,
+        closeCampaignPerfDetail, openCampaignPerfByName, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
         previewFeed, lookupConversion, loadDashboardSales,

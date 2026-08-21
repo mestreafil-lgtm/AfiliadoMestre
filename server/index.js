@@ -1840,17 +1840,32 @@ app.delete("/api/campanhas-rastreio/:id", requireAdmin, async (req, res) => {
 
 app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
   try {
-    const token   = process.env.CF_API_TOKEN;
-    const zone    = process.env.CF_ZONE_ID;
-    const account = process.env.CF_ACCOUNT_ID || "0ecea92475c1c5c536737716ec461a6e";
-    if (!token) return res.status(500).json({ error: "Cloudflare não configurado" });
+    const token = process.env.CF_API_TOKEN;
+    const zone  = process.env.CF_ZONE_ID;
+    if (!token || !zone) return res.status(500).json({ error: "Cloudflare não configurado" });
+
+    const cfHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    async function cfQuery(query) {
+      const r = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+        method: "POST", headers: cfHeaders, body: JSON.stringify({ query }),
+      });
+      return r.json();
+    }
 
     const minutesMap = { "-1440": 1, "-10080": 7, "-43200": 30 };
-    const days = minutesMap[req.query.since] || 7;
+    const sinceParam = req.query.since || "-10080";
+    const days = minutesMap[sinceParam] || 7;
+    const isHourly = sinceParam === "-1440";
     const now = new Date();
     const start = new Date(now); start.setDate(start.getDate() - days);
     const dateSince = start.toISOString().slice(0, 10);
     const dateUntil = now.toISOString().slice(0, 10);
+    const dtSince = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+    const dayList = [];
+    for (let d = new Date(dateSince + "T12:00:00Z"); d <= new Date(dateUntil + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) {
+      dayList.push(d.toISOString().slice(0, 10));
+    }
 
     const dailyQuery = `query {
       viewer {
@@ -1858,66 +1873,95 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
           httpRequests1dGroups(limit: 60, filter: { date_geq: "${dateSince}", date_leq: "${dateUntil}" }) {
             dimensions { date }
             sum {
-              requests pageViews bytes
+              requests pageViews bytes cachedRequests
               countryMap { clientCountryName requests }
               browserMap { uaBrowserFamily pageViews }
               responseStatusMap { edgeResponseStatus requests }
             }
             uniq { uniques }
           }
+          ${isHourly ? `httpRequests1hGroups(limit: 48, filter: { date_geq: "${dateUntil}", date_leq: "${dateUntil}" }) {
+            dimensions { datetimeHour }
+            sum { requests pageViews }
+            uniq { uniques }
+          }` : ""}
         }
       }
     }`;
 
-    const granularQuery = `query {
+    const perDayQuery = (day) => `query {
       viewer {
         zones(filter: { zoneTag: "${zone}" }) {
-          deviceBreakdown: httpRequestsAdaptiveGroups(
-            limit: 10,
-            filter: { date_geq: "${dateSince}", date_leq: "${dateUntil}" },
-            dimensions: [clientDeviceType]
-          ) {
+          devices: httpRequestsAdaptiveGroups(limit: 10, filter: { date_geq: "${day}", date_leq: "${day}" }) {
             dimensions { clientDeviceType }
             count
           }
-          topPaths: httpRequestsAdaptiveGroups(
-            limit: 25,
-            filter: { date_geq: "${dateSince}", date_leq: "${dateUntil}" },
-            dimensions: [clientRequestPath],
-            orderBy: [count_DESC]
-          ) {
+          paths: httpRequestsAdaptiveGroups(limit: 30, filter: { date_geq: "${day}", date_leq: "${day}" }, orderBy: [count_DESC]) {
             dimensions { clientRequestPath }
+            count
+          }
+          cache: httpRequestsAdaptiveGroups(limit: 10, filter: { date_geq: "${day}", date_leq: "${day}" }) {
+            dimensions { cacheStatus }
+            count
+          }
+          visits: httpRequestsAdaptiveGroups(limit: 1, filter: { date_geq: "${day}", date_leq: "${day}", requestSource: "eyeball" }) {
+            sum { visits }
+          }
+          campaign: httpRequestsAdaptiveGroups(limit: 1, filter: { date_geq: "${day}", date_leq: "${day}", clientRequestPath_like: "/p/%" }) {
             count
           }
         }
       }
     }`;
 
-    const cfHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-    const [dailyRes, granularRes] = await Promise.all([
-      fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: cfHeaders, body: JSON.stringify({ query: dailyQuery }) }),
-      fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: cfHeaders, body: JSON.stringify({ query: granularQuery }) }),
-    ]);
-    const [dailyData, granularData] = await Promise.all([dailyRes.json(), granularRes.json()]);
+    const refererQuery = `query {
+      viewer {
+        zones(filter: { zoneTag: "${zone}" }) {
+          referrers: httpRequestsAdaptiveGroups(limit: 15, filter: { date_geq: "${dateUntil}", date_leq: "${dateUntil}", requestSource: "eyeball" }, orderBy: [count_DESC]) {
+            dimensions { clientRefererHost }
+            count
+          }
+        }
+      }
+    }`;
 
+    const dailyData = await cfQuery(dailyQuery);
     const groups = dailyData?.data?.viewer?.zones?.[0]?.httpRequests1dGroups;
     if (!groups) {
       return res.status(502).json({ error: "Cloudflare error", details: dailyData.errors || dailyData });
     }
 
-    let totalRequests = 0, totalPageviews = 0, totalUniques = 0, totalBytes = 0;
+    const dayResults = await Promise.all(dayList.map(day => cfQuery(perDayQuery(day))));
+    let referrers = [];
+    let referrersUnavailable = false;
+    const refererData = await cfQuery(refererQuery);
+    if (refererData?.errors?.length) {
+      referrersUnavailable = true;
+    } else {
+      referrers = (refererData?.data?.viewer?.zones?.[0]?.referrers || []).map(r => ({
+        host: r.dimensions?.clientRefererHost || "",
+        requests: r.count || 0,
+      }));
+    }
+
+    let totalRequests = 0, totalPageviews = 0, totalUniques = 0, totalBytes = 0, totalCached = 0;
+    let totalVisits = 0, campaignRequests = 0;
     const countries = {}, browsers = {}, statusCodes = {};
-    const series = [];
+    const devicesMap = {}, pathsMap = {}, cacheMap = {};
+    let series = [];
+    let seriesGranularity = "day";
 
     for (const g of groups) {
       const reqs = g.sum?.requests || 0;
       const pvs  = g.sum?.pageViews || 0;
       const uniqs = g.uniq?.uniques || 0;
       const bytes = g.sum?.bytes || 0;
+      const cached = g.sum?.cachedRequests || 0;
       totalRequests  += reqs;
       totalPageviews += pvs;
       totalUniques   += uniqs;
       totalBytes     += bytes;
+      totalCached    += cached;
       for (const c of g.sum?.countryMap || []) {
         countries[c.clientCountryName] = (countries[c.clientCountryName] || 0) + c.requests;
       }
@@ -1931,19 +1975,69 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
       }
       series.push({ since: g.dimensions.date, requests: reqs, pageviews: pvs, uniques: uniqs });
     }
-
     series.sort((a, b) => a.since.localeCompare(b.since));
 
-    const gZone = granularData?.data?.viewer?.zones?.[0] || {};
-    const devices = (gZone.deviceBreakdown || []).map(d => ({
-      device: d.dimensions?.clientDeviceType || "unknown",
-      requests: d.count || 0,
-    })).sort((a, b) => b.requests - a.requests);
+    const hourlyGroups = dailyData?.data?.viewer?.zones?.[0]?.httpRequests1hGroups;
+    if (isHourly && Array.isArray(hourlyGroups) && hourlyGroups.length) {
+      const cutoff = new Date(dtSince).getTime();
+      series = hourlyGroups
+        .filter(h => new Date(h.dimensions?.datetimeHour || 0).getTime() >= cutoff)
+        .sort((a, b) => (a.dimensions?.datetimeHour || "").localeCompare(b.dimensions?.datetimeHour || ""))
+        .map(h => ({
+          since: h.dimensions?.datetimeHour,
+          requests: h.sum?.requests || 0,
+          pageviews: h.sum?.pageViews || 0,
+          uniques: h.uniq?.uniques || 0,
+        }));
+      seriesGranularity = "hour";
+    }
 
-    const topPaths = (gZone.topPaths || []).map(p => ({
-      path: p.dimensions?.clientRequestPath || "/",
-      requests: p.count || 0,
-    }));
+    for (const dr of dayResults) {
+      const z = dr?.data?.viewer?.zones?.[0];
+      if (!z) continue;
+      totalVisits += z.visits?.[0]?.sum?.visits || 0;
+      campaignRequests += z.campaign?.[0]?.count || 0;
+      for (const d of z.devices || []) {
+        const k = d.dimensions?.clientDeviceType || "unknown";
+        devicesMap[k] = (devicesMap[k] || 0) + (d.count || 0);
+      }
+      for (const p of z.paths || []) {
+        const k = p.dimensions?.clientRequestPath || "/";
+        pathsMap[k] = (pathsMap[k] || 0) + (p.count || 0);
+      }
+      for (const c of z.cache || []) {
+        const k = c.dimensions?.cacheStatus || "unknown";
+        cacheMap[k] = (cacheMap[k] || 0) + (c.count || 0);
+      }
+    }
+
+    if (!referrersUnavailable) {
+      const refMap = {};
+      for (const r of referrers) refMap[r.host || ""] = (refMap[r.host || ""] || 0) + r.requests;
+      referrers = Object.entries(refMap).map(([host, requests]) => ({ host, requests }))
+        .sort((a, b) => b.requests - a.requests);
+    }
+
+    const devices = Object.entries(devicesMap).map(([device, requests]) => ({ device, requests }))
+      .sort((a, b) => b.requests - a.requests);
+    const topPaths = Object.entries(pathsMap).map(([path, requests]) => ({ path, requests }))
+      .sort((a, b) => b.requests - a.requests).slice(0, 30);
+    const cache = Object.entries(cacheMap).map(([status, requests]) => ({ status, requests }))
+      .sort((a, b) => b.requests - a.requests);
+
+    let otherRequests = 0;
+    for (const [path, requests] of Object.entries(pathsMap)) {
+      if (path.startsWith("/p/")) continue;
+      if (path.startsWith("/api/") || path.startsWith("/uploads/") || path.startsWith("/cdn-cgi/") || /\.[a-z0-9]{2,5}$/i.test(path)) {
+        otherRequests += requests;
+      }
+    }
+    const vitrineRequests = Math.max(0, totalRequests - campaignRequests - otherRequests);
+
+    const cacheTotal = cache.reduce((s, c) => s + c.requests, 0) || totalRequests || 1;
+    const cacheHitRate = cache.length
+      ? ((cache.filter(c => ["hit", "stale", "revalidated"].includes(c.status)).reduce((s, c) => s + c.requests, 0) / cacheTotal) * 100)
+      : (totalCached > 0 && totalRequests > 0 ? (totalCached / totalRequests) * 100 : 0);
 
     res.json({
       ok: true,
@@ -1951,14 +2045,26 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
         requests:  totalRequests,
         pageviews: totalPageviews,
         uniques:   totalUniques,
+        visits:    totalVisits,
         bandwidth: totalBytes,
+        cachedRequests: totalCached,
+        cacheHitRate: Math.round(cacheHitRate * 10) / 10,
         countries,
         browsers,
         statusCodes,
       },
       series,
+      seriesGranularity,
       devices,
       topPaths,
+      referrers,
+      referrersUnavailable,
+      cache,
+      trafficSplit: {
+        campaign: campaignRequests,
+        vitrine: vitrineRequests,
+        other: Math.max(0, totalRequests - campaignRequests - vitrineRequests),
+      },
     });
   } catch (err) {
     console.error("[/api/admin/analytics]", err.message);
