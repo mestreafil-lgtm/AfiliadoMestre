@@ -1682,6 +1682,10 @@
             if (bySlug) return bySlug[1];
             const byPath = value.match(/\/product\/\d+\/(\d+)/i);
             if (byPath) return byPath[1];
+            const byOpa = value.match(/\/(?:opaanlp|product-i|p)\/\d+\/(\d+)/i);
+            if (byOpa) return byOpa[1];
+            const byGeneric = value.match(/shopee\.com\.br\/[^?\s#]*?\/\d{5,}\/(\d{6,})(?:[/?#]|$)/i);
+            if (byGeneric) return byGeneric[1];
             const byQuery = value.match(/[?&#](?:item[_-]?id|itemid)=(\d{6,})/i);
             if (byQuery) return byQuery[1];
             return /^\d+$/.test(value) ? value : "";

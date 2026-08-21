@@ -61,6 +61,20 @@ function extractItemIdFromUrl(url, depth = 0) {
     return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
   }
 
+  // Shortlink affiliate resolve: /opaanlp/{shopId}/{itemId} (e variantes de landing)
+  m = s.match(/\/(?:opaanlp|product-i|p)\/(\d+)\/(\d+)/i);
+  if (m) {
+    const itemId = Number(m[2]);
+    return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
+  }
+
+  // Path genérico Shopee: /algo/{shopId}/{itemId} com IDs longos (após redirect de s.shopee)
+  m = s.match(/shopee\.com\.br\/[^?\s#]*?\/(\d{5,})\/(\d{6,})(?:[/?#]|$)/i);
+  if (m) {
+    const itemId = Number(m[2]);
+    return Number.isSafeInteger(itemId) && itemId > 0 ? itemId : null;
+  }
+
   // query/fragment explícito
   m = s.match(/[?&#](?:item[_-]?id|itemid)=(\d{6,})/i);
   if (m) {
@@ -98,6 +112,14 @@ function extractShopAndItemFromUrl(url) {
     return { shopId: Number(m[1]) || null, itemId: Number(m[2]) || null };
   }
   m = s.match(/\/product\/(\d+)\/(\d+)/i);
+  if (m) {
+    return { shopId: Number(m[1]) || null, itemId: Number(m[2]) || null };
+  }
+  m = s.match(/\/(?:opaanlp|product-i|p)\/(\d+)\/(\d+)/i);
+  if (m) {
+    return { shopId: Number(m[1]) || null, itemId: Number(m[2]) || null };
+  }
+  m = s.match(/shopee\.com\.br\/[^?\s#]*?\/(\d{5,})\/(\d{6,})(?:[/?#]|$)/i);
   if (m) {
     return { shopId: Number(m[1]) || null, itemId: Number(m[2]) || null };
   }

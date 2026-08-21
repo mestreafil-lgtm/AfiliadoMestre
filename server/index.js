@@ -64,13 +64,47 @@ async function resolveShopeeItemIdFromInput(rawInput) {
   if (!looksShort && !looksHttp) return null;
 
   let url = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/\//, "")}`;
+  const uaDesktop =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+  const uaMobile =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
   try {
-    for (let i = 0; i < 6; i++) {
+    // 1) Segue redirects automaticamente (s.shopee → shopee.com.br/opaanlp/shop/item)
+    for (const ua of [uaDesktop, uaMobile]) {
+      const res = await fetch(url, {
+        method: "GET",
+        redirect: "follow",
+        headers: {
+          "User-Agent": ua,
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        },
+      });
+      const finalUrl = String(res.url || url);
+      itemId = extractItemIdFromUrl(finalUrl);
+      if (itemId) return itemId;
+
+      if (res.status >= 200 && res.status < 400) {
+        const text = await res.text().catch(() => "");
+        itemId = extractItemIdFromUrl(text.slice(0, 400000));
+        if (itemId) return itemId;
+        // JSON embutido comum no HTML da Shopee
+        const jsonItem = text.match(/"itemid"\s*:\s*(\d{6,})/i) || text.match(/"item_id"\s*:\s*(\d{6,})/i);
+        if (jsonItem) {
+          const n = Number(jsonItem[1]);
+          if (Number.isSafeInteger(n) && n > 0) return n;
+        }
+      }
+    }
+
+    // 2) Fallback: redirects manuais (caso follow seja bloqueado)
+    for (let i = 0; i < 8; i++) {
       const res = await fetch(url, {
         method: "GET",
         redirect: "manual",
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; AfiliadaMestre/1.0)",
+          "User-Agent": uaDesktop,
           Accept: "text/html,*/*",
         },
       });
@@ -80,14 +114,6 @@ async function resolveShopeeItemIdFromInput(rawInput) {
         itemId = extractItemIdFromUrl(url);
         if (itemId) return itemId;
         continue;
-      }
-      itemId = extractItemIdFromUrl(url);
-      if (itemId) return itemId;
-      // Último recurso: corpo HTML com -i.shop.item ou /product/
-      if (res.status >= 200 && res.status < 400) {
-        const text = await res.text().catch(() => "");
-        itemId = extractItemIdFromUrl(text.slice(0, 200000));
-        if (itemId) return itemId;
       }
       break;
     }
