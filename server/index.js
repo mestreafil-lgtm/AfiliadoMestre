@@ -531,7 +531,7 @@ app.get("/api/health", (_req, res) => {
     // Ajuda a confirmar se o Railway publicou o commit certo.
     deploy: process.env.RAILWAY_GIT_COMMIT_SHA
       || process.env.RAILWAY_DEPLOYMENT_ID
-      || "search-page-v3",
+      || "search-page-v4",
     features: {
       searchPage: true,
       searchIlike: true,
@@ -887,6 +887,7 @@ app.get("/api/ofertas/db", async (req, res) => {
     // Home / catálogo geral: moneyScore. Categorias específicas mantêm recent se não pedirem sort.
     const sortRaw = String(req.query.sort || "").trim();
     const sort = sortRaw || (!category || category === "todos" ? "money" : "recent");
+    const minRating = Number(req.query.minRating) || 0;
 
     const multiIds = itemIdsRaw
       ? itemIdsRaw.split(/[,|]+/).map((s) => s.trim()).filter(Boolean)
@@ -906,14 +907,14 @@ app.get("/api/ofertas/db", async (req, res) => {
       });
     }
 
-    const cacheKey = `${keyword}|${category}|${subcategory}|${limit}|${offset}|${sort}`;
+    const cacheKey = `${keyword}|${category}|${subcategory}|${limit}|${offset}|${sort}|${minRating}`;
     const cached = ofertasCache.get(cacheKey);
     if (cached && Date.now() - cached.at < OFERTAS_TTL_MS) {
       setCacheHeaders(res, { maxAge: 45, sMaxAge: 120, swr: 600 });
       return res.json({ ...cached.data, cached: true });
     }
 
-    const rows = await listOfertas({ keyword, category, subcategory, limit, offset, sort });
+    const rows = await listOfertas({ keyword, category, subcategory, limit, offset, sort, minRating });
     const list = Array.isArray(rows) ? rows : [];
     const payload = {
       source: "supabase",

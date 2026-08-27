@@ -28,6 +28,23 @@ function visibleOnlyQuery() {
   return "or=(hidden.is.null,hidden.eq.false)";
 }
 
+/** Converte rating_star bruto para escala 0–5 (Shopee). */
+function normalizeRatingStar(raw) {
+  const r = Number(raw);
+  if (!Number.isFinite(r) || r <= 0) return null;
+  if (r > 5 && r <= 50) return Math.min(5, r / 10);
+  if (r > 5 && r <= 100) return Math.min(5, r / 20);
+  return Math.min(5, r);
+}
+
+/** UI usa 2–5 estrelas; "5 estrelas" na Shopee ≈ nota ≥ 4,8. */
+function ratingFilterThreshold(minStars) {
+  const n = Number(minStars);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (n >= 5) return 4.8;
+  return n;
+}
+
 function getConfig() {
   const url = (process.env.SUPABASE_URL || "").replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
   const serviceKey = (process.env.SUPABASE_SERVICE_KEY || "").trim();
@@ -158,7 +175,15 @@ async function updateShortLink(itemId, shortLink) {
   }
 }
 
-async function listOfertas({ limit = 60, offset = 0, keyword = "", category = "", subcategory = "", sort = "recent" } = {}) {
+async function listOfertas({
+  limit = 60,
+  offset = 0,
+  keyword = "",
+  category = "",
+  subcategory = "",
+  sort = "recent",
+  minRating = 0,
+} = {}) {
   const safeLimit = Math.min(Math.max(Number(limit) || 60, 1), 200);
   const safeOffset = Math.max(Number(offset) || 0, 0);
 
@@ -220,6 +245,8 @@ async function listOfertas({ limit = 60, offset = 0, keyword = "", category = ""
     // quando havia categoria, zerando ou estreitando demais os resultados.
     const textFilter = buildTextSearchFilter(kw);
     if (textFilter) path += `&${textFilter}`;
+    const ratingMin = ratingFilterThreshold(minRating);
+    if (ratingMin > 0) path += `&rating_star=gte.${ratingMin}`;
     return path;
   }
 
@@ -427,10 +454,7 @@ function rowToProduct(row) {
     newPrice: priceMin,
     discount: discountPct ? `${discountPct}%` : "0%",
     discountPct,
-    stars: (() => {
-      const r = Number(row.rating_star);
-      return Number.isFinite(r) ? r : 4.5;
-    })(),
+    stars: normalizeRatingStar(row.rating_star) ?? 4.5,
     reviews: 0,
     sales: salesLabel || "—",
     salesRaw: sales,

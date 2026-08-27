@@ -267,11 +267,23 @@
                 || !!(s && (s.nacional || s.internacional));
         }
         /** Nota do produto em escala 0–5 (Shopee). */
-        function productRating(p) {
-            const n = Number(p?.stars);
+        function normalizeRatingStar(raw) {
+            const r = Number(raw);
+            if (!Number.isFinite(r) || r <= 0) return 0;
+            if (r > 5 && r <= 50) return Math.min(5, r / 10);
+            if (r > 5 && r <= 100) return Math.min(5, r / 20);
+            return Math.min(5, r);
+        }
+        /** UI: botão "5 estrelas" = nota ≥ 4,8 (como na Shopee). */
+        function minRatingThreshold(minStars) {
+            const n = Number(minStars);
             if (!Number.isFinite(n) || n <= 0) return 0;
-            if (n > 5) return Math.min(5, n / 20);
-            return Math.min(5, n);
+            if (n >= 5) return 4.8;
+            return n;
+        }
+        function productRating(p) {
+            const n = normalizeRatingStar(p?.stars ?? p?.rating_star ?? p?.ratingStar);
+            return n > 0 ? n : 0;
         }
         /** Aplica filtros da sidebar (preço, avaliação, mall, frete, desconto). */
         function productMatchesStoreFilters(p) {
@@ -280,7 +292,10 @@
             if (storeFilters.priceMin != null && price < storeFilters.priceMin) return false;
             if (storeFilters.priceMax != null && price > storeFilters.priceMax) return false;
             if (storeFilters.onlyDiscount && displayDiscount(p) < 5) return false;
-            if (storeFilters.minRating > 0 && productRating(p) < storeFilters.minRating) return false;
+            if (storeFilters.minRating > 0) {
+                const threshold = minRatingThreshold(storeFilters.minRating);
+                if (productRating(p) < threshold) return false;
+            }
             if (storeFilters.onlyMall && !isOfficialShop(p.shopType)) return false;
             const s = storeFilters.shipping;
             if (s.nacional || s.internacional) {
@@ -413,8 +428,8 @@
             return `${(n / 1000000).toFixed(1).replace(".", ",")}mi+ vendidos`;
         }
         function formatRating(r) {
-            const n = Number(r);
-            if (!Number.isFinite(n) || n <= 0) return null;
+            const n = normalizeRatingStar(r);
+            if (!n) return null;
             return n.toFixed(1);
         }
         function displayDiscount(p) {
@@ -1019,7 +1034,8 @@ async function loadOffersFromSupabase(opts = {}) {
                 + `&keyword=${encodeURIComponent(keyword)}`
                 + `&subcategory=${encodeURIComponent(subcategory)}`
                 + `&category=${encodeURIComponent(category)}`
-                + `&sort=${encodeURIComponent(opts.sort || currentStoreSort)}`;
+                + `&sort=${encodeURIComponent(opts.sort || currentStoreSort)}`
+                + `&minRating=${encodeURIComponent(opts.minRating != null ? opts.minRating : storeFilters.minRating || 0)}`;
             try {
                 if (reset && !opts.keepPreviousAbort) {
                     try { offersAbort?.abort(); } catch (_) {}
@@ -2424,6 +2440,29 @@ async function loadOffersFromSupabase(opts = {}) {
             currentPage = 0;
             renderShopeeSidebar();
             renderStoreProducts();
+            reloadStoreOffersForFilters();
+        }
+
+        /** Recarrega ofertas do Supabase quando filtros precisam varrer o catálogo inteiro. */
+        async function reloadStoreOffersForFilters() {
+            if (!apiLive) return;
+            try {
+                const searchTerm = String(currentSearchQuery || "").trim();
+                const limit = Math.max(PAGE_SIZE * 3, 72);
+                const sort = currentStoreSort === "money" && searchTerm ? "sales" : currentStoreSort;
+                await loadOffersFromSupabase({
+                    silent: true,
+                    reset: true,
+                    keyword: searchTerm,
+                    category: currentStoreCategory !== "todos" ? currentStoreCategory : "",
+                    subcategory: currentStoreSubcategory || "",
+                    minRating: storeFilters.minRating,
+                    limit,
+                    sort,
+                });
+                renderShopeeSidebar();
+                renderStoreProducts();
+            } catch (_) {}
         }
         function clearStoreFilters() {
             storeFilters.priceMin = null;
