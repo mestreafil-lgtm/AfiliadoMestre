@@ -441,10 +441,10 @@ function buildVitrineHtml() {
 }
 
 function sendVitrine(_req, res) {
-  // HTML muda com deploys: cache curto no browser, um pouco maior na CDN/edge.
+  // HTML deve atualizar rápido após deploy (busca/admin). CDN curto + sem SWR longo.
   res.set(
     "Cache-Control",
-    "public, max-age=30, s-maxage=120, stale-while-revalidate=600"
+    "public, max-age=0, s-maxage=30, stale-while-revalidate=60, must-revalidate"
   );
   try {
     res.type("html").send(buildVitrineHtml());
@@ -528,6 +528,15 @@ app.get("/api/health", (_req, res) => {
     shopeeConfigured: hasShopee,
     supabaseConfigured: supabaseOk,
     time: new Date().toISOString(),
+    // Ajuda a confirmar se o Railway publicou o commit certo.
+    deploy: process.env.RAILWAY_GIT_COMMIT_SHA
+      || process.env.RAILWAY_DEPLOYMENT_ID
+      || "search-page-v2",
+    features: {
+      searchPage: true,
+      searchIlike: true,
+      storeFiltersOnSearch: true,
+    },
   });
 });
 
