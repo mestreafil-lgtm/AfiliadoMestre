@@ -182,6 +182,8 @@
         let productsDatabase = [];
         let currentStoreCategory = 'todos';
         let currentStoreSubcategory = '';
+        /** Termo da página /busca/... — quando preenchido, a vitrine entra no modo "página de resultados". */
+        let currentSearchQuery = '';
         let currentStoreSort = 'money';
         // Recomendações: guarda até 10 cliques recentes pra rerankear "Ofertas em destaque".
         const CLICK_SIGNALS_KEY = 'am_click_signals_v1';
@@ -576,6 +578,10 @@
             const parts = path.split("/").filter(Boolean);
 
             if (parts[0] === "categoria") {
+                currentSearchQuery = "";
+                const input = document.getElementById("store-search-input");
+                if (input) input.value = "";
+                document.getElementById("store-search-clear")?.classList.add("hidden");
                 const catId = parts[1] || "todos";
                 const subId = parts[2] || "";
                 currentNavSection = "category_page";
@@ -585,7 +591,25 @@
                     await setStoreCategory(catId, { skipUrl: true });
                     if (subId) await setStoreSubcategory(subId, { skipUrl: true });
                 }
+                updateStoreGridTitle();
                 scrollToStoreGrid();
+                return;
+            }
+
+            if (parts[0] === "busca") {
+                const raw = parts.slice(1).join("/") || params.get("q") || "";
+                let term = raw;
+                try { term = decodeURIComponent(raw.replace(/\+/g, " ")); } catch (_) {}
+                term = String(term || "").trim();
+                if (term.length >= 2) {
+                    await enterSearchPage(term, { skipUrl: true, silent: true });
+                } else {
+                    currentSearchQuery = "";
+                    currentNavSection = "destaque";
+                    updateStoreGridTitle();
+                    renderShopeeSidebar();
+                    renderStoreProducts();
+                }
                 return;
             }
 
@@ -613,10 +637,16 @@
             window.__filterOfficialOnly = false;
             currentNavSection = "destaque";
             if (opts.fromNav && path === "/") {
+                currentSearchQuery = "";
                 currentStoreCategory = "todos";
                 currentStoreSubcategory = "";
+                const input = document.getElementById("store-search-input");
+                if (input) input.value = "";
+                document.getElementById("store-search-clear")?.classList.add("hidden");
                 renderCategories();
                 renderSubcategories();
+                updateStoreGridTitle();
+                renderShopeeSidebar();
                 renderStoreProducts();
                 renderHomeSections();
             }
@@ -946,10 +976,17 @@
 
 
 async function loadOffersFromSupabase(opts = {}) {
-            const searchTerm = document.getElementById("store-search-input")?.value || "";
-            const keyword = opts.keyword ?? searchTerm;
-            const subcategory = opts.subcategory ?? (currentStoreSubcategory || "");
-            const category = opts.category ?? (currentStoreCategory !== "todos" ? currentStoreCategory : "");
+            const searchTerm = currentSearchQuery
+                || document.getElementById("store-search-input")?.value
+                || "";
+            const keyword = opts.keyword !== undefined ? opts.keyword : searchTerm;
+            // Na página de busca, categoria da sidebar é filtro opcional; senão usa a rota.
+            const subcategory = opts.subcategory !== undefined
+                ? opts.subcategory
+                : (currentStoreSubcategory || "");
+            const category = opts.category !== undefined
+                ? opts.category
+                : (currentStoreCategory !== "todos" ? currentStoreCategory : "");
             const reset = opts.reset !== false;
             if (reset) currentPage = 0;
             const limit = Number(opts.limit) > 0 ? Number(opts.limit) : PAGE_SIZE;
@@ -1172,13 +1209,7 @@ async function loadOffersFromSupabase(opts = {}) {
             document.getElementById('main-storefront-section')?.scrollIntoView({ behavior: 'smooth' });
         }
         function clearStoreSearch() {
-            const input = document.getElementById('store-search-input');
-            if (!input) return;
-            input.value = '';
-            document.getElementById('store-search-clear')?.classList.add('hidden');
-            lastPixelSearch = "";
-            searchStoreProducts({ immediate: true });
-            input.focus();
+            exitSearchPage({ skipUrl: false });
         }
         function scrollToStoreCategories() {
             if (window.matchMedia('(max-width: 639px)').matches) {
@@ -1252,6 +1283,10 @@ async function loadOffersFromSupabase(opts = {}) {
         }
 
         async function setStoreCategory(catId, opts = {}) {
+            currentSearchQuery = '';
+            const searchInput = document.getElementById('store-search-input');
+            if (searchInput && !opts.keepSearchInput) searchInput.value = '';
+            document.getElementById('store-search-clear')?.classList.add('hidden');
             currentStoreCategory = catId;
             currentStoreSubcategory = '';
             currentPage = 0;
@@ -1268,6 +1303,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 const next = !catId || catId === 'todos' ? '/' : `/categoria/${catId}`;
                 history.pushState({ path: next }, '', next);
             }
+            updateStoreGridTitle();
             renderCategories();
             renderSubcategories();
             renderStoreProducts();
@@ -1930,13 +1966,292 @@ async function loadOffersFromSupabase(opts = {}) {
             updateMobileCategoryUI();
         }
 
-        // Sidebar desktop estilo Shopee (só visível dentro de categoria em >= lg).
+        function updateStoreGridTitle() {
+            const icon = document.getElementById("store-grid-title-icon");
+            const text = document.getElementById("store-grid-title-text");
+            const q = String(currentSearchQuery || "").trim();
+            if (q) {
+                if (icon) icon.className = "fas fa-magnifying-glass text-shopee-orange shrink-0";
+                if (text) text.textContent = `Resultados para “${q}”`;
+                document.title = `${q} — Afiliada Mestre`;
+                return;
+            }
+            if (icon) icon.className = "fas fa-fire text-shopee-orange shrink-0";
+            const cat = categories.find((c) => c.id === currentStoreCategory);
+            if (cat && currentStoreCategory !== "todos") {
+                if (text) text.textContent = cat.label || "Categoria";
+                document.title = `${cat.label || "Categoria"} — Afiliada Mestre`;
+            } else {
+                if (text) text.textContent = "Ofertas em destaque";
+                document.title = "Afiliada Mestre — Ofertas selecionadas na Shopee";
+            }
+        }
+
+        function storeFiltersSidebarHtml() {
+            const ratingRow = (n) => {
+                const active = storeFilters.minRating === n;
+                const stars = Array.from({ length: 5 }, (_, i) =>
+                    `<i class="fas fa-star text-[11px] ${i < n ? "text-amber-400" : "text-slate-200"}"></i>`).join("");
+                return `<button type="button" onclick="setStoreMinRating(${n})"
+                    class="w-full flex items-center gap-1.5 py-1 px-1 rounded ${active ? "bg-orange-50" : "hover:bg-slate-50"}">
+                    <span class="flex gap-0.5">${stars}</span>
+                    <span class="text-[11px] ${active ? "text-shopee-orange font-bold" : "text-slate-500"}">${n === 5 ? "" : "e acima"}</span>
+                </button>`;
+            };
+            const shipCheck = (key, label, disabled = false) => {
+                const checked = storeFilters.shipping[key];
+                return `<label class="flex items-center gap-2 cursor-pointer text-[12px] ${disabled ? "text-slate-300" : "text-slate-600"} py-0.5" ${disabled ? 'title="Sem dado disponível na API"' : ""}>
+                    <input type="checkbox" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""} onchange="toggleShipping('${key}', this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                    ${escapeHtml(label)}
+                </label>`;
+            };
+            const condCheck = (key, label) => {
+                const checked = storeFilters.conditions[key];
+                return `<label class="flex items-center gap-2 cursor-pointer text-[12px] text-slate-600 py-0.5">
+                    <input type="checkbox" ${checked ? "checked" : ""} onchange="toggleCondition('${key}', this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                    ${escapeHtml(label)}
+                </label>`;
+            };
+            return `
+                <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <div class="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2">
+                        <i class="fas fa-filter text-shopee-orange text-xs"></i>
+                        <span class="text-[12px] font-bold text-slate-700">FILTROS</span>
+                    </div>
+                    <div class="p-3 space-y-4">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Enviado De</div>
+                            ${shipCheck("nacional", "Nacional")}
+                            ${shipCheck("internacional", "Internacional")}
+                            ${shipCheck("sp", "São Paulo", true)}
+                            ${shipCheck("mg", "Minas Gerais", true)}
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Faixa De Preço</div>
+                            <div class="flex items-center gap-1">
+                                <input id="store-filter-pmin" type="number" min="0" placeholder="R$ mín." value="${storeFilters.priceMin ?? ""}" class="w-full text-[11px] px-2 py-1.5 border border-slate-200 rounded" />
+                                <span class="text-slate-300">—</span>
+                                <input id="store-filter-pmax" type="number" min="0" placeholder="R$ máx." value="${storeFilters.priceMax ?? ""}" class="w-full text-[11px] px-2 py-1.5 border border-slate-200 rounded" />
+                            </div>
+                            <button type="button" onclick="applyPriceFilter()" class="mt-2 w-full bg-shopee-orange text-white text-[11px] font-bold py-1.5 rounded hover:brightness-105">CONFIRMAR</button>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Promoções</div>
+                            <label class="flex items-center gap-2 cursor-pointer text-[12px] text-slate-600">
+                                <input type="checkbox" id="store-filter-discount" ${storeFilters.onlyDiscount ? "checked" : ""} onchange="toggleOnlyDiscount(this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                                Produtos com Desconto
+                            </label>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Avaliação</div>
+                            <div class="space-y-0.5">
+                                ${ratingRow(5)}
+                                ${ratingRow(4)}
+                                ${ratingRow(3)}
+                                ${ratingRow(2)}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Condições</div>
+                            ${condCheck("novo", "Novo")}
+                            ${condCheck("usado", "Usado")}
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-600 mb-2">Loja</div>
+                            <label class="flex items-center gap-2 cursor-pointer text-[12px] text-slate-600">
+                                <input type="checkbox" id="store-filter-mall" ${storeFilters.onlyMall ? "checked" : ""} onchange="toggleOnlyMall(this.checked)" class="rounded border-slate-300 text-shopee-orange focus:ring-shopee-orange" />
+                                Apenas Shopee Mall
+                            </label>
+                        </div>
+                        <button type="button" onclick="clearStoreFilters()" class="w-full bg-shopee-orange text-white text-[11px] font-bold py-2 rounded hover:brightness-105">LIMPAR TUDO</button>
+                    </div>
+                </div>`;
+        }
+
+        /** Sidebar da página /busca — categorias relacionadas ao termo + filtros. */
+        function renderSearchSidebar(side) {
+            const q = String(currentSearchQuery || "").trim();
+            const matched = (Array.isArray(productsDatabase) ? productsDatabase : [])
+                .filter((p) => productMatchesSearch(p, q));
+            const counts = {};
+            for (const p of matched) {
+                const id = p.category || "outros";
+                counts[id] = (counts[id] || 0) + 1;
+            }
+            const related = Object.entries(counts)
+                .map(([id, count]) => {
+                    const cat = categories.find((c) => c.id === id);
+                    return { id, label: cat?.label || id, count };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 12);
+
+            const catBtn = (id, label, count) => {
+                const active = currentStoreCategory === id;
+                const safeId = String(id).replace(/'/g, "\\'");
+                return `<button type="button" onclick="setSearchCategoryFilter('${safeId}')"
+                    class="w-full text-left text-[12.5px] py-1.5 pl-4 pr-2 rounded transition flex items-center justify-between gap-2 ${active ? "text-shopee-orange font-bold bg-orange-50" : "text-slate-600 hover:text-shopee-orange"}">
+                    <span>${active ? "<span class='mr-1'>›</span>" : ""}${escapeHtml(label)}</span>
+                    <span class="text-[10px] text-slate-400 font-semibold">${count}</span>
+                </button>`;
+            };
+
+            side.dataset.empty = "0";
+            side.innerHTML = `
+                <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <div class="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2">
+                        <i class="fas fa-magnifying-glass text-shopee-orange text-xs"></i>
+                        <span class="text-[12px] font-bold text-slate-700">Busca</span>
+                    </div>
+                    <div class="px-3 py-2 border-b border-slate-50">
+                        <div class="text-[13px] font-bold text-slate-800 truncate" title="${escapeAttr(q)}">“${escapeHtml(q)}”</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">${matched.length} produto${matched.length === 1 ? "" : "s"}</div>
+                    </div>
+                    <div class="py-1.5">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wide px-3 py-1">Categorias</div>
+                        ${catBtn("todos", "Todas", matched.length)}
+                        ${related.filter((r) => r.id !== "todos").map((r) => catBtn(r.id, r.label, r.count)).join("")}
+                    </div>
+                    <div class="px-3 pb-3">
+                        <button type="button" onclick="clearStoreSearch()" class="w-full text-[11px] font-bold text-slate-600 border border-slate-200 rounded py-2 hover:bg-slate-50">← Voltar à vitrine</button>
+                    </div>
+                </div>
+                ${storeFiltersSidebarHtml()}`;
+        }
+
+        function setSearchCategoryFilter(catId) {
+            currentStoreCategory = catId || "todos";
+            currentStoreSubcategory = "";
+            currentPage = 0;
+            renderShopeeSidebar();
+            renderStoreProducts();
+            updateStoreGridTitle();
+            scrollToStoreGrid();
+            if (apiLive && currentSearchQuery) {
+                loadOffersFromSupabase({
+                    silent: true,
+                    reset: true,
+                    keyword: currentSearchQuery,
+                    category: currentStoreCategory !== "todos" ? currentStoreCategory : "",
+                    subcategory: "",
+                    limit: Math.max(PAGE_SIZE * 3, 72),
+                    sort: currentStoreSort === "money" ? "sales" : currentStoreSort,
+                }).then(() => {
+                    renderShopeeSidebar();
+                    renderStoreProducts();
+                }).catch(() => {});
+            }
+        }
+
+        function searchPagePath(term) {
+            return `/busca/${encodeURIComponent(String(term || "").trim())}`;
+        }
+
+        async function enterSearchPage(term, opts = {}) {
+            const q = String(term || "").trim();
+            if (q.length < 2) {
+                await exitSearchPage(opts);
+                return false;
+            }
+
+            currentSearchQuery = q;
+            currentNavSection = "search";
+            currentPage = 0;
+            if (!opts.keepCategory) {
+                currentStoreCategory = "todos";
+                currentStoreSubcategory = "";
+            }
+
+            const input = document.getElementById("store-search-input");
+            if (input) input.value = q;
+            document.getElementById("store-search-clear")?.classList.remove("hidden");
+
+            if (!opts.skipUrl) {
+                const next = searchPagePath(q);
+                const cur = pathClean();
+                if (opts.replaceUrl || cur.startsWith("/busca")) {
+                    history.replaceState({ path: next }, "", next);
+                } else {
+                    history.pushState({ path: next }, "", next);
+                }
+            }
+
+            updateStoreGridTitle();
+            renderShopeeSidebar();
+            renderStoreProducts();
+
+            if (!apiLive) {
+                scrollToStoreGrid();
+                return true;
+            }
+
+            const ok = await loadOffersFromSupabase({
+                silent: opts.silent !== false,
+                reset: true,
+                keyword: q,
+                category: currentStoreCategory !== "todos" ? currentStoreCategory : "",
+                subcategory: "",
+                limit: Math.max(PAGE_SIZE * 3, 72),
+                sort: currentStoreSort === "money" ? "sales" : currentStoreSort,
+            });
+            updateStoreGridTitle();
+            renderShopeeSidebar();
+            if (!ok) renderStoreProducts();
+            scrollToStoreGrid();
+            return true;
+        }
+
+        async function exitSearchPage(opts = {}) {
+            const wasSearch = !!currentSearchQuery || pathClean().startsWith("/busca");
+            currentSearchQuery = "";
+            currentNavSection = "destaque";
+            currentStoreCategory = "todos";
+            currentStoreSubcategory = "";
+            currentPage = 0;
+            const input = document.getElementById("store-search-input");
+            if (input) input.value = "";
+            document.getElementById("store-search-clear")?.classList.add("hidden");
+            lastPixelSearch = "";
+
+            if (!opts.skipUrl && wasSearch) {
+                history.pushState({ path: "/" }, "", "/");
+            }
+
+            updateStoreGridTitle();
+            renderShopeeSidebar();
+            renderCategories();
+            renderSubcategories();
+            renderHomeSections();
+
+            if (apiLive) {
+                await loadOffersFromSupabase({
+                    silent: true,
+                    reset: true,
+                    keyword: "",
+                    category: "",
+                    subcategory: "",
+                });
+            } else {
+                renderStoreProducts();
+            }
+        }
+
+        // Sidebar desktop estilo Shopee (categoria OU página de busca).
         function renderShopeeSidebar() {
             const side = document.getElementById('store-shopee-sidebar');
-            // Marca no main se estamos numa categoria — CSS esconde as seções da home.
             const main = document.getElementById('store-main');
-            if (main) main.dataset.categoryActive = (currentStoreCategory !== 'todos') ? '1' : '0';
+            const searchActive = !!String(currentSearchQuery || '').trim();
+            if (main) {
+                main.dataset.categoryActive = (!searchActive && currentStoreCategory !== 'todos') ? '1' : '0';
+                main.dataset.searchActive = searchActive ? '1' : '0';
+            }
             if (!side) return;
+
+            if (searchActive) {
+                renderSearchSidebar(side);
+                return;
+            }
+
             const cat = categories.find(c => c.id === currentStoreCategory);
             if (!cat || currentStoreCategory === 'todos') {
                 side.innerHTML = '';
@@ -2415,10 +2730,14 @@ async function loadOffersFromSupabase(opts = {}) {
             const grid = document.getElementById('store-products-grid');
             const flashContainer = document.getElementById('flash-products-container');
             const flashSection = document.getElementById('flash-sale-section');
-            const searchVal = (document.getElementById('store-search-input')?.value || '').toLowerCase().trim();
+            const searchVal = (currentSearchQuery || document.getElementById('store-search-input')?.value || '').toLowerCase().trim();
             if (!grid || !flashContainer) return;
 
-            const onHome = (pathClean() === '/' || pathClean() === '') && currentStoreCategory === 'todos' && !currentStoreSubcategory && !searchVal;
+            const onHome = (pathClean() === '/' || pathClean() === '')
+                && currentStoreCategory === 'todos'
+                && !currentStoreSubcategory
+                && !searchVal
+                && !currentSearchQuery;
 
             let filtered = productsDatabase.filter(p => {
                 const matchesCategory = currentStoreCategory === 'todos' || p.category === currentStoreCategory;
@@ -2513,12 +2832,15 @@ async function loadOffersFromSupabase(opts = {}) {
             const catObj = categories.find(c => c.id === currentStoreCategory) || {};
             const catLabel = catObj.label || 'Tudo';
             const subObj = (catObj.subcategories || []).find(s => (s.id || s.key) === currentStoreSubcategory);
-            const scopeLabel = subObj ? `${catLabel} › ${subObj.label}` : catLabel;
+            const scopeLabel = currentSearchQuery
+                ? (currentStoreCategory !== 'todos' ? `Busca · ${catLabel}` : 'Busca')
+                : (subObj ? `${catLabel} › ${subObj.label}` : catLabel);
             if (info) {
                 info.textContent = filtered.length
                     ? `${filtered.length}${totalFiltered > filtered.length ? ` de ${totalFiltered}` : ''} ofertas · ${scopeLabel}`
                     : 'Nenhuma oferta nesta seleção';
             }
+            updateStoreGridTitle();
             renderLoadMoreBtn();
         }
 
@@ -2542,7 +2864,6 @@ async function loadOffersFromSupabase(opts = {}) {
         function applyStoreSearch(term) {
             document.getElementById('store-search-input').value = term;
             searchStoreProducts({ immediate: true });
-            scrollToStoreGrid();
         }
 
         const POPULAR_TERM_CANDIDATES = [
@@ -2625,11 +2946,20 @@ async function loadOffersFromSupabase(opts = {}) {
             const term = (document.getElementById("store-search-input")?.value || "").trim();
             document.getElementById("store-search-clear")?.classList.toggle("hidden", !term);
 
-            // Feedback imediato no que já está em memória
-            renderStoreProducts();
-
             const run = async () => {
-                if (term.length >= 2 && term !== lastPixelSearch) {
+                // Limpar → volta para a home
+                if (!term) {
+                    await exitSearchPage({ skipUrl: false });
+                    return;
+                }
+                if (term.length < 2) {
+                    // Ainda digitando: só filtro local, sem sair da home
+                    currentSearchQuery = "";
+                    renderStoreProducts();
+                    return;
+                }
+
+                if (term !== lastPixelSearch) {
                     lastPixelSearch = term;
                     amPixelTrack("Search", { search_string: term.slice(0, 100) });
                     const t = normalizeSearchText(term);
@@ -2641,47 +2971,12 @@ async function loadOffersFromSupabase(opts = {}) {
                     });
                 }
 
-                // Limpar busca: recarrega home
-                if (!term) {
-                    if (!apiLive) return;
-                    setSearchBusy(true);
-                    try {
-                        await loadOffersFromSupabase({
-                            silent: true,
-                            reset: true,
-                            keyword: "",
-                            category: "",
-                            subcategory: "",
-                        });
-                    } finally {
-                        setSearchBusy(false);
-                    }
-                    return;
-                }
-
-                if (term.length < 2) return;
-                if (!apiLive) {
-                    scrollToStoreGrid();
-                    return;
-                }
-
                 setSearchBusy(true);
                 try {
-                    // Busca global (sem filtrar categoria) + lote maior + sort por vendas
-                    const ok = await loadOffersFromSupabase({
+                    await enterSearchPage(term, {
+                        replaceUrl: !immediate && pathClean().startsWith("/busca"),
                         silent: true,
-                        reset: true,
-                        keyword: term,
-                        category: "",
-                        subcategory: "",
-                        limit: Math.max(PAGE_SIZE * 3, 72),
-                        sort: "sales",
                     });
-                    if (!ok) {
-                        // Fallback: se o banco não trouxe nada, mantém filtro local
-                        renderStoreProducts();
-                    }
-                    scrollToStoreGrid();
                 } finally {
                     setSearchBusy(false);
                 }
@@ -2691,7 +2986,8 @@ async function loadOffersFromSupabase(opts = {}) {
             if (immediate) {
                 await run();
             } else {
-                searchDebounce = setTimeout(() => { run(); }, 350);
+                // Digitando: espera um pouco; se ≥2 chars, abre a página de busca
+                searchDebounce = setTimeout(() => { run(); }, 450);
             }
         }
 
@@ -3430,6 +3726,8 @@ async function loadOffersFromSupabase(opts = {}) {
         window.clearStoreSearch = clearStoreSearch;
         window.applyStoreSearch = applyStoreSearch;
         window.onStoreSearchKeydown = onStoreSearchKeydown;
+        window.setSearchCategoryFilter = setSearchCategoryFilter;
+        window.enterSearchPage = enterSearchPage;
         window.submitAdminLogin = function (e) {
             if (window.__AM_ADMIN && window.__AM_ADMIN.submitAdminLogin) return window.__AM_ADMIN.submitAdminLogin(e);
             return false;

@@ -1048,14 +1048,18 @@
         #home-sections { display: none !important; }
         #main-storefront-section { min-height: calc(100dvh - 60px); }
         #store-main { min-height: 720px; }
-        /* Sidebar Shopee-style só aparece quando renderShopeeSidebar populou (categoria ativa). */
+        /* Sidebar Shopee-style só aparece quando renderShopeeSidebar populou (categoria/busca ativa). */
         #store-shopee-sidebar[data-empty="1"] { display: none !important; }
-        /* Dentro de uma categoria: some Home stuff (Categorias card, Hero/Flash, Home sections)
-           pra virar uma página estilo Shopee com sidebar + grid, sem misturar com a home. */
+        /* Categoria OU busca: some home (Categorias, Hero/Flash, Home sections)
+           pra virar página estilo Shopee com sidebar + grid. */
         #store-main[data-category-active="1"] #store-categories-card,
         #store-main[data-category-active="1"] #hero-products,
         #store-main[data-category-active="1"] #flash-sale-section,
-        #store-main[data-category-active="1"] #home-sections { display: none !important; }
+        #store-main[data-category-active="1"] #home-sections,
+        #store-main[data-search-active="1"] #store-categories-card,
+        #store-main[data-search-active="1"] #hero-products,
+        #store-main[data-search-active="1"] #flash-sale-section,
+        #store-main[data-search-active="1"] #home-sections { display: none !important; }
         #store-search-input { min-height: 40px; }
         img[src*="logo.png"] { aspect-ratio: 240 / 114; background: transparent; }
         img[src*="logo-bg.png"] { aspect-ratio: 240 / 126; background: transparent; }
@@ -1291,8 +1295,9 @@
 
                 <div class="flex-1 min-w-0 space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 shrink-0">
-                        <i class="fas fa-fire text-shopee-orange"></i> Ofertas em destaque
+                    <h3 id="store-grid-title" class="text-lg font-bold text-slate-800 flex items-center gap-2 shrink-0 min-w-0">
+                        <i id="store-grid-title-icon" class="fas fa-fire text-shopee-orange shrink-0"></i>
+                        <span id="store-grid-title-text" class="truncate">Ofertas em destaque</span>
                     </h3>
                     <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto min-w-0">
                         <div class="flex bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold overflow-x-auto max-w-full" id="store-sort-tabs">

@@ -3493,9 +3493,10 @@ app.use("/uploads", express.static(path.join(ROOT, "uploads"), {
 }));
 app.use(express.static(ROOT, { index: false, maxAge: "1d" }));
 
-const APP_PAGE_RE = /^\/(categoria(\/[^/]+){0,2}|relampago|mais-vendidos|maiores-descontos|melhor-avaliados|lojas-oficiais|admin(\/[\w-]+)?)\/?$/;
+const APP_PAGE_RE = /^\/(categoria(\/[^/]+){0,2}|busca(\/[^/]+)?|relampago|mais-vendidos|maiores-descontos|melhor-avaliados|lojas-oficiais|admin(\/[\w-]+)?)\/?$/;
 
 app.get(["/", "/admin", "/admin/:view", "/categoria", "/categoria/:cat", "/categoria/:cat/:sub",
+  "/busca", "/busca/:q",
   "/relampago", "/mais-vendidos", "/maiores-descontos", "/melhor-avaliados", "/lojas-oficiais"], sendVitrine);
 
 // SPA fallback: paths de app conhecidos (sem /api)
