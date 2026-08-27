@@ -403,11 +403,15 @@
                     login.classList.add("hidden");
                     login.classList.remove("flex");
                 }
+                document.documentElement.classList.remove("admin-mode");
                 document.body.classList.remove("admin-mode");
+                try { document.body.style.overflow = ""; document.documentElement.style.overflow = ""; } catch (_) {}
                 return;
             }
 
+            document.documentElement.classList.add("admin-mode");
             document.body.classList.add("admin-mode");
+            try { document.body.style.overflow = ""; document.documentElement.style.overflow = ""; } catch (_) {}
             document.title = "Admin — Afiliada Mestre";
 
             if (!opts.force) {

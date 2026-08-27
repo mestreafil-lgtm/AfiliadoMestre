@@ -93,8 +93,16 @@
             color: #ee4d2d;
             background-color: rgba(238, 77, 45, 0.04);
         }
-        /* Admin panel — scroll no documento (Firefox captura página inteira) */
-        body.admin-mode { background: #f1f5f9; overflow-x: hidden; overflow-y: auto; }
+        /* Admin panel — scroll no DOCUMENTO (Firefox "Capturar página inteira").
+           Nunca travar o body: overflow interno impede o print completo. */
+        html.admin-mode,
+        body.admin-mode {
+          background: #f1f5f9 !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          height: auto !important;
+          max-height: none !important;
+        }
         body.admin-mode #main-storefront-section,
         body.admin-mode #mobile-category-sheet,
         body.admin-mode #back-to-top-btn,
@@ -248,20 +256,25 @@
         #admin-panel-root.is-open {
           display: flex !important;
           flex-direction: column;
-          position: relative;
+          position: relative !important;
+          inset: auto !important;
           z-index: 40;
           width: 100%;
+          height: auto !important;
+          max-height: none !important;
           min-height: 100vh;
           min-height: 100dvh;
-          overflow: visible;
+          overflow: visible !important;
           background: #f1f5f9;
         }
         #admin-panel-root > .admin-shell {
           display: flex;
-          flex: 1;
+          flex: 1 0 auto;
+          align-items: flex-start;
           min-height: 100dvh;
+          height: auto !important;
           width: 100%;
-          overflow: visible;
+          overflow: visible !important;
           background: #f1f5f9;
         }
         #admin-sidebar-backdrop:not(.hidden) { display: block !important; }
@@ -276,22 +289,27 @@
         #admin-sidebar {
           width: var(--am-sidebar-w, 260px);
           flex-shrink: 0;
-          height: 100%;
-          align-self: stretch;
+          height: auto !important;
+          align-self: flex-start;
           z-index: 60;
           transition: transform .25s ease;
         }
         #admin-panel-root .main-wrap {
-          flex: 1;
+          flex: 1 1 auto;
           min-width: 0;
+          width: 100%;
           display: flex;
           flex-direction: column;
-          overflow: visible;
+          overflow: visible !important;
+          height: auto !important;
+          max-height: none !important;
         }
         #admin-panel-root #main-console-section {
-          flex: 1;
+          flex: 1 1 auto;
           min-width: 0;
-          overflow: visible;
+          overflow: visible !important;
+          height: auto !important;
+          max-height: none !important;
         }
         @media (min-width: 901px) {
           #admin-sidebar {
@@ -843,8 +861,8 @@
 
         /* ——— Mobile polish ——— */
         html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-        html { height: auto; overflow-y: auto; }
-        body { overflow-x: hidden; overflow-y: auto; min-height: 100%; }
+        html { height: auto !important; overflow-y: auto !important; }
+        body { overflow-x: hidden !important; overflow-y: auto !important; min-height: 100%; height: auto !important; max-height: none !important; }
         img, video, svg, canvas { max-width: 100%; }
         #store-header { padding-top: max(0.75rem, env(safe-area-inset-top)); }
         #store-sort-tabs {
