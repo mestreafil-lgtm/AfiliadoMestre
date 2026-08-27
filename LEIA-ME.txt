@@ -1,0 +1,18 @@
+Afiliado Mestre
+===============
+
+Pasta do projeto
+  server/    API (Node + Express + Shopee + Supabase)
+  uploads/   Vitrine, painel admin, JS, CSS e logos
+
+Rodar local
+  npm install
+  npm start
+  http://localhost:3789
+
+Produção: Railway (railway.toml). O banco já está no Supabase.
+
+Importante
+  Segredos só no .env (SHOPEE_APP_ID, SHOPEE_SECRET, SUPABASE_SERVICE_KEY)
+  O botão Comprar abre o link de afiliado da Shopee
+  Comissão aparece só no painel admin, não na vitrine

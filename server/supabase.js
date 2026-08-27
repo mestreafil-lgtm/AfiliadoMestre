@@ -1,0 +1,590 @@
+"use strict";
+
+const { isFlashActive, toUnixSec, computeMoneyScore, parseCommissionPct } = require("./shopee");
+const { extractProductOptions } = require("./productMeta");
+const { buildProductSubIds } = require("./tracking");
+
+function quoteInFilter(values = []) {
+  return values
+    .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+    .join(",");
+}
+
+function subcategoryFilterQuery(categoryId, subcategoryId) {
+  const cat = encodeURIComponent(String(categoryId));
+  const sub = encodeURIComponent(String(subcategoryId));
+  // Coluna subcategory (produtos classificados). Fallback legado: keyword do mapa.
+  const { keywordsForSubcategory } = require("./categorias");
+  const kws = keywordsForSubcategory(categoryId, subcategoryId);
+  if (!kws.length) {
+    return `category=eq.${cat}&subcategory=eq.${sub}`;
+  }
+  const quoted = quoteInFilter(kws);
+  // PostgREST or: (subcategory.eq.X,and(subcategory.is.null,keyword.in.(...)))
+  return `category=eq.${cat}&or=(subcategory.eq.${sub},and(subcategory.is.null,keyword.in.(${quoted})))`;
+}
+
+function visibleOnlyQuery() {
+  return "or=(hidden.is.null,hidden.eq.false)";
+}
+
+function getConfig() {
+  const url = (process.env.SUPABASE_URL || "").replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+  const serviceKey = (process.env.SUPABASE_SERVICE_KEY || "").trim();
+  const anonKey = (process.env.SUPABASE_ANON_KEY || "").trim();
+  if (!url) {
+    const err = new Error("Configure SUPABASE_URL no .env");
+    err.code = "SUPABASE_MISSING";
+    throw err;
+  }
+  return { url, serviceKey, anonKey, rest: `${url}/rest/v1` };
+}
+
+async function supabaseRequest(path, { method = "GET", body, prefer, useService = true } = {}) {
+  const { rest, serviceKey, anonKey } = getConfig();
+  const key = useService ? serviceKey : anonKey;
+  if (!key) {
+    const err = new Error(useService ? "Configure SUPABASE_SERVICE_KEY no .env" : "Configure SUPABASE_ANON_KEY no .env");
+    err.code = "SUPABASE_MISSING";
+    throw err;
+  }
+
+  const headers = {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    "Content-Type": "application/json",
+  };
+  if (prefer) headers.Prefer = prefer;
+
+  const res = await fetch(`${rest}${path}`, {
+    method,
+    headers,
+    body: body != null ? JSON.stringify(body) : undefined,
+  });
+
+  const text = await res.text();
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = { raw: text };
+  }
+
+  if (!res.ok) {
+    const err = new Error(`Supabase HTTP ${res.status}: ${typeof json === "object" ? JSON.stringify(json) : text}`);
+    err.status = res.status;
+    err.payload = json;
+    throw err;
+  }
+  return json;
+}
+
+/** Conta linhas via header Content-Range (Prefer: count=exact). Ignora o limite de 1000. */
+async function supabaseCount(query = "") {
+  const { rest, serviceKey, anonKey } = getConfig();
+  const key = serviceKey || anonKey;
+  if (!key) return 0;
+  const res = await fetch(`${rest}/ofertas?select=item_id${query ? `&${query}` : ""}`, {
+    method: "HEAD",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Prefer: "count=exact",
+      "Range-Unit": "items",
+      Range: "0-0",
+    },
+  });
+  const range = res.headers.get("content-range") || "";
+  const total = Number(range.split("/")[1]);
+  return Number.isFinite(total) ? total : 0;
+}
+
+async function upsertOfertas(rows) {
+  if (!rows?.length) return [];
+  const { SITE_SUBID } = require("./tracking");
+  const cleaned = rows.map((r) => {
+    const copy = { ...r };
+    if (copy.short_link == null) delete copy.short_link;
+    if (copy.subcategory == null) delete copy.subcategory;
+    if (copy.product_options == null) delete copy.product_options;
+    if (!Array.isArray(copy.sub_ids) || !copy.sub_ids.length) {
+      copy.sub_ids = buildProductSubIds(copy.category, copy.item_id, copy.subcategory);
+    } else if (copy.sub_ids[0] !== SITE_SUBID) {
+      // Invariante A (defesa em profundidade): slot 1 sempre = SITE_SUBID
+      copy.sub_ids = [SITE_SUBID, ...copy.sub_ids].slice(0, 5);
+    }
+    return copy;
+  });
+  try {
+    return await supabaseRequest("/ofertas", {
+      method: "POST",
+      body: cleaned,
+      prefer: "resolution=merge-duplicates,return=representation",
+      useService: true,
+    });
+  } catch (err) {
+    // Schema antigo (sem period_*/list_type/short_link/sub_ids) — grava o essencial.
+    const msg = String(err.message || "");
+    if (/period_start|period_end|list_type|short_link|subcategory|product_options|sub_ids|schema cache|PGRST/i.test(msg)) {
+      const legacy = cleaned.map((r) => {
+        const {
+          period_start, period_end, list_type, short_link, subcategory, product_options, sub_ids, ...rest
+        } = r;
+        return rest;
+      });
+      return supabaseRequest("/ofertas", {
+        method: "POST",
+        body: legacy,
+        prefer: "resolution=merge-duplicates,return=representation",
+        useService: true,
+      });
+    }
+    throw err;
+  }
+}
+
+async function updateShortLink(itemId, shortLink) {
+  if (!itemId || !shortLink) return null;
+  try {
+    return await supabaseRequest(`/ofertas?item_id=eq.${encodeURIComponent(itemId)}`, {
+      method: "PATCH",
+      body: { short_link: shortLink },
+      prefer: "return=representation",
+      useService: true,
+    });
+  } catch (err) {
+    console.warn("[updateShortLink] cache indisponível (rode migration):", err.message);
+    return null;
+  }
+}
+
+async function listOfertas({ limit = 60, offset = 0, keyword = "", category = "", subcategory = "", sort = "recent" } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 60, 1), 200);
+  const safeOffset = Math.max(Number(offset) || 0, 0);
+
+  function buildPath(order, lim = safeLimit, off = safeOffset) {
+    let path = `/ofertas?select=*&order=${order}&limit=${lim}&offset=${off}`;
+    const kw = String(keyword || "").trim();
+    const cat = String(category || "").trim();
+    const sub = String(subcategory || "").trim();
+    path += `&${visibleOnlyQuery()}`;
+    if (sub && cat && cat !== "todos") {
+      path += `&${subcategoryFilterQuery(cat, sub)}`;
+    } else if (cat && cat !== "todos") {
+      path += `&category=eq.${encodeURIComponent(cat)}`;
+    } else if (kw) {
+      path += `&keyword=eq.${encodeURIComponent(kw)}`;
+    }
+    return path;
+  }
+
+  // money: puxa pool maior e ordena por moneyScore numérico em memória
+  if (sort === "money") {
+    const pool = Math.min(Math.max(safeOffset + safeLimit * 3, 120), 400);
+    let rows = [];
+    try {
+      rows = await supabaseRequest(
+        buildPath("commission_rate.desc.nullslast,rating_star.desc.nullslast", pool, 0),
+        { method: "GET", useService: true }
+      );
+    } catch (_) {
+      rows = await supabaseRequest(buildPath("updated_at.desc", pool, 0), { method: "GET", useService: true });
+    }
+    const list = Array.isArray(rows) ? rows : [];
+    list.sort((a, b) => {
+      const sa = computeMoneyScore({
+        commissionRate: a.commission_rate,
+        sales: a.sales,
+        ratingStar: a.rating_star,
+      });
+      const sb = computeMoneyScore({
+        commissionRate: b.commission_rate,
+        sales: b.sales,
+        ratingStar: b.rating_star,
+      });
+      return sb - sa;
+    });
+    return list.slice(safeOffset, safeOffset + safeLimit);
+  }
+
+  let order = "updated_at.desc";
+  if (sort === "sales") order = "sales.desc.nullslast,updated_at.desc";
+  else if (sort === "discount") order = "price_discount_rate.desc.nullslast,updated_at.desc";
+  else if (sort === "rating") order = "rating_star.desc.nullslast,updated_at.desc";
+  else if (sort === "ending") order = "period_end.asc.nullslast,updated_at.desc";
+
+  try {
+    return await supabaseRequest(buildPath(order), { method: "GET", useService: true });
+  } catch (err) {
+    if (sort === "ending") {
+      return supabaseRequest(buildPath("updated_at.desc"), { method: "GET", useService: true });
+    }
+    throw err;
+  }
+}
+
+async function getOffersByItemIds(itemIds = [], { full = false } = {}) {
+  const ids = [...new Set(
+    itemIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0)
+  )];
+  if (!ids.length) return [];
+
+  // PostgREST in.(...) — fatia em blocos de 80 para não estourar URL
+  const CHUNK = 80;
+  const all = [];
+  const select = full ? "*" : "item_id,image_url,category,product_name,short_link";
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const filter = encodeURIComponent(`(${slice.join(",")})`);
+    const rows = await supabaseRequest(
+      `/ofertas?select=${select}&item_id=in.${filter}`,
+      { method: "GET", useService: true }
+    );
+    if (Array.isArray(rows)) all.push(...rows);
+  }
+  return all;
+}
+
+/** Set de item_id já publicados (para anti-duplicação nos syncs). */
+async function existingItemIdSet(itemIds = []) {
+  const rows = await getOffersByItemIds(itemIds, { full: false });
+  const set = new Set();
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (r?.item_id != null) set.add(String(r.item_id));
+  }
+  return set;
+}
+
+async function countByCategory() {
+  const { CATEGORIAS } = require("./categorias");
+  const counts = {};
+  const results = await Promise.all(
+    CATEGORIAS.map(async (cat) => {
+      const n = await supabaseCount(
+        `category=eq.${encodeURIComponent(cat.id)}&${visibleOnlyQuery()}`
+      ).catch(() => 0);
+      return [cat.id, n];
+    })
+  );
+  for (const [id, n] of results) counts[id] = n;
+  counts.total = await supabaseCount(visibleOnlyQuery()).catch(() => 0);
+  return counts;
+}
+
+async function countBySubcategory(categoryId) {
+  const { CATEGORIAS } = require("./categorias");
+  const cat = CATEGORIAS.find((c) => c.id === categoryId);
+  if (!cat) return {};
+  const counts = {};
+  await Promise.all(
+    (cat.subcategories || []).map(async (sub) => {
+      const n = await supabaseCount(
+        `${subcategoryFilterQuery(categoryId, sub.id)}&${visibleOnlyQuery()}`
+      ).catch(() => 0);
+      counts[sub.id] = n;
+    })
+  );
+  return counts;
+}
+
+/** Ofertas sem short_link cacheado. Prioriza mais recentes (updated_at desc). */
+async function listOffersMissingShortlink({ limit = 50 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
+  const path = `/ofertas?select=item_id,category,subcategory,offer_link,product_link,shop_id,sub_ids&short_link=is.null&order=updated_at.desc&limit=${safeLimit}&${visibleOnlyQuery()}`;
+  return supabaseRequest(path, { method: "GET", useService: true });
+}
+
+async function countShortlinkStatus() {
+  const total = await supabaseCount(visibleOnlyQuery()).catch(() => 0);
+  const missing = await supabaseCount(`short_link=is.null&${visibleOnlyQuery()}`).catch(() => 0);
+  return { total, missing, ready: Math.max(0, total - missing) };
+}
+
+async function pruneOlderThan(days = 60) {
+  const d = Number(days) || 60;
+  const cutoff = new Date(Date.now() - d * 24 * 60 * 60 * 1000).toISOString();
+  const path = `/ofertas?updated_at=lt.${encodeURIComponent(cutoff)}`;
+  const removed = await supabaseRequest(path, {
+    method: "DELETE",
+    prefer: "return=representation",
+    useService: true,
+  });
+  return Array.isArray(removed) ? removed.length : 0;
+}
+
+/** Remove todas as ofertas do cache (reset completo da vitrine). */
+async function clearAllOfertas() {
+  const removed = await supabaseRequest("/ofertas?item_id=gt.0", {
+    method: "DELETE",
+    prefer: "return=representation",
+    useService: true,
+  });
+  return Array.isArray(removed) ? removed.length : 0;
+}
+
+async function countOfertas() {
+  return supabaseCount().catch(() => 0);
+}
+
+function parseDiscountFromRow(row) {
+  const priceMin = Number(row.price_min) || 0;
+  const priceMax = Number(row.price_max) || priceMin;
+  let raw = 0;
+  if (row.price_discount_rate != null && row.price_discount_rate !== "") {
+    const n = Number(String(row.price_discount_rate).replace("%", ""));
+    if (Number.isFinite(n)) raw = Math.round(n > 1 ? n : n * 100);
+  } else if (priceMax > priceMin && priceMax > 0) {
+    raw = Math.round(((priceMax - priceMin) / priceMax) * 100);
+  }
+  if (raw < 5) return 0;
+  return Math.min(raw, 85);
+}
+
+function rowToProduct(row) {
+  const priceMin = Number(row.price_min) || 0;
+  const priceMax = Number(row.price_max) || priceMin;
+  const discountPct = parseDiscountFromRow(row);
+  const ratePct = parseCommissionPct(row.commission_rate);
+  const moneyScore = computeMoneyScore({
+    commissionRate: row.commission_rate,
+    sales: row.sales,
+    ratingStar: row.rating_star,
+  });
+  const sales = row.sales != null ? String(row.sales) : "";
+  const salesLabel = sales && !/vendid/i.test(sales) ? `${sales} vendidos` : sales;
+
+  const shop = row.shop_name ? String(row.shop_name).trim() : "";
+  const descParts = [];
+  if (discountPct > 0) descParts.push(`Oferta com ${discountPct}% de desconto`);
+  else descParts.push("Oferta selecionada");
+  const options = row.product_options && typeof row.product_options === "object"
+    ? row.product_options
+    : extractProductOptions(row.product_name, priceMin, priceMax);
+  if (options.hint) descParts.push(options.hint);
+  if (salesLabel && salesLabel !== "—") descParts.push(`${salesLabel}`);
+  descParts.push("confira frete e prazo na Shopee");
+  if (shop) descParts.push(`vendido por ${shop}`);
+  const desc = descParts.join(" · ") + ".";
+
+  const periodStart = toUnixSec(row.period_start);
+  const periodEnd = toUnixSec(row.period_end);
+  const flash = isFlashActive(periodEnd);
+  const secondsLeft = flash && periodEnd ? Math.max(0, periodEnd - Math.floor(Date.now() / 1000)) : 0;
+
+  return {
+    id: Number(row.item_id),
+    itemId: row.item_id,
+    title: row.product_name || "Produto",
+    category: row.category || "todos",
+    subcategory: row.subcategory || null,
+    options,
+    oldPrice: priceMax || priceMin,
+    newPrice: priceMin,
+    discount: discountPct ? `${discountPct}%` : "0%",
+    discountPct,
+    stars: Number(row.rating_star) || 4.5,
+    reviews: 0,
+    sales: salesLabel || "—",
+    salesRaw: sales,
+    image: row.image_url || "",
+    affiliateLink: row.offer_link || "#",
+    productLink: row.product_link || "",
+    shortLink: row.short_link || null,
+    subIds: Array.isArray(row.sub_ids) && row.sub_ids.length
+      ? row.sub_ids
+      : buildProductSubIds(row.category, row.item_id, row.subcategory),
+    isFlashSale: flash,
+    flashStock: flash ? Math.min(99, Math.max(5, Math.round((secondsLeft / (24 * 3600)) * 100))) : 0,
+    periodStart,
+    periodEnd,
+    listType: row.list_type != null ? Number(row.list_type) : null,
+    commissionRate: `${ratePct.toFixed(1)}%`,
+    commissionPct: ratePct,
+    moneyScore,
+    sellerCommission: row.seller_commission_rate || "—",
+    shopeeCommission: row.shopee_commission_rate || "—",
+    totalCommission: row.commission != null ? `R$ ${row.commission}` : "—",
+    shopName: row.shop_name || "",
+    shopId: row.shop_id,
+    shopType: row.shop_type != null ? Number(row.shop_type) : null,
+    keyword: row.keyword || "",
+    hidden: !!row.hidden,
+    desc,
+  };
+}
+
+async function patchOferta(itemId, patch = {}) {
+  const id = Number(itemId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    const err = new Error("itemId inválido");
+    err.status = 400;
+    throw err;
+  }
+  const body = { ...patch, updated_at: new Date().toISOString() };
+  if (body.category != null || body.subcategory != null) {
+    const cat = body.category;
+    const sub = body.subcategory;
+    if (cat != null) {
+      body.sub_ids = buildProductSubIds(cat, id, sub);
+    }
+  }
+  return supabaseRequest(`/ofertas?item_id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body,
+    prefer: "return=representation",
+    useService: true,
+  });
+}
+
+async function deleteOfertasByIds(itemIds = []) {
+  const ids = [...new Set(
+    itemIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0)
+  )].slice(0, 200);
+  if (!ids.length) return 0;
+  const filter = encodeURIComponent(`(${ids.join(",")})`);
+  const removed = await supabaseRequest(`/ofertas?item_id=in.${filter}`, {
+    method: "DELETE",
+    prefer: "return=representation",
+    useService: true,
+  });
+  return Array.isArray(removed) ? removed.length : 0;
+}
+
+module.exports = {
+  getConfig,
+  supabaseRequest,
+  upsertOfertas,
+  updateShortLink,
+  listOfertas,
+  getOffersByItemIds,
+  existingItemIdSet,
+  countByCategory,
+  countBySubcategory,
+  countOfertas,
+  listOffersMissingShortlink,
+  countShortlinkStatus,
+  pruneOlderThan,
+  clearAllOfertas,
+  rowToProduct,
+  patchOferta,
+  deleteOfertasByIds,
+  listCampanhasRastreio,
+  upsertCampanhaRastreio,
+  deleteCampanhaRastreio,
+  listKnownCampaignNames,
+  invalidateCampaignNamesCache,
+  isKnownCampaign,
+  buildMineFilter,
+  isMineByParts,
+};
+
+async function listCampanhasRastreio() {
+  return supabaseRequest(
+    "/campanhas_rastreio?select=*&order=created_at.desc&limit=50",
+    { method: "GET", useService: true }
+  );
+}
+
+/**
+ * Cache do set de nomes de campanha conhecidos.
+ * A detecção "é meu site?" em conversions/index consulta isso pra reconhecer
+ * vendas com `Sub_id1 = TESTE211` (campanha standalone, sem SITE_SUBID).
+ * TTL curto (60s) pra não segurar campanhas recém-criadas.
+ */
+const CAMPAIGN_NAMES_CACHE = { at: 0, set: null };
+const CAMPAIGN_NAMES_TTL_MS = 60 * 1000;
+
+async function listKnownCampaignNames({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && CAMPAIGN_NAMES_CACHE.set && now - CAMPAIGN_NAMES_CACHE.at < CAMPAIGN_NAMES_TTL_MS) {
+    return CAMPAIGN_NAMES_CACHE.set;
+  }
+  const { sanitizeSubId } = require("./tracking");
+  const set = new Set();
+  try {
+    const rows = await supabaseRequest(
+      "/campanhas_rastreio?select=id,campaign&limit=500",
+      { method: "GET", useService: true }
+    );
+    for (const r of Array.isArray(rows) ? rows : []) {
+      const idSlug = sanitizeSubId(r.id, "");
+      const campSlug = sanitizeSubId(r.campaign, "");
+      if (idSlug) set.add(idSlug);
+      if (campSlug) set.add(campSlug);
+    }
+  } catch (err) {
+    console.warn("[listKnownCampaignNames] falhou:", err.message);
+  }
+  CAMPAIGN_NAMES_CACHE.set = set;
+  CAMPAIGN_NAMES_CACHE.at = now;
+  return set;
+}
+
+function invalidateCampaignNamesCache() {
+  CAMPAIGN_NAMES_CACHE.at = 0;
+  CAMPAIGN_NAMES_CACHE.set = null;
+}
+
+async function isKnownCampaign(name) {
+  const { sanitizeSubId } = require("./tracking");
+  const slug = sanitizeSubId(name, "");
+  if (!slug) return false;
+  const set = await listKnownCampaignNames();
+  return set.has(slug);
+}
+
+/**
+ * Filtro PostgREST pra vendas "do meu site" — reconhece 2 formatos de SubID:
+ *   - vitrine/orgânico: sub_id1 = SITE_SUBID (via coluna gerada is_meu_site)
+ *   - campanha standalone: sub_id1 = nome-de-campanha-cadastrada-no-AM
+ * Retorna string pronta pra concatenar no querystring. Sem `&` no início.
+ */
+async function buildMineFilter() {
+  const set = await listKnownCampaignNames();
+  const names = [...set].filter(Boolean);
+  if (!names.length) return "is_meu_site=is.true";
+  // PostgREST in.(...) — só alfanumérico entra (sanitizeSubId já garantiu),
+  // então não precisa quotar. Nomes reservados/vazios ficariam fora do Set.
+  const list = names.slice(0, 200).join(",");
+  return `or=(is_meu_site.is.true,sub_id1.in.(${list}))`;
+}
+
+/** Sync helper — decide se um parts.sub_id1 pertence ao site. */
+async function isMineByParts(sub_id1) {
+  const { SITE_SUBID, sanitizeSubId } = require("./tracking");
+  const raw = sanitizeSubId(sub_id1, "");
+  if (!raw) return false;
+  if (raw === SITE_SUBID) return true;
+  return isKnownCampaign(raw);
+}
+
+async function upsertCampanhaRastreio(row) {
+  if (!row?.id) throw new Error("id obrigatório");
+  invalidateCampaignNamesCache();
+  return supabaseRequest("/campanhas_rastreio", {
+    method: "POST",
+    body: [{
+      id: String(row.id),
+      channel: String(row.channel || "facebook"),
+      campaign: String(row.campaign || "vitrine"),
+      products: Array.isArray(row.products) ? row.products : [],
+      links: Array.isArray(row.links) ? row.links : [],
+      example_sub_ids: Array.isArray(row.exampleSubIds)
+        ? row.exampleSubIds
+        : (Array.isArray(row.example_sub_ids) ? row.example_sub_ids : []),
+      created_at: row.createdAt || row.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }],
+    prefer: "resolution=merge-duplicates,return=representation",
+    useService: true,
+  });
+}
+
+async function deleteCampanhaRastreio(id) {
+  if (!id) return null;
+  invalidateCampaignNamesCache();
+  return supabaseRequest(
+    `/campanhas_rastreio?id=eq.${encodeURIComponent(String(id))}`,
+    { method: "DELETE", prefer: "return=minimal", useService: true }
+  );
+}

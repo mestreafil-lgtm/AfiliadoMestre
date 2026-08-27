@@ -1,0 +1,2706 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Afiliada Mestre — Ofertas selecionadas na Shopee</title>
+    <link rel="icon" type="image/png" href="/uploads/logo-bg.png">
+    <meta name="description" content="Afiliada Mestre — ofertas selecionadas facilitando sua vida. Achadinhos e promoções da Shopee todos os dias.">
+    <meta property="og:title" content="Afiliada Mestre — Ofertas selecionadas na Shopee">
+    <meta property="og:description" content="Ofertas selecionadas facilitando sua vida. Achadinhos e promoções da Shopee todos os dias.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://afiliadomestre-production.up.railway.app/">
+    <meta property="og:image" content="https://afiliadomestre-production.up.railway.app/uploads/logo-bg.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://afiliadomestre-production.up.railway.app/uploads/logo-bg.png">
+    <meta name="facebook-domain-verification" content="khq9v56un5mix3s25zcba2u6r4nbtw" />
+    <!-- Só as origens críticas do 1º paint (máx. ~4). Pixel fica em dns-prefetch
+         (não adiamos nem alteramos o snippet Meta). placehold.co saiu — quase não entra no 1º paint. -->
+    <!-- cf.shopee sem crossorigin: <img> anônimas usam conexão sem CORS. -->
+    <link rel="preconnect" href="https://cf.shopee.com.br">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://down-br.img.susercontent.com">
+    <link rel="dns-prefetch" href="https://connect.facebook.net">
+    <link rel="dns-prefetch" href="https://www.facebook.com">
+    <!-- Meta Pixel Code -->
+    <script>
+    (function(){
+      var p = location.pathname, q = location.search;
+      if (window.self !== window.top) return;
+      if (/^\/admin(\/|$)/.test(p) || /[?&](admin=|mode=admin)/.test(q)) return;
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/pt_BR/fbevents.js');
+      fbq('init', '2217009299032183');
+      fbq('set', 'autoConfig', false, '2217009299032183');
+      fbq('track', 'PageView');
+    })();
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=2217009299032183&ev=PageView&noscript=1"
+    alt="" /></noscript>
+    <!-- End Meta Pixel Code -->
+    <!-- CSS próprio (Tailwind gerado): preload + swap tira a folha do caminho crítico.
+         O CSS crítico do topo (header, aviso, reservas de altura) já está inline abaixo,
+         então não há "flash" enquanto a folha completa chega. -->
+    <link rel="preload" as="style" href="/uploads/tailwind.css" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/uploads/tailwind.css"></noscript>
+    <!-- Fonte não bloqueia o 1º paint; display=optional evita CLS quando a fonte chega tarde -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=optional" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=optional"></noscript>
+    <style>
+        /* Smooth Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4d4d4;
+            border-radius: 6px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        /* Pulse Animation for VIP badges */
+        @keyframes subtle-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .animate-subtle-pulse {
+            animation: subtle-pulse 2s infinite;
+        }
+        /* Placeholder estático atrás da foto — sem luz branca passando */
+        .img-skeleton {
+            background: #f1f5f9;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .img-skeleton { animation: none; }
+        }
+        /* Custom UI highlights */
+        .api-glow {
+            box-shadow: 0 0 15px rgba(238, 77, 45, 0.15);
+        }
+        .tab-active {
+            border-color: #ee4d2d;
+            color: #ee4d2d;
+            background-color: rgba(238, 77, 45, 0.04);
+        }
+        /* Admin panel */
+        body.admin-mode { background: #f1f5f9; overflow: hidden; }
+        body.admin-mode #main-storefront-section,
+        body.admin-mode #mobile-category-sheet,
+        body.admin-mode #back-to-top-btn,
+        body.admin-mode > footer { display: none !important; }
+        body.admin-mode #product-modal { display: none !important; }
+
+        /* NEW ADMIN SHELL */
+        #admin-panel-root {
+          --am-orange: #ee4d2d;
+          --am-orange-hot: #f97316;
+          --am-orange-soft: #fff7ed;
+          --am-slate-950: #0b1220;
+          --am-slate-900: #0f172a;
+          --am-slate-800: #1e293b;
+          --am-slate-500: #64748b;
+          --am-slate-400: #94a3b8;
+          --am-slate-200: #e2e8f0;
+          --am-slate-100: #f1f5f9;
+          --am-surface: #fff;
+          --am-money-ok: #059669;
+          --am-money-pending: #d97706;
+          --am-money-cancel: #be123c;
+          --am-radius-card: 14px;
+          --am-radius-control: 9px;
+          --am-gap: 16px;
+          --am-gap-sm: 12px;
+          --am-gap-lg: 22px;
+          --am-pad-main: 28px;
+          --am-sidebar-w: 260px;
+          --am-space-section: 16px;
+        }
+        #admin-panel-root,
+        #admin-login-screen {
+          font-family: Inter, Nunito, system-ui, sans-serif;
+          color: var(--am-slate-900, #0f172a);
+          -webkit-font-smoothing: antialiased;
+        }
+        #admin-panel-root *,
+        #admin-login-screen * { box-sizing: border-box; }
+        #admin-panel-root a,
+        #admin-login-screen a { color: #ea580c; text-decoration: none; }
+        #admin-panel-root a:hover,
+        #admin-login-screen a:hover { color: #c2410c; }
+
+        /* Design utilities */
+        #admin-panel-root .am-page {
+          padding: var(--am-pad-main);
+        }
+        #admin-panel-root .am-topbar {
+          background: var(--am-surface);
+          border-bottom: 1px solid var(--am-slate-200);
+          padding: 16px 28px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex-shrink: 0;
+          z-index: 40;
+        }
+        #admin-panel-root .conv-toolbar {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          align-items: end;
+          padding: 16px 20px;
+        }
+        #admin-panel-root .conv-toolbar-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+          flex: 1;
+        }
+        #admin-panel-root .am-card {
+          background: var(--am-surface);
+          border: 1px solid var(--am-slate-200);
+          border-radius: var(--am-radius-card);
+          padding: 20px 22px;
+        }
+        #admin-panel-root .am-section { margin-bottom: var(--am-space-section); }
+        #admin-panel-root .am-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: var(--am-gap);
+          margin-bottom: var(--am-gap-lg);
+        }
+        #admin-panel-root .am-filters {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr 1fr 100px;
+          gap: 10px;
+          align-items: end;
+        }
+        #admin-panel-root .am-toolbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+          margin-bottom: var(--am-gap);
+          flex-wrap: wrap;
+        }
+        #admin-panel-root .am-strip {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 24px;
+          align-items: center;
+        }
+        #admin-panel-root .am-icon-tile {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        #admin-panel-root .am-icon-tile.orange { background: var(--am-orange-soft); color: #ea580c; }
+        #admin-panel-root .am-icon-tile.slate { background: var(--am-slate-100); color: var(--am-slate-500); }
+        #admin-panel-root .am-icon-tile.green { background: #ecfdf5; color: var(--am-money-ok); }
+        #admin-panel-root .am-icon-tile.blue { background: #eff6ff; color: #2563eb; }
+        #admin-panel-root .btn-primary,
+        #admin-panel-root .btn-ghost,
+        #admin-panel-root .btn-dark,
+        #admin-login-screen .btn-primary {
+          padding: 8px 14px;
+          border-radius: var(--am-radius-control);
+          font-size: 12.5px;
+          cursor: pointer;
+        }
+        #admin-panel-root .btn-action {
+          padding: 14px;
+          border-radius: 10px;
+          font-size: 13px;
+        }
+
+        #admin-panel-root.hidden,
+        #admin-login-screen.hidden,
+        #admin-sidebar-backdrop.hidden,
+        #new-product-form-card.hidden,
+        #admin-bulk-bar.hidden,
+        #explorer-progress.hidden,
+        #camp-perf-detail.hidden,
+        #weak-offers-table.hidden,
+        #conversion-pagination.hidden,
+        #btn-explorer-cancel.hidden,
+        #admin-api-badge.hidden,
+        #admin-login-error.hidden { display: none !important; }
+
+        #admin-login-screen.flex { display: flex !important; }
+        #admin-panel-root.flex,
+        #admin-panel-root.is-open {
+          display: flex !important;
+          flex-direction: column;
+          position: fixed;
+          inset: 0;
+          z-index: 40;
+          width: 100%;
+          height: 100vh;
+          height: 100dvh;
+          min-height: 0;
+          overflow: hidden;
+          background: #f1f5f9;
+        }
+        #admin-panel-root > .admin-shell {
+          display: flex;
+          flex: 1;
+          min-height: 0;
+          height: 100%;
+          width: 100%;
+          overflow: hidden;
+          background: #f1f5f9;
+        }
+        #admin-sidebar-backdrop:not(.hidden) { display: block !important; }
+        #admin-bulk-bar:not(.hidden) { display: flex !important; }
+        #new-product-form-card:not(.hidden) { display: block !important; }
+        #explorer-progress:not(.hidden) { display: flex !important; }
+        #camp-perf-detail:not(.hidden) { display: block !important; }
+        #conversion-pagination:not(.hidden) { display: flex !important; }
+        #weak-offers-table:not(.hidden) { display: block !important; }
+        #admin-api-badge:not(.hidden) { display: inline-flex !important; }
+
+        #admin-sidebar {
+          width: var(--am-sidebar-w, 260px);
+          flex-shrink: 0;
+          height: 100%;
+          align-self: stretch;
+          z-index: 60;
+          transition: transform .25s ease;
+        }
+        #admin-panel-root .main-wrap {
+          flex: 1;
+          min-width: 0;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+        #admin-panel-root #main-console-section {
+          flex: 1;
+          min-width: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+        #admin-panel-root #campaigns-section.am-sticky-guide {
+          position: sticky;
+          top: 16px;
+        }
+
+        .admin-view { display: none; }
+        .admin-view.active { display: block; }
+        #admin-panel-root .nav-item.active,
+        #admin-panel-root .admin-nav-item.active {
+          background: linear-gradient(90deg, rgba(238,77,45,.18), rgba(238,77,45,.04));
+          color: #fff !important;
+          border-left: 3px solid #ee4d2d !important;
+        }
+        #admin-panel-root .nav-item.active .nav-dot {
+          background: #ee4d2d;
+          box-shadow: 0 0 0 4px rgba(238,77,45,.2);
+        }
+        #nav-catalogo-submenu { display: none; padding: 0 0 8px 0; }
+        #nav-catalogo-submenu.open { display: block; }
+        #nav-catalogo-chevron { transition: transform .15s ease; flex-shrink: 0; opacity: .7; }
+        #nav-catalogo-toggle[aria-expanded="true"] #nav-catalogo-chevron { transform: rotate(90deg); }
+        /* Lista de conversões — grid estável (não depende do purge do Tailwind) */
+        #admin-panel-root #conversion-list { padding: 0; }
+        #admin-panel-root #conversion-list .conv-head,
+        #admin-panel-root #conversion-list .conv-row {
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr) 110px 100px 92px;
+            gap: 0.5rem 0.75rem;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+        }
+        #admin-panel-root #conversion-list .conv-head {
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        #admin-panel-root #conversion-list .conv-row {
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 12px;
+            min-height: 56px;
+        }
+        #admin-panel-root #conversion-list .conv-row:hover { background: #fff7ed; }
+        #admin-panel-root #conversion-list .conv-row:last-child { border-bottom: 0; }
+        #admin-panel-root #conversion-list .conv-thumb {
+            width: 40px; height: 40px; border-radius: 0.5rem;
+            object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0;
+        }
+        #admin-panel-root #conversion-list .conv-money {
+            text-align: right; font-weight: 900; white-space: nowrap;
+        }
+        #admin-panel-root #conversion-list .conv-group {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.5rem 0.75rem 0.25rem;
+            font-size: 10px; font-weight: 800; text-transform: uppercase; color: #334155;
+        }
+        /* Mobile card layout for conversions is defined in the main max-width:900px admin block below */
+        #admin-panel-root .kpi-card { transition: transform .15s ease, box-shadow .15s ease; }
+        #admin-panel-root .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -12px rgba(15,23,42,.18); }
+        #admin-panel-root .chip {
+          background: #fff;
+          color: #334155;
+          border: 1px solid #e2e8f0;
+          border-radius: 999px;
+          padding: 6px 12px;
+          font-size: 11.5px;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        #admin-panel-root .chip:hover { background: #f1f5f9; }
+        #admin-panel-root .chip.active {
+          background: #ee4d2d !important;
+          color: #fff !important;
+          border-color: #ee4d2d !important;
+        }
+        #admin-panel-root .chip.active:hover {
+          background: #d33b1c !important;
+          color: #fff !important;
+        }
+        #admin-panel-root .explorer-scan-toggle {
+          display: flex;
+          background: #f1f5f9;
+          padding: 4px;
+          border-radius: 10px;
+          gap: 4px;
+          margin-bottom: 14px;
+        }
+        #admin-panel-root .explorer-scan-toggle button {
+          flex: 1;
+          border: 0;
+          background: transparent;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 8px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        #admin-panel-root .explorer-scan-toggle button.active {
+          background: #fff;
+          color: #e11d48;
+          box-shadow: 0 1px 2px rgba(15,23,42,.08);
+        }
+        #admin-panel-root .kw-suggest {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid #fbcfe8;
+          background: #fdf2f8;
+          color: #9d174d;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        #admin-panel-root .kw-suggest:hover { background: #fce7f3; }
+        @media (max-width: 720px) {
+          #admin-panel-root #explorer-broad-panel > div {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        #admin-panel-root .tab {
+          background: transparent;
+          color: #475569;
+          border: 0;
+          cursor: pointer;
+        }
+        #admin-panel-root .tab.active {
+          background: #fff !important;
+          color: #0f172a !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,.06);
+          font-weight: 600;
+        }
+        #admin-panel-root .btn-primary,
+        #admin-login-screen .btn-primary {
+          background: linear-gradient(135deg,#f97316,#ee4d2d);
+          color: #fff;
+          border: 0;
+          font-weight: 600;
+          box-shadow: 0 6px 14px -6px rgba(238,77,45,.6);
+        }
+        #admin-panel-root .btn-primary:hover,
+        #admin-login-screen .btn-primary:hover { filter: brightness(1.05); }
+        #admin-panel-root .btn-ghost {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          color: #0f172a;
+          font-weight: 500;
+        }
+        #admin-panel-root .btn-ghost:hover { border-color: #cbd5e1; background: #f8fafc; }
+        #admin-panel-root .btn-dark {
+          background: #0f172a;
+          color: #fff;
+          border: 0;
+          font-weight: 600;
+        }
+        #admin-panel-root .btn-dark:hover { background: #1e293b; }
+        #admin-panel-root .btn-danger {
+          background: #be123c;
+          color: #fff;
+          border: 0;
+          font-weight: 600;
+        }
+        #admin-panel-root .btn-danger:hover { background: #9f1239; }
+        #admin-panel-root .hamburger { display: none; }
+        #admin-panel-root .table-row:hover { background: #f8fafc; }
+        #admin-panel-root input,
+        #admin-panel-root select,
+        #admin-panel-root textarea,
+        #admin-login-screen input { font-family: inherit; }
+        #admin-panel-root input:focus,
+        #admin-panel-root select:focus,
+        #admin-panel-root textarea:focus,
+        #admin-login-screen input:focus {
+          outline: 2px solid #ee4d2d;
+          outline-offset: 0;
+          border-color: #ee4d2d !important;
+        }
+        #admin-panel-root .badge-live { position: relative; }
+        #admin-panel-root .badge-live::before {
+          content: '';
+          position: absolute;
+          left: -2px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 6px;
+          height: 6px;
+          background: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 0 3px rgba(16,185,129,.25);
+          animation: admin-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes admin-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+        #admin-panel-root .placeholder-img {
+          background: repeating-linear-gradient(45deg,#f1f5f9 0 6px,#e2e8f0 6px 12px);
+          color: #94a3b8;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 9px;
+          text-transform: uppercase;
+        }
+        #admin-panel-root .admin-campanhas-grid {
+          grid-template-columns: 1fr 340px;
+        }
+        #admin-panel-root .am-form-2col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        @media (max-width: 700px) {
+          #admin-panel-root .am-form-2col {
+            grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 1100px) {
+          #admin-panel-root .admin-campanhas-grid {
+            grid-template-columns: 1fr !important;
+          }
+          #admin-panel-root #campaigns-section.am-sticky-guide {
+            position: static;
+          }
+        }
+        @media (max-width: 900px) {
+          #admin-panel-root {
+            --am-pad-main: 12px;
+            --am-space-section: 12px;
+            --am-gap: 10px;
+            --am-gap-lg: 12px;
+          }
+          #admin-panel-root .am-topbar {
+            position: relative;
+            z-index: 45;
+            padding: 10px 12px;
+            gap: 10px;
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 0 rgba(15,23,42,.04);
+          }
+          #admin-panel-root .am-topbar #admin-page-title {
+            font-size: 16px !important;
+            line-height: 1.25;
+            font-weight: 800;
+          }
+          #admin-panel-root .am-topbar #admin-page-subtitle {
+            font-size: 11px !important;
+            margin-top: 1px !important;
+            line-height: 1.3;
+          }
+          #admin-panel-root .am-topbar #admin-api-badge {
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+            border-radius: 999px !important;
+          }
+          #admin-panel-root .am-topbar #admin-api-badge .api-badge-text {
+            font-size: 0;
+          }
+          #admin-panel-root .am-topbar #admin-api-badge .api-badge-text::before {
+            content: "API";
+            font-size: 10px;
+            font-weight: 600;
+          }
+          #admin-panel-root .am-card {
+            padding: 12px 14px;
+            border-radius: 12px;
+          }
+          #admin-panel-root .am-section { margin-bottom: 12px; }
+          #admin-panel-root .am-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+          }
+          #admin-panel-root .am-filters {
+            grid-template-columns: 1fr 1fr;
+          }
+          #admin-panel-root .am-filters > :first-child,
+          #admin-panel-root .am-filters > :last-child {
+            grid-column: 1 / -1;
+          }
+          #admin-panel-root .am-strip {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          #admin-sidebar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: min(280px, 86vw) !important;
+            transform: translateX(-105%);
+            z-index: 70;
+            height: 100vh;
+            height: 100dvh;
+            pointer-events: none;
+            visibility: hidden;
+            box-shadow: 8px 0 32px rgba(15,23,42,.28);
+          }
+          #admin-sidebar.open {
+            transform: translateX(0);
+            pointer-events: auto;
+            visibility: visible;
+          }
+          #admin-sidebar-backdrop:not(.hidden) {
+            z-index: 65 !important;
+          }
+          #admin-panel-root .hamburger { display: flex !important; align-items: center; justify-content: center; }
+
+          /* Conversões — mobile */
+          #admin-view-desempenho .conv-toolbar {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 12px 14px !important;
+          }
+          #admin-view-desempenho .conv-toolbar-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+          #admin-view-desempenho .conv-toolbar-actions .btn-ghost {
+            grid-column: 1 / -1;
+            justify-self: end;
+          }
+          #admin-view-desempenho .conv-lookup {
+            padding: 12px 14px !important;
+          }
+          #admin-view-desempenho .conv-lookup p {
+            font-size: 11.5px !important;
+            margin-bottom: 8px !important;
+          }
+          #admin-view-desempenho .conv-kpi-grid > div {
+            padding: 12px !important;
+            border-radius: 10px !important;
+          }
+          #admin-view-desempenho .conv-kpi-grid > div > div:nth-child(2) {
+            font-size: 20px !important;
+            margin-top: 2px !important;
+          }
+          #admin-view-desempenho .conv-kpi-grid > div > div:nth-child(3) {
+            display: none;
+          }
+          #admin-view-desempenho #conversion-funnel {
+            padding: 10px 12px !important;
+            gap: 6px !important;
+            margin-bottom: 12px !important;
+          }
+          #admin-view-desempenho #conversion-funnel .text-slate-300 { display: none; }
+          #admin-view-desempenho #conversion-funnel > span.inline-flex {
+            flex: 1 1 calc(50% - 6px);
+            justify-content: center;
+            min-width: calc(50% - 6px);
+            max-width: calc(50% - 4px);
+            box-sizing: border-box;
+          }
+          #admin-view-desempenho .conv-list-tools {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 10px 12px !important;
+            gap: 8px !important;
+          }
+          #admin-view-desempenho #conversion-status-tabs {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 6px !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+          }
+          #admin-view-desempenho #conversion-status-tabs::-webkit-scrollbar { display: none; }
+          #admin-view-desempenho #conversion-status-tabs button {
+            flex: 0 0 auto;
+            white-space: nowrap;
+            padding: 7px 10px !important;
+            font-size: 10px !important;
+            min-height: 34px;
+          }
+          #admin-view-desempenho #conversion-search {
+            width: 100% !important;
+            min-width: 0 !important;
+            flex: none !important;
+          }
+          #admin-view-desempenho #conversion-filter-hint {
+            font-size: 10px !important;
+          }
+          #admin-panel-root #conversion-list .conv-head { display: none; }
+          #admin-panel-root #conversion-list .conv-group { display: none; }
+          #admin-panel-root #conversion-list .conv-row {
+            display: grid;
+            grid-template-columns: 44px minmax(0, 1fr) auto;
+            grid-template-areas:
+              "thumb main money"
+              "thumb main money"
+              "thumb status status";
+            gap: 2px 10px;
+            align-items: start;
+            padding: 10px 12px;
+            min-height: 0;
+            border-bottom: 1px solid #f1f5f9;
+          }
+          #admin-panel-root #conversion-list .conv-row > .conv-thumb { grid-area: thumb; align-self: center; }
+          #admin-panel-root #conversion-list .conv-row > .conv-main { grid-area: main; min-width: 0; }
+          #admin-panel-root #conversion-list .conv-row > .conv-campaign { display: none !important; }
+          #admin-panel-root #conversion-list .conv-row > .conv-status {
+            grid-area: status;
+            display: flex !important;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+          }
+          #admin-panel-root #conversion-list .conv-row > .conv-status .conv-money-kind { display: none; }
+          #admin-panel-root #conversion-list .conv-row > .conv-money {
+            grid-area: money;
+            align-self: start;
+            justify-self: end;
+            font-size: 13px;
+            font-weight: 800;
+            padding-top: 2px;
+          }
+          #admin-panel-root #conversion-list .conv-order-prefix { display: inline; }
+          #admin-panel-root #conversion-list .conv-thumb {
+            width: 44px; height: 44px; border-radius: 8px;
+          }
+          #admin-panel-root #conversion-list .conv-title {
+            font-size: 12.5px;
+            line-height: 1.3;
+          }
+          #admin-panel-root #conversion-list .conv-meta-line {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            margin-top: 2px;
+            line-height: 1.35;
+            white-space: normal;
+          }
+          #admin-panel-root #conversion-list .conv-meta-sep { display: none; }
+          #admin-panel-root #conversion-list .conv-order-id,
+          #admin-panel-root #conversion-list .conv-date,
+          #admin-panel-root #conversion-list .conv-shop {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          #admin-panel-root #conversion-list .conv-order-wrap {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          #admin-panel-root #conversion-pagination {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 10px 12px !important;
+          }
+          #admin-panel-root #conversion-pagination #conversion-page-size {
+            display: none;
+          }
+          #admin-panel-root #conversion-page-info {
+            order: 2;
+            text-align: center;
+            width: 100%;
+          }
+        }
+        @media (max-width: 560px) {
+          #admin-panel-root .am-filters {
+            grid-template-columns: 1fr;
+          }
+          #admin-panel-root .am-filters > :first-child,
+          #admin-panel-root .am-filters > :last-child {
+            grid-column: auto;
+          }
+          #admin-panel-root {
+            --am-pad-main: 10px;
+          }
+          #admin-view-desempenho .conv-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        /* END NEW ADMIN SHELL */
+        .shopee-gradient {
+            background: linear-gradient(135deg, #ee4d2d 0%, #ff7337 100%);
+        }
+        #vitrine-preview-frame-wrap {
+            transition: width .25s ease, height .25s ease, border-radius .25s ease;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 12px 28px -16px rgba(15,23,42,.25);
+        }
+        #vitrine-preview-frame-wrap.preview-device-desktop {
+            width: 100%;
+            max-width: 1180px;
+            height: 680px;
+            border-radius: 10px;
+        }
+        #vitrine-preview-frame-wrap.preview-device-tablet {
+            width: 768px;
+            max-width: 100%;
+            height: 680px;
+            border-radius: 14px;
+        }
+        #vitrine-preview-frame-wrap.preview-device-mobile {
+            width: 375px;
+            max-width: 100%;
+            height: 680px;
+            border-radius: 24px;
+            border: 8px solid #1e293b;
+        }
+        #vitrine-preview-iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+        /* Shopee Explorer */
+        .shopee-preset {
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.85rem;
+            text-align: left;
+            transition: all 0.15s;
+            background: #fff;
+        }
+        .shopee-preset:hover { border-color: #fdba74; background: #fffbf7; }
+        .shopee-preset.active {
+            border-color: #ee4d2d;
+            background: linear-gradient(135deg, #fff7f5, #fff);
+            box-shadow: 0 4px 14px rgba(238,77,45,0.12);
+        }
+        .shopee-result-row.selected { background: #fff7f5; border-color: #fdba74; }
+
+        /* ——— Mobile polish ——— */
+        html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+        body { overflow-x: hidden; }
+        img, video, svg, canvas { max-width: 100%; }
+        #store-header { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+        #store-sort-tabs {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            flex-wrap: nowrap;
+        }
+        #store-sort-tabs::-webkit-scrollbar { display: none; }
+        #store-sort-tabs .store-sort-btn { white-space: nowrap; flex-shrink: 0; }
+        #store-products-grid > *,
+        #hero-products-track > *,
+        #flash-products-container > *,
+        #home-sections .grid > * {
+            min-width: 0;
+        }
+        #mobile-category-strip {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        #mobile-category-strip::-webkit-scrollbar { display: none; }
+        @media (max-width: 379px) {
+            #store-main { padding-left: 0.75rem; padding-right: 0.75rem; }
+            #store-products-grid { gap: 0.5rem; }
+            #store-header .bg-white.p-1 input { font-size: 14px; } /* evita zoom iOS */
+            #store-header button.bg-shopee-orange { padding-left: 0.85rem; padding-right: 0.85rem; }
+        }
+        @media (max-width: 639px) {
+            /* Sheet ~3/4 da tela: vitrine aparece em volta, CTA e preço continuam legíveis. */
+            #product-modal {
+                padding: 0.85rem 0.85rem max(0.85rem, env(safe-area-inset-bottom)) !important;
+                align-items: flex-end !important;
+            }
+            #product-modal #modal-card {
+                border-radius: 1.25rem;
+                height: auto;
+                max-height: 78dvh;
+                transform: none !important;
+                padding-top: env(safe-area-inset-top);
+            }
+            #product-modal #modal-img-box {
+                height: 26dvh;
+                max-height: 200px;
+            }
+            #product-modal #modal-info {
+                padding: 0.75rem 0.875rem;
+                gap: 0.55rem;
+            }
+            #product-modal #modal-new-price {
+                font-size: 1.45rem !important;
+            }
+            #product-modal #modal-cta-bar {
+                padding: 0.65rem 0.875rem calc(0.65rem + env(safe-area-inset-bottom));
+            }
+            #product-modal #modal-cta-bar .text-\[10px\] {
+                margin-top: 0.35rem;
+            }
+        }
+        @media (max-height: 640px) {
+            #product-modal .aspect-square { max-height: 24dvh; }
+            #product-modal #modal-img-box { height: 22dvh; max-height: 160px; }
+            #product-modal #modal-card { max-height: 82dvh; }
+        }
+        /* Modal: layout estável (sem colapsar altura no desktop) */
+        #modal-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #modal-card #product-modal-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        #modal-card #modal-img-box {
+            position: relative;
+            width: 100%;
+            height: 32dvh;
+            max-height: 280px;
+            background: #f8fafc;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #modal-card #modal-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+        /* O badge -XX% precisa ficar na frente da foto (foto tem z-index: 1).
+           Fica abaixo do botão de fechar (z-30). */
+        #modal-card #modal-discount { z-index: 2; }
+        #modal-card #modal-info {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+        #modal-card #modal-cta-bar {
+            flex-shrink: 0;
+            border-top: 1px solid #f1f5f9;
+            background: #fff;
+            padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+        }
+        @media (min-width: 640px) {
+            #modal-card #modal-info { padding: 1rem 1.1rem; }
+            #modal-card #modal-cta-bar { padding: 0.75rem 1.1rem calc(0.75rem + env(safe-area-inset-bottom)); }
+            #modal-card #product-modal-scroll {
+                max-height: calc(76vh - 84px);
+            }
+        }
+        @media (min-width: 768px) {
+            #modal-card #product-modal-scroll {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                max-height: calc(76vh - 84px);
+            }
+            #modal-card #modal-img-box {
+                height: auto;
+                max-height: none;
+                aspect-ratio: 1 / 1;
+                align-self: stretch;
+            }
+            #modal-card #modal-img { object-fit: cover; }
+        }
+        #modal-card #modal-title {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.35;
+            color: #0f172a;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+        /* Reserva espaço — CLS. Skeletons no HTML cobrem o hero/grid; min-heights
+           evitam colapso das seções vazias (flash) até o JS pintar.
+           Categorias NÃO usam :empty: o card já nasce com título + skeletons. */
+        #hero-products-track:empty { min-height: 360px; contain: layout; }
+        #store-products-grid:empty { min-height: 1100px; contain: layout; }
+        #flash-products-container:empty { min-height: 280px; contain: layout; }
+        #store-categories-card {
+            contain: layout;
+            min-height: 340px;
+        }
+        #mobile-category-strip {
+            contain: layout;
+            min-height: 268px;
+        }
+        .cat-tile-label {
+            min-height: 2.5em;
+            line-height: 1.25;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+        }
+        .cat-tile-badge {
+            min-height: 14px;
+            line-height: 14px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+        @media (min-width: 640px) {
+            #hero-products-track:empty { min-height: 260px; }
+            #store-products-grid:empty { min-height: 700px; }
+            #store-categories-card { min-height: 368px; }
+        }
+        /* home-sections desativado por pedido do cliente — sem altura reservada. */
+        #home-sections { display: none !important; }
+        #main-storefront-section { min-height: calc(100dvh - 60px); }
+        #store-main { min-height: 720px; contain: layout; }
+        /* Sidebar Shopee-style só aparece quando renderShopeeSidebar populou (categoria ativa). */
+        #store-shopee-sidebar[data-empty="1"] { display: none !important; }
+        /* Dentro de uma categoria: some Home stuff (Categorias card, Hero/Flash, Home sections)
+           pra virar uma página estilo Shopee com sidebar + grid, sem misturar com a home. */
+        #store-main[data-category-active="1"] #store-categories-card,
+        #store-main[data-category-active="1"] #hero-products,
+        #store-main[data-category-active="1"] #flash-sale-section,
+        #store-main[data-category-active="1"] #home-sections { display: none !important; }
+        #store-search-input { min-height: 40px; }
+        img[src*="logo.png"] { aspect-ratio: 240 / 114; background: transparent; }
+        img[src*="logo-bg.png"] { aspect-ratio: 240 / 126; background: transparent; }
+
+        /* Reserva caixa do ícone antes do FA CSS chegar — corta CLS do woff2.
+           @font-face NÃO fica no critical path (só no fa-solid.min.css idle). */
+        .fas, .fa-solid {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            line-height: 1;
+            vertical-align: -0.125em;
+            flex-shrink: 0;
+        }
+    </style>
+    <!-- CSS solid (sem regular/brands) — idle, fora do caminho crítico -->
+    <script>
+    (function () {
+      function loadFa() {
+        if (document.getElementById('fa-css')) return;
+        var l = document.createElement('link');
+        l.id = 'fa-css';
+        l.rel = 'stylesheet';
+        l.href = '/uploads/fa-solid.min.css';
+        document.head.appendChild(l);
+      }
+      if ('requestIdleCallback' in window) requestIdleCallback(loadFa, { timeout: 2500 });
+      else setTimeout(loadFa, 1200);
+    })();
+    </script>
+    <noscript><link rel="stylesheet" href="/uploads/fa-solid.min.css"></noscript>
+</head>
+<body class="bg-shopee-grayBg text-shopee-textDark font-sans selection:bg-shopee-orange selection:text-white min-h-screen flex flex-col">
+
+    <!-- SECTION 1: PUBLIC STOREFRONT MODE -->
+    <div id="main-storefront-section" class="flex-1 flex flex-col">
+        <!-- Shopee Style Header Block -->
+        <div id="store-header" class="bg-shopee-orange pb-6 pt-4 text-white sticky top-0 z-40 shadow-md">
+            <div class="hidden md:block border-b border-white/10 mb-3">
+                <div class="max-w-7xl mx-auto px-4 flex items-center gap-4 py-1.5 text-[11px]">
+                    <a href="/mais-vendidos" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Mais Vendidos</a>
+                    <a href="/maiores-descontos" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Maiores Descontos</a>
+                    <a href="/melhor-avaliados" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Melhor Avaliados</a>
+                    <a href="/lojas-oficiais" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Lojas Oficiais</a>
+                    <a href="/relampago" class="text-white/90 hover:text-white hover:underline whitespace-nowrap">Relâmpago</a>
+                    <span class="ml-auto text-white/85 font-semibold">Curadoria · compra 100% segura no app Shopee</span>
+                </div>
+            </div>
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <a href="/" class="flex items-center gap-3 shrink-0">
+                        <picture>
+                            <source srcset="/uploads/logo.webp" type="image/webp">
+                            <img src="/uploads/logo.png" alt="Afiliada Mestre" width="240" height="114" class="h-12 md:h-14 w-auto drop-shadow-sm" decoding="async" fetchpriority="auto">
+                        </picture>
+                    </a>
+
+                    <div class="w-full md:max-w-2xl">
+                        <div class="bg-white p-1 rounded-lg flex items-center shadow-md border-2 border-white focus-within:border-amber-300 transition-all">
+                            <i class="fas fa-search text-slate-400 ml-3 mr-2"></i>
+                            <input 
+                                type="text" 
+                                id="store-search-input"
+                                oninput="searchStoreProducts()"
+                                placeholder="O que você está procurando?" 
+                                class="w-full bg-transparent text-base sm:text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                            >
+                            <button
+                                type="button"
+                                id="store-search-clear"
+                                onclick="clearStoreSearch()"
+                                class="hidden text-slate-300 hover:text-slate-500 px-2 shrink-0"
+                                aria-label="Limpar busca"
+                            ><i class="fas fa-circle-xmark"></i></button>
+                            <button 
+                                onclick="searchStoreProducts()"
+                                class="bg-shopee-orange hover:bg-shopee-orangeHover text-white px-6 py-2.5 rounded-md transition font-bold text-xs uppercase shrink-0"
+                            >
+                                Buscar
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 mt-2 text-[11px] text-orange-100 px-1 flex-wrap">
+                            <span class="font-semibold text-white shrink-0">Populares:</span>
+                            <div id="popular-terms" class="flex flex-wrap items-center gap-1.5"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="md:hidden mt-2.5 text-center text-[10px] text-white/90 font-semibold leading-snug">
+                    Finalize a compra com segurança no app oficial da Shopee
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-amber-50 border-b border-amber-100 text-amber-950">
+            <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-center gap-2 text-[11px] md:text-xs font-semibold text-center">
+                <i class="fas fa-shield-halved text-shopee-orange shrink-0"></i>
+                <span>Nenhum pagamento neste site — você é redirecionada para a Shopee com segurança.</span>
+            </div>
+        </div>
+
+        <!-- CORE PUBLIC STOREFRONT CONTENT -->
+        <main id="store-main" class="max-w-7xl w-full mx-auto p-4 pb-24 md:pb-4 space-y-6 flex-1">
+            <!-- Hero: produtos em destaque (ofertas relâmpago) -->
+            <section id="hero-products" class="space-y-3 scroll-mt-24">
+                <div class="flex items-end justify-between gap-2">
+                    <div>
+                        <p class="text-[11px] font-extrabold text-shopee-orange uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-bolt text-shopee-yellow"></i> Promoção por tempo limitado
+                        </p>
+                        <h2 class="text-xl md:text-2xl font-black text-slate-800 leading-tight">Relâmpago pra ela</h2>
+                    </div>
+                    <button onclick="navigateTo('/relampago')" class="hidden sm:inline-flex text-xs font-bold text-shopee-orange hover:underline items-center gap-1">
+                        Ver ofertas relâmpago <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div id="hero-products-track" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+                    <!-- Skeletons reservam altura real até a API responder (evita CLS). -->
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                </div>
+            </section>
+
+            <!-- Categories Row -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200/60 scroll-mt-24" id="store-categories-card">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="h-2 w-2 rounded-full bg-shopee-orange"></span> Categorias
+                    </h3>
+                    <button onclick="openMobileCategorySheet()" class="sm:hidden text-xs font-bold text-shopee-orange flex items-center gap-1 active:opacity-70">
+                        Ver Mais <i class="fas fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <!-- Mobile: faixa de fotos + nomes (sem "Tudo"; toque abre página de categorias) -->
+                <div class="sm:hidden mt-4 -mx-1 px-1">
+                    <div id="mobile-category-strip" class="grid grid-flow-col auto-cols-[22%] grid-rows-2 gap-2 overflow-x-auto snap-x pb-2 scrollbar-thin">
+                        <!-- Mesma altura do tile real (círculo + 2 linhas + badge) — CLS. -->
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full snap-start" aria-hidden="true"><div class="h-16 w-16 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-12 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                    </div>
+                </div>
+
+                <!-- Desktop / tablet: 12 categorias por página (2 linhas × 6) + setas de navegação -->
+                <div class="hidden sm:block mt-4 relative" id="store-categories-desktop-wrap">
+                    <button type="button" id="store-cat-prev" onclick="pageStoreCategories(-1)"
+                        class="hidden absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-slate-200 items-center justify-center text-slate-500 hover:text-shopee-orange hover:shadow-lg transition"
+                        aria-label="Categorias anteriores">
+                        <i class="fas fa-chevron-left text-sm"></i>
+                    </button>
+                    <button type="button" id="store-cat-next" onclick="pageStoreCategories(1)"
+                        class="hidden absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-white shadow-md border border-slate-200 items-center justify-center text-slate-500 hover:text-shopee-orange hover:shadow-lg transition"
+                        aria-label="Próximas categorias">
+                        <i class="fas fa-chevron-right text-sm"></i>
+                    </button>
+                    <div class="grid grid-cols-4 sm:grid-cols-6 gap-2" id="store-categories-container">
+                        <!-- Skeletons desktop (12 = 2 linhas × 6), mesma altura do tile real. -->
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                        <div class="flex flex-col items-center p-2 w-full" aria-hidden="true"><div class="h-20 w-20 rounded-full bg-slate-100 mb-1.5 shrink-0"></div><span class="cat-tile-label w-full"><span class="block h-2.5 w-14 mx-auto rounded bg-slate-100 mt-1"></span></span><span class="cat-tile-badge"></span></div>
+                    </div>
+                </div>
+
+                <!-- Subcategorias inline (somente desktop) -->
+                <div id="store-subcategories" class="hidden mt-4 pt-3 border-t border-slate-100">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">Subcategorias</span>
+                            <span id="subcat-breadcrumb" class="text-[10px] text-shopee-orange font-bold truncate"></span>
+                        </div>
+                    </div>
+                    <div id="store-subcategories-container" class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        <!-- Dynamic subcategories -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLASH SALE BOX -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200/60 scroll-mt-24" id="flash-sale-section">
+                <div class="bg-gradient-to-r from-orange-500/10 to-red-500/10 p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center bg-shopee-orange text-white font-black px-3 py-1.5 rounded-lg text-xs italic tracking-wide animate-subtle-pulse">
+                            <i class="fas fa-bolt mr-1.5 text-shopee-yellow"></i> TERMINA EM BREVE
+                        </div>
+                        <div class="flex items-center space-x-1 font-bold text-sm text-slate-800">
+                            <span id="flash-hour" class="bg-slate-900 text-white px-2 py-1 rounded text-xs">--</span>
+                            <span>:</span>
+                            <span id="flash-min" class="bg-slate-900 text-white px-2 py-1 rounded text-xs">--</span>
+                            <span>:</span>
+                            <span id="flash-sec" class="bg-slate-900 text-white px-2 py-1 rounded text-xs">--</span>
+                        </div>
+                    </div>
+                    <span class="text-xs text-slate-500 font-semibold">Baseado no prazo real da oferta</span>
+                </div>
+                <div class="p-4 grid grid-cols-2 sm:grid-cols-6 gap-2 md:gap-3 pb-6" id="flash-products-container">
+                    <!-- Skeletons: container começava vazio e crescia no fetch → CLS. -->
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 flex flex-col gap-1.5"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-4 rounded bg-slate-100 w-1/3"></div></div></div>
+                </div>
+            </div>
+
+            <!-- PRODUCTS SHOWCASE GRID -->
+            <div id="home-sections" class="space-y-4"></div>
+
+            <div id="store-grid-section" class="pt-2 scroll-mt-24 lg:flex lg:gap-4">
+                <!-- Desktop sidebar (estilo Shopee) - só aparece dentro de categoria -->
+                <aside id="store-shopee-sidebar" class="hidden lg:block lg:w-56 xl:w-60 shrink-0 space-y-4" data-empty="1"></aside>
+
+                <div class="flex-1 min-w-0 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 shrink-0">
+                        <i class="fas fa-fire text-shopee-orange"></i> Ofertas em destaque
+                    </h3>
+                    <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto min-w-0">
+                        <div class="flex bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold overflow-x-auto max-w-full" id="store-sort-tabs">
+                            <button type="button" data-sort="money" onclick="setStoreSort('money')" class="store-sort-btn px-2.5 py-1.5 rounded-md bg-white text-shopee-orange shadow-sm">Melhor oferta</button>
+                            <button type="button" data-sort="recent" onclick="setStoreSort('recent')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Recentes</button>
+                            <button type="button" data-sort="sales" onclick="setStoreSort('sales')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Mais vendidos</button>
+                            <button type="button" data-sort="discount" onclick="setStoreSort('discount')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Maior desconto</button>
+                            <button type="button" data-sort="rating" onclick="setStoreSort('rating')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Melhor avaliação</button>
+                            <button type="button" data-sort="price-asc" onclick="setStoreSort('price-asc')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Menor preço</button>
+                            <button type="button" data-sort="price-desc" onclick="setStoreSort('price-desc')" class="store-sort-btn px-2.5 py-1.5 rounded-md text-slate-500">Maior preço</button>
+                        </div>
+                        <div id="store-results-info" class="text-xs text-slate-500 shrink-0">Carregando ofertas…</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3.5" id="store-products-grid">
+                    <!-- Skeletons reservam altura real até a API responder (evita CLS). -->
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                    <div class="bg-white rounded-xl overflow-hidden border border-slate-100 flex flex-col min-w-0" aria-hidden="true"><div class="aspect-square img-skeleton"></div><div class="p-2 sm:p-2.5 flex flex-col gap-1.5 min-w-0"><div class="h-3 rounded bg-slate-100 w-3/4"></div><div class="h-3 rounded bg-slate-100 w-1/2"></div><div class="h-4 rounded bg-slate-100 w-1/3 mt-1"></div><div class="h-9 rounded bg-slate-100 mt-1"></div></div></div>
+                </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- BACK TO TOP -->
+        <button id="back-to-top-btn" onclick="scrollToStoreTop()" class="hidden fixed right-4 bottom-20 md:bottom-6 h-11 w-11 rounded-full bg-slate-900/90 text-white shadow-lg items-center justify-center z-40 hover:bg-slate-900" aria-label="Voltar ao topo"><i class="fas fa-arrow-up"></i></button>
+
+        <!-- MOBILE BOTTOM NAV -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 flex justify-around items-stretch z-40 shadow-[0_-2px_12px_rgba(0,0,0,0.25)]" style="padding-bottom:env(safe-area-inset-bottom);">
+            <button onclick="scrollToStoreTop()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-house text-[15px] text-slate-100"></i>Início</button>
+            <button onclick="scrollToStoreCategories()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-table-cells-large text-[15px] text-slate-100"></i>Categorias</button>
+            <button onclick="scrollToFlashSale()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-bolt text-[15px] text-slate-100"></i>Relâmpago</button>
+            <button onclick="scrollToStoreGrid()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-bag-shopping text-[15px] text-slate-100"></i>Ofertas</button>
+            <button onclick="focusStoreSearch()" class="flex flex-col items-center justify-center gap-1 text-slate-300 text-[10px] font-bold py-2.5 px-2 min-h-[48px] flex-1"><i class="fas fa-magnifying-glass text-[15px] text-slate-100"></i>Buscar</button>
+        </nav>
+    </div>
+
+    <!-- Página de categorias em tela cheia (estilo Shopee): sidebar + painel de subcategorias -->
+    <div id="mobile-category-sheet" class="hidden sm:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+        <div class="bg-shopee-orange text-white px-4 pb-3 pt-4 flex items-center gap-3 shrink-0" style="padding-top:max(env(safe-area-inset-top),16px);">
+            <button onclick="closeMobileCategorySheet()" aria-label="Voltar" class="h-10 w-10 rounded-full flex items-center justify-center active:bg-white/20">
+                <i class="fas fa-arrow-left text-white text-lg"></i>
+            </button>
+            <h4 class="flex-1 text-center font-black text-lg text-white pr-10">Categorias</h4>
+        </div>
+        <div class="flex flex-1 min-h-0">
+            <aside id="category-page-sidebar" class="w-[96px] shrink-0 overflow-y-auto bg-slate-100/80 pb-6"></aside>
+            <section id="category-page-panel" class="flex-1 overflow-y-auto px-3 py-4 bg-white pb-10"></section>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL — página dedicada (?admin=1) -->
+<!-- Login overlay (hidden by default) -->
+  <div id="admin-login-screen" class="hidden" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#0b1220,#1e293b);z-index:100;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+      
+      <div style="background:linear-gradient(135deg,#f97316,#ee4d2d);margin:-32px -32px 24px;padding:26px;border-radius:16px 16px 0 0;color:#fff;text-align:center">
+        <picture>
+          <source srcset="/uploads/logo.webp" type="image/webp">
+          <img src="/uploads/logo.png" alt="Afiliada Mestre" width="220" height="104" style="height:52px;width:auto;margin:0 auto 10px;object-fit:contain" decoding="async">
+        </picture>
+        <div style="font-size:17px;font-weight:700">Afiliada Mestre</div>
+        <div style="font-size:11px;opacity:.9">Painel Administrativo &amp; Gestão Shopee</div>
+      </div>
+      <form id="admin-login-form" onsubmit="return submitAdminLogin(event)">
+        <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase">E-mail</label>
+        <input id="admin-login-user" type="email" required style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:12px"/>
+        <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase">Senha</label>
+        <input id="admin-login-pass" type="password" required style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:12px"/>
+        <div id="admin-login-error" class="hidden" style="font-size:11.5px;color:#dc2626;margin-bottom:10px;min-height:14px"></div>
+        <button id="admin-login-submit" type="submit" class="btn-primary" style="width:100%;padding:12px;border-radius:9px;font-size:13px;cursor:pointer">Acessar Console</button>
+        <a href="/" style="display:block;text-align:center;font-size:12px;color:#64748b;margin-top:12px">← Voltar à vitrine</a>
+      </form>
+    </div>
+  </div>
+    <div id="admin-panel-root" class="hidden" style="display:none;min-height:100vh;background:#f1f5f9;font-family:Inter,Nunito,system-ui,sans-serif">
+<div class="admin-shell" style="display:flex;min-height:100vh;width:100%;background:#f1f5f9">
+    <div id="admin-sidebar-backdrop" onclick="toggleAdminSidebar(false)" class="hidden" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:65"></div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside id="admin-sidebar" style="width:260px;background:#0b1220;color:#cbd5e1;display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid #1e293b">
+
+    <!-- Brand header -->
+    <div style="padding:18px 16px 16px;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:12px">
+      <picture style="flex:1;min-width:0">
+        <source srcset="/uploads/logo.webp" type="image/webp">
+        <img src="/uploads/logo.png" alt="Afiliada Mestre" width="180" height="86" style="height:44px;width:auto;max-width:180px;object-fit:contain;display:block" decoding="async">
+      </picture>
+      <button type="button" onclick="toggleAdminSidebar(false)" class="hamburger" style="background:transparent;border:0;color:#64748b;cursor:pointer;padding:4px;flex-shrink:0" aria-label="Fechar menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+      </button>
+    </div>
+    <!-- Nav -->
+    <nav style="flex:1;padding:14px 10px;overflow-y:auto">
+      
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Início</div>
+        
+          <button type="button" id="nav-dashboard" data-admin-view="dashboard" onclick="switchAdminView('dashboard')" class="nav-item admin-nav-item active" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Início</span>
+            
+          </button>
+          <button type="button" id="nav-vitrine-preview" data-admin-view="vitrine-preview" onclick="switchAdminView('vitrine-preview')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Ver vitrine</span>
+          </button>
+      
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Catálogo</div>
+        
+          <button type="button" id="nav-catalogo-toggle" onclick="toggleCatalogoSubmenu()" aria-expanded="false" class="nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Catálogo</span>
+            <svg id="nav-catalogo-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+          <div id="nav-catalogo-submenu">
+            <button type="button" id="nav-catalogo-buscar" data-admin-view="catalogo-buscar" onclick="switchAdminView('catalogo-buscar')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Buscar produtos</button>
+            <button type="button" id="nav-catalogo-atualizar" data-admin-view="catalogo-atualizar" onclick="switchAdminView('catalogo-atualizar')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Atualizar catálogo</button>
+            <button type="button" id="nav-catalogo-links" data-admin-view="catalogo-links" onclick="switchAdminView('catalogo-links')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:7px 12px 7px 28px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:1px">Links curtos</button>
+          </div>
+          <button type="button" id="nav-produtos" data-admin-view="produtos" onclick="switchAdminView('produtos')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Produtos na vitrine</span>
+            
+          </button>
+          <button type="button" id="nav-duplicados" data-admin-view="duplicados" onclick="switchAdminView('duplicados')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Limpar catálogo</span>
+            
+          </button>
+      
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Campanhas</div>
+        
+          <button type="button" id="nav-campanhas" data-admin-view="campanhas" onclick="switchAdminView('campanhas')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Campanhas</span>
+            
+          </button>
+          <button type="button" id="nav-campanha-desempenho" data-admin-view="campanha-desempenho" onclick="switchAdminView('campanha-desempenho')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Resultado das campanhas</span>
+            
+          </button>
+      
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Vendas</div>
+        
+          <button type="button" id="nav-meu-site" data-admin-view="meu-site" onclick="switchAdminView('meu-site')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Vendas do site</span>
+            
+          </button>
+          <button type="button" id="nav-desempenho" data-admin-view="desempenho" onclick="switchAdminView('desempenho')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Todas as conversões</span>
+            
+          </button>
+          <button type="button" id="nav-financeiro" data-admin-view="financeiro" onclick="switchAdminView('financeiro')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Financeiro</span>
+          </button>
+      
+        <div style="padding:14px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#475569">Operação</div>
+          <button type="button" id="nav-catalogo-saude" data-admin-view="catalogo-saude" onclick="switchAdminView('catalogo-saude')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Saúde da Shopee</span>
+          </button>
+          <button type="button" id="nav-visualizacoes" data-admin-view="visualizacoes" onclick="switchAdminView('visualizacoes')" class="nav-item admin-nav-item" style="width:100%;display:flex;align-items:center;gap:11px;padding:9px 12px;background:transparent;border:0;border-left:3px solid transparent;color:#94a3b8;font-size:13px;font-weight:500;cursor:pointer;text-align:left;border-radius:0 8px 8px 0;margin-bottom:2px">
+            <span class="nav-dot" style="width:6px;height:6px;border-radius:50%;background:#334155;flex-shrink:0"></span>
+            <span style="flex:1">Visualizações</span>
+          </button>
+      
+    </nav>
+    <!-- Footer -->
+    <div style="padding:14px;border-top:1px solid #1e293b">
+      <a href="/" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#0f172a;border:1px solid #1e293b;border-radius:8px;color:#cbd5e1;font-size:12px;font-weight:500;margin-bottom:10px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v7H3V3h7"/></svg>
+        Ver vitrine pública
+      </a>
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 4px">
+        <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ee4d2d,#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px">AM</div>
+        <div style="flex:1;min-width:0">
+          <div style="color:#e2e8f0;font-size:12px;font-weight:600">Admin</div>
+          <div style="color:#64748b;font-size:10px">Sessão ativa</div>
+        </div>
+        <button onclick="logoutAdmin()" title="Sair" style="background:transparent;border:1px solid #1e293b;color:#94a3b8;padding:6px 8px;border-radius:6px;font-size:11px;cursor:pointer">Sair</button>
+      </div>
+      <div style="font-size:10px;color:#475569;text-align:center;margin-top:10px">Clientes não veem este painel</div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main-wrap" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+    <!-- Top bar -->
+    <header class="am-topbar">
+      <button onclick="toggleAdminSidebar()" class="hamburger" style="background:transparent;border:1px solid #e2e8f0;padding:8px;border-radius:8px;cursor:pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div style="flex:1;min-width:0">
+        <h1 id="admin-page-title" style="margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#0f172a">Início</h1>
+        <p id="admin-page-subtitle" style="margin:2px 0 0;font-size:12.5px;color:#64748b">Visão geral da operação de afiliados</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="admin-api-badge" class="hidden" style="padding:6px 10px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:999px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:6px">
+          <span style="width:6px;height:6px;border-radius:50%;background:#10b981"></span><span class="api-badge-text">API online</span>
+        </span>
+        <button onclick="loadAdminStats(); loadAutoStatus(); loadDashboardSales();" title="Atualizar" style="background:#fff;border:1px solid #e2e8f0;padding:8px;border-radius:8px;cursor:pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main console -->
+    <main id="main-console-section" class="am-page" style="flex:1;min-width:0">
+
+      <!-- ============ VIEW: DASHBOARD ============ -->
+      <section id="admin-view-dashboard" class="admin-view active">
+
+        <!-- KPI GRID -->
+        <div class="am-kpi-grid">
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('produtos')" style="cursor:pointer;position:relative;overflow:hidden;padding:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Produtos no banco</div>
+                <div id="stat-db-products" style="font-size:32px;font-weight:800;color:#0f172a;margin-top:8px;letter-spacing:-.03em">—</div>
+                <div style="font-size:11.5px;color:#10b981;font-weight:600;margin-top:4px">Clique para gerenciar</div>
+              </div>
+              <div class="am-icon-tile orange">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7L12 3 4 7v10l8 4 8-4V7z"/><path d="M12 11l8-4M12 11v10M12 11L4 7"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-atualizar')" style="cursor:pointer;padding:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Categorias ativas</div>
+                <div id="stat-db-categories" style="font-size:32px;font-weight:800;color:#0f172a;margin-top:8px;letter-spacing:-.03em">—</div>
+                <div style="font-size:11.5px;color:#64748b;font-weight:500;margin-top:4px">Sincronizar catálogo</div>
+              </div>
+              <div class="am-icon-tile blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-atualizar')" style="cursor:pointer;padding:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Auto-sync</div>
+                <div id="stat-auto-state" style="font-size:22px;font-weight:800;color:#0f172a;margin-top:8px;letter-spacing:-.02em">—</div>
+                <div id="stat-auto-next" style="font-size:11.5px;color:#64748b;font-weight:500;margin-top:4px">próxima: —</div>
+              </div>
+              <div class="am-icon-tile green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-saude')" style="cursor:pointer;padding:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Última sincronização</div>
+                <div id="stat-auto-last" style="font-size:22px;font-weight:800;color:#0f172a;margin-top:8px;letter-spacing:-.02em">—</div>
+                <div id="stat-auto-upserts" style="font-size:11.5px;color:#64748b;font-weight:500;margin-top:4px">itens salvos: —</div>
+              </div>
+              <div class="am-icon-tile slate">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="am-card am-section" style="margin-bottom:22px">
+          <div class="am-toolbar">
+            <h2 style="margin:0;font-size:15px;font-weight:700;color:#0f172a">Ações rápidas</h2>
+            <span style="font-size:11.5px;color:#64748b">6 atalhos de operação</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+            <button id="btn-run-auto" onclick="runAutoSyncNow()" class="btn-dark btn-action" style="display:flex;align-items:center;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+              Atualizar agora
+            </button>
+            <button id="btn-top-perf" onclick="runTopPerformanceNow()" class="btn-ghost btn-action" style="display:flex;align-items:center;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+              Destaques
+            </button>
+            <button onclick="loadOffersFromSupabase({silent:false,reset:true})" class="btn-ghost btn-action" style="display:flex;align-items:center;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 4a10 10 0 0 0-16 6M4 20a10 10 0 0 0 16-6"/></svg>
+              Recarregar
+            </button>
+            <button onclick="switchAdminView('produtos'); openNewProductForm();" class="btn-ghost btn-action" style="display:flex;align-items:center;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              Produto manual
+            </button>
+            <button onclick="switchAdminView('campanhas')" class="btn-ghost btn-action" style="display:flex;align-items:center;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M3 11l18-8-4 18-4-6-4-2-6-2z"/></svg>
+              Campanhas
+            </button>
+            <button onclick="switchAdminView('desempenho')" class="btn-ghost btn-action" style="display:flex;align-items:center;gap:10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="10"/></svg>
+              Vendas
+            </button>
+          </div>
+        </div>
+
+        <!-- Shopee performance strip -->
+        <div class="am-strip" onclick="switchAdminView('desempenho')" style="cursor:pointer;background:linear-gradient(135deg,#0b1220,#1e293b);border-radius:14px;padding:26px;color:#fff;position:relative;overflow:hidden">
+          <div style="position:absolute;right:-40px;top:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(238,77,45,.3),transparent 70%);border-radius:50%"></div>
+          <div style="position:relative">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#f97316;margin-bottom:8px">Vendas Shopee · Últimos 30 dias</div>
+            <div style="display:flex;gap:36px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Conversões</div>
+                <div id="dash-conversion-total" style="font-size:30px;font-weight:800;letter-spacing:-.03em">—</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Confirmado</div>
+                <div id="dash-conversion-commission" style="font-size:30px;font-weight:800;color:#34d399;letter-spacing:-.03em">R$ 0,00</div>
+              </div>
+            </div>
+          </div>
+          <div class="btn-primary" style="padding:12px 20px;border-radius:10px;font-size:13px;position:relative;text-align:center">Abrir vendas →</div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: VITRINE PREVIEW ============ -->
+      <section id="admin-view-vitrine-preview" class="admin-view">
+        <div class="am-card" style="padding:0;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Ver vitrine ao vivo</h2>
+              <p style="margin:2px 0 0;font-size:12px;color:#64748b">A loja pública, no celular, tablet ou computador.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="background:#f1f5f9;padding:4px;border-radius:10px;display:flex;gap:2px">
+                <button id="btn-device-desktop" onclick="setPreviewDevice('desktop')" class="tab active" style="border:0;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;background:#fff">Desktop</button>
+                <button id="btn-device-tablet" onclick="setPreviewDevice('tablet')" class="tab" style="border:0;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;color:#64748b">Tablet</button>
+                <button id="btn-device-mobile" onclick="setPreviewDevice('mobile')" class="tab" style="border:0;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;color:#64748b">Mobile</button>
+              </div>
+              <a href="/" target="_blank" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12px">Nova aba ↗</a>
+            </div>
+          </div>
+          <div style="padding:22px;background:#f8fafc;display:flex;justify-content:center">
+            <div id="vitrine-preview-frame-wrap" class="preview-device-desktop">
+              <iframe id="vitrine-preview-iframe" src="/" title="Vitrine ao vivo"></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: BUSCAR PRODUTOS (3 abas + atalhos) ============ -->
+      <section id="admin-view-catalogo-buscar" class="admin-view">
+        <div id="cat-panel-buscar">
+          <!-- Atalhos rápidos -->
+          <div class="am-card am-section">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+              <div>
+                <h2 style="margin:0;font-size:15px;font-weight:700">Buscar produtos na Shopee</h2>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Varredura em massa por categoria ou busca por palavra. A API da Shopee já está ligada neste servidor. Só entram produtos que ainda não estão na vitrine.</p>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" onclick="runCoverageShortcut()" class="btn-primary" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Preencher lacunas femininas</button>
+                <button type="button" onclick="showMoneyQueueShortcut()" class="btn-dark" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Top comissão da vitrine</button>
+                <button type="button" onclick="loadCoverageReport()" class="btn-ghost" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Relatório de cobertura</button>
+              </div>
+            </div>
+            <!-- Cobertura (aparece após clicar em Relatório) -->
+            <div id="coverage-summary" class="hidden" style="display:none;padding:12px;background:#f8fafc;border-radius:9px;margin-top:8px">
+              <p id="coverage-status-line" style="margin:0 0 8px;font-size:12px;color:#64748b">Carregando cobertura…</p>
+              <div id="coverage-table" style="border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#64748b;padding:12px;max-height:320px;overflow-y:auto">—</div>
+              <button type="button" id="btn-coverage-fill" onclick="runCoverageFill()" class="btn-primary" style="margin-top:10px;padding:7px 12px;border-radius:7px;font-size:12px;cursor:pointer">Preencher lacunas</button>
+            </div>
+            <!-- Money queue (aparece após clicar em Top comissão) -->
+            <div id="money-queue-card" class="hidden" style="display:none;padding:12px;background:#fff7ed;border-radius:9px;margin-top:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+                <p style="margin:0;font-size:12px;color:#78350f"><strong>Top comissão da vitrine</strong> — score = comissão × vendas × nota</p>
+                <div style="display:flex;gap:6px">
+                  <button type="button" onclick="renderMoneyQueue()" class="btn-ghost" style="padding:6px 10px;border-radius:7px;font-size:11.5px;cursor:pointer">Recalcular</button>
+                  <button type="button" onclick="moneyQueueShortlinkTop()" class="btn-primary" style="padding:6px 10px;border-radius:7px;font-size:11.5px;cursor:pointer">Gerar links curtos do topo</button>
+                </div>
+              </div>
+              <div id="money-queue-box" style="font-size:12px;color:#78350f;max-height:360px;overflow-y:auto">Clique em Recalcular para listar os top 20.</div>
+            </div>
+          </div>
+
+          <!-- Card principal: abas -->
+          <div class="am-card am-section">
+            <!-- Tabs -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px">
+              <button type="button" id="cat-buscar-tab-palavras" onclick="switchCatalogoBuscarTab('palavras')" class="chip active">Busca / varredura</button>
+              <button type="button" id="cat-buscar-tab-lojas" onclick="switchCatalogoBuscarTab('lojas')" class="chip">Lojas afiliadas</button>
+              <button type="button" id="cat-buscar-tab-ofertas" onclick="switchCatalogoBuscarTab('ofertas')" class="chip">Ofertas oficiais</button>
+              <span id="explorer-mode-hint" style="margin-left:auto;font-size:11px;color:#ea580c;font-weight:600;padding:4px 10px;background:#fff7ed;border-radius:999px">Modo: MAIS VENDIDOS</span>
+            </div>
+
+            <!-- Aba 1: Palavras-chave -->
+            <div id="cat-buscar-pane-palavras" class="cat-buscar-pane">
+              <div class="explorer-scan-toggle" role="tablist" aria-label="Modo de busca">
+                <button type="button" id="explorer-mode-broad" onclick="setExplorerScanMode('broad')" class="active">Varredura (massa)</button>
+                <button type="button" id="explorer-mode-keyword" onclick="setExplorerScanMode('keyword')">Palavra-chave</button>
+              </div>
+
+              <div id="explorer-broad-panel" style="margin-bottom:14px;padding:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px">
+                <p style="margin:0 0 10px;font-size:12px;color:#9a3412"><strong>Varredura em massa</strong> — percorre a categoria oficial da Shopee, página a página (até 50 itens cada). Sem App ID: as credenciais ficam no servidor.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Categoria Shopee</label>
+                    <select id="admin-product-cat" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff">
+                      <option value="100017" selected>Moda Feminina</option>
+                      <option value="100630">Beleza e Perfumaria</option>
+                      <option value="100009">Bolsas e Acessórios</option>
+                      <option value="100534">Óculos e Relógios</option>
+                      <option value="100637">Fitness e Esportes</option>
+                      <option value="100632">Mães e Bebês</option>
+                      <option value="100633">Moda Infantil</option>
+                      <option value="100636">Casa e Construção</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Páginas da varredura</label>
+                    <input id="admin-pages-mass" type="range" min="1" max="20" value="5" oninput="updateExplorerMassHint()" style="width:100%;accent-color:#ee4d2d"/>
+                    <p id="explorer-mass-hint" style="margin:4px 0 0;font-size:11px;color:#c2410c;font-weight:600">5 páginas × 50 = até 250 produtos</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Presets -->
+              <div id="explorer-presets" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #e2e8f0">
+                <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="chip explorer-preset active" style="background:#fce7f3;color:#9d174d;font-weight:700">♀ Feminino elite</button>
+                <button type="button" data-preset="female_9" onclick="applyExplorerPreset('female_9')" class="chip explorer-preset" style="background:#fce7f3;color:#9d174d">♀ Feminino 9%+</button>
+                <button type="button" data-preset="beleza" onclick="applyExplorerPreset('beleza')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Beleza & Skincare</button>
+                <button type="button" data-preset="moda" onclick="applyExplorerPreset('moda')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Moda feminina</button>
+                <button type="button" data-preset="fitness" onclick="applyExplorerPreset('fitness')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Fitness feminino</button>
+                <button type="button" data-preset="acessorios" onclick="applyExplorerPreset('acessorios')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Acessórios</button>
+                <button type="button" data-preset="mae_bebe" onclick="applyExplorerPreset('mae_bebe')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Mãe & Bebê</button>
+                <button type="button" data-preset="casa" onclick="applyExplorerPreset('casa')" class="chip explorer-preset">Casa & Decoração</button>
+                <button type="button" data-preset="ams" onclick="applyExplorerPreset('ams')" class="chip explorer-preset">Ofertas AMS</button>
+                <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="chip explorer-preset">Mais vendidos</button>
+                <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Top Shopee</button>
+                <button type="button" data-preset="commission" onclick="applyExplorerPreset('commission')" class="chip explorer-preset">Maior comissão</button>
+                <button type="button" data-preset="rated" onclick="applyExplorerPreset('rated')" class="chip explorer-preset">Bem avaliados</button>
+                <button type="button" data-preset="budget" onclick="applyExplorerPreset('budget')" class="chip explorer-preset">Custo-benefício</button>
+                <button type="button" data-preset="diverse_5" onclick="applyExplorerPreset('diverse_5')" class="chip explorer-preset">Diverso 5%</button>
+                <button type="button" onclick="resetExplorerForm()" class="chip" style="margin-left:auto;color:#64748b">Redefinir filtros</button>
+              </div>
+
+              <!-- Palavras-chave (chips + textarea) -->
+              <div id="explorer-keyword-panel" style="display:none;margin-bottom:12px">
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Palavras-chave</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Vestido Midi')">Vestido Midi</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Conjunto Alfaiataria')">Conjunto Alfaiataria</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Cropped')">Cropped</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Skincare')">Skincare</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Maquiagem')">Maquiagem</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Lingerie Renda')">Lingerie Renda</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Bolsa Transversal')">Bolsa Transversal</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Moda Fitness')">Moda Fitness</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Sandália Plataforma')">Sandália Plataforma</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Acessórios Prata')">Acessórios Prata</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Blusa Tricot')">Blusa Tricot</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Óculos Gatinho')">Óculos Gatinho</button>
+                </div>
+                <div id="admin-keyword-chips" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid #e2e8f0;border-radius:9px 9px 0 0;background:#f8fafc;min-height:32px;border-bottom:0"></div>
+                <textarea id="admin-keyword" oninput="updateExplorerKwCount()" onkeydown="onExplorerKeywordKey(event)" placeholder="digite e pressione Enter ou vírgula — ex: vestido longo feminino, kit skincare" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:0 0 9px 9px;font-size:13px;min-height:44px;resize:vertical;background:#f8fafc">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino, conjunto fitness feminino, sandália feminina, batom líquido matte, colágeno hidrolisado</textarea>
+                <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave · até 80</div>
+              </div>
+
+              <!-- Filtros principais (4 campos visíveis) -->
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo de lista</label>
+                  <select id="admin-list-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="0" selected>Recomendados (mais volume)</option>
+                    <option value="1">Maior comissão</option>
+                    <option value="2">Mais vendidos na Shopee</option>
+                    <option value="3">Categoria (página)</option>
+                    <option value="4">Categoria (detalhe)</option>
+                    <option value="5">Loja</option>
+                    <option value="6">Coleção</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenação</label>
+                  <select id="admin-sort-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1">Relevância</option>
+                    <option value="2" selected>Mais vendidos</option>
+                    <option value="3">Maior preço</option>
+                    <option value="4">Menor preço</option>
+                    <option value="5">Maior comissão</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Itens / página</label>
+                  <select id="admin-limit" onchange="updateExplorerMassHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                    <option value="50" selected>50</option>
+                  </select>
+                </div>
+                <div id="explorer-pages-select-wrap" style="display:none">
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Páginas</label>
+                  <select id="admin-pages" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="5">5</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20 (máx)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- IDs (só aparecem para listType 3/4/5/6) -->
+              <div id="explorer-ids-wrap" class="hidden" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">ID da coleção / categoria</label>
+                  <input id="admin-match-id" type="number" min="1" placeholder="Cole o ID da oferta oficial" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">ID da loja</label>
+                  <input id="admin-shop-id" type="number" min="1" placeholder="ID da loja Shopee" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+              </div>
+
+              <!-- Filtros avançados (colapsados) -->
+              <details style="margin-bottom:12px;border:1px solid #e2e8f0;border-radius:9px;padding:8px 12px;background:#f8fafc">
+                <summary style="cursor:pointer;font-size:12px;font-weight:600;color:#475569;user-select:none">Filtros avançados de qualidade</summary>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Comissão mín. %</label>
+                    <input id="admin-min-commission" type="number" min="0" max="100" step="0.5" value="0" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#fff"/>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nota mín.</label>
+                    <input id="admin-min-rating" type="number" step="0.1" min="0" max="5" value="4.0" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#fff"/>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Vendas mín.</label>
+                    <input id="admin-min-sales" type="number" value="20" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#fff"/>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-require-commission" type="checkbox" checked style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Exigir comissão
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-ams-offer" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Só ofertas AMS (Shopee paga a mais)
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-key-seller" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Só vendedor-chave
+                  </label>
+                </div>
+              </details>
+
+              <!-- Ações -->
+              <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f1f5f9">
+                <button id="btn-explorer-search" onclick="runExplorerSearch({sync:false})" class="btn-primary" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Iniciar varredura</button>
+                <button id="btn-explorer-sync" onclick="runExplorerSearch({sync:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Alimentar vitrine</button>
+                <button id="btn-explorer-save" onclick="saveExplorerSelection()" class="btn-ghost" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Salvar seleção</button>
+                <button type="button" id="btn-explorer-cancel" onclick="cancelExplorerSearch()" class="btn-ghost hidden" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px;margin-left:auto;display:none">Cancelar</button>
+              </div>
+
+              <!-- Progresso -->
+              <div id="explorer-progress" class="hidden" style="display:none;margin-top:14px;padding:12px;background:#f8fafc;border-radius:9px;align-items:center;gap:12px">
+                <div style="flex:1">
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:6px">
+                    <span id="explorer-progress-label">Aguardando</span><span id="explorer-progress-pct">0%</span>
+                  </div>
+                  <div style="height:6px;background:#e2e8f0;border-radius:999px;overflow:hidden">
+                    <div id="explorer-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#f97316,#ee4d2d);border-radius:999px;transition:width .3s"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Aba 2: Lojas afiliadas -->
+            <div id="cat-buscar-pane-lojas" class="cat-buscar-pane hidden" style="display:none">
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca lojas afiliadas. Escolha uma loja — os produtos dela aparecem na lista abaixo.</p>
+              <div style="display:grid;grid-template-columns:1fr 160px 160px auto;gap:8px;align-items:end;margin-bottom:14px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da loja</label>
+                  <input id="shops-keyword" type="text" onkeydown="if(event.key==='Enter'){event.preventDefault();loadAffiliateShops();}" placeholder="ex: Nike, O Boticário" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo</label>
+                  <select id="shops-type" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="">Todas</option>
+                    <option value="1">Loja oficial</option>
+                    <option value="2">Loja estrela</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenar por</label>
+                  <select id="shops-sort" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1">Recentes</option>
+                    <option value="2" selected>Maior comissão</option>
+                    <option value="3">Mais populares</option>
+                  </select>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                  <button type="button" onclick="loadAffiliateShops()" class="btn-primary" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Buscar</button>
+                  <button type="button" onclick="loadTopAffiliateShops()" class="btn-ghost" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Top lojas</button>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                    <input id="shops-key-seller" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Vendedor-chave
+                  </label>
+                </div>
+              </div>
+              <div id="shops-preview" style="font-size:12px;color:#64748b;max-height:420px;overflow-y:auto">Digite o nome e busque — ou clique em <strong>Top lojas</strong> para ver as mais populares agora.</div>
+            </div>
+
+            <!-- Aba 3: Ofertas oficiais -->
+            <div id="cat-buscar-pane-ofertas" class="cat-buscar-pane hidden" style="display:none">
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca coleções e categorias oficiais da Shopee. Escolha uma coleção — os produtos aparecem na lista abaixo.</p>
+              <div style="display:grid;grid-template-columns:1fr 160px auto;gap:8px;align-items:end;margin-bottom:14px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da oferta</label>
+                  <input id="official-keyword" type="text" onkeydown="if(event.key==='Enter'){event.preventDefault();loadOfficialShopeeOffers();}" placeholder="ex: beleza, feminino, cozinha" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenar por</label>
+                  <select id="official-sort" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1" selected>Mais recentes</option>
+                    <option value="2">Maior comissão</option>
+                  </select>
+                </div>
+                <button type="button" onclick="loadOfficialShopeeOffers()" class="btn-primary" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Buscar</button>
+              </div>
+              <div id="official-offers-box" style="font-size:12px;color:#64748b;max-height:420px;overflow-y:auto">Digite uma palavra ou clique em Buscar para ver as coleções oficiais.</div>
+            </div>
+          </div>
+
+          <!-- Prévia unificada (todas as abas escrevem aqui) -->
+          <div class="am-card" style="padding:0;overflow:hidden">
+            <div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:12px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;font-weight:500">
+                  <input id="explorer-select-all" type="checkbox" onchange="toggleExplorerSelectAll(this.checked)" style="width:15px;height:15px;accent-color:#ee4d2d"/>
+                  Selecionar todos
+                </label>
+                <span id="explorer-selection-meta" style="font-size:11.5px;color:#64748b">0 selecionados</span>
+              </div>
+              <div id="explorer-status" style="font-size:11.5px;color:#64748b">Pronto para buscar</div>
+            </div>
+            <div id="explorer-preview" style="max-height:520px;overflow-y:auto">
+              <div style="text-align:center;padding:40px 16px;color:#94a3b8;font-size:12px">Escolha <strong>Varredura (massa)</strong> por categoria ou <strong>Palavra-chave</strong>, depois <strong>Iniciar varredura</strong> para prévia ou <strong>Alimentar vitrine</strong> para gravar. Só entram produtos que ainda não estão na vitrine.</div>
+            </div>
+            <div id="explorer-pagination" style="padding:12px;text-align:center;display:none">
+              <button type="button" id="btn-explorer-load-more" onclick="runExplorerSearch({append:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;font-size:13px;cursor:pointer">Carregar mais</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: ATUALIZAR CATÁLOGO ============ -->
+      <section id="admin-view-catalogo-atualizar" class="admin-view">
+        <div id="cat-panel-atualizar">
+          <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:12px">
+            <div class="am-card">
+              <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Categorias da vitrine</h2>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Toque numa subcategoria para buscar na Shopee. Produtos já na vitrine não entram na lista.</p>
+              <div id="admin-categories-panel" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto"></div>
+            </div>
+            <div class="am-card">
+              <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Atualizar por categoria</h2>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Busca ofertas novas desta categoria. Não duplica o que já está publicado.</p>
+              <div style="display:grid;grid-template-columns:1fr 100px;gap:8px">
+                <select id="admin-cat-sync" style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"></select>
+                <select id="admin-cat-pages" style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button id="btn-sync-cat" onclick="adminSyncCategory()" class="btn-primary" style="flex:1;padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar categoria</button>
+                <button type="button" onclick="previewCategoryInExplorer()" class="btn-ghost" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Mostrar produtos</button>
+              </div>
+              <div id="cat-sync-status" style="margin-top:10px;font-size:11.5px;color:#64748b"></div>
+            </div>
+            <div class="am-card">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+                <h2 style="margin:0;font-size:15px;font-weight:700">Alimentação automática</h2>
+                <span id="auto-enabled-badge" style="font-size:10px;padding:3px 9px;background:#ecfdf5;color:#059669;border-radius:999px;font-weight:700">ATIVO</span>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+                <button onclick="runAutoSyncNow()" class="btn-dark" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Atualizar agora</button>
+                <button onclick="runTopPerformanceNow()" class="btn-ghost" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Destaques</button>
+                <button onclick="resetVitrineAndRefill()" class="btn-danger" style="padding:8px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Apagar vitrine e reencher</button>
+              </div>
+              <div id="auto-status-box" style="background:#0b1220;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;border-radius:8px;min-height:80px;max-height:280px;overflow-y:auto;line-height:1.6">Carregando status…</div>
+            </div>
+          </div>
+
+          <!-- Atualizações em lote (feeds) -->
+          <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:0">
+            <div class="am-card" style="padding:20px">
+              <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Histórico de atualizações em lote</h2>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Feeds da Shopee — atualização completa (500 por vez) ou só o que mudou.</p>
+              <div style="display:flex;gap:8px;margin-bottom:14px">
+                <select id="feed-inventory-mode" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"><option value="">Todas</option><option value="FULL">Atualização completa</option><option value="DELTA">Só o que mudou</option></select>
+                <button type="button" onclick="loadFeedInventory()" class="btn-primary" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Carregar</button>
+              </div>
+            <div id="feed-inventory-result" style="max-height:320px;overflow-y:auto"></div>
+            <div id="feed-preview-result" style="margin-top:12px;max-height:280px;overflow-y:auto;font-size:12px;color:#64748b"></div>
+            </div>
+            <div class="am-card" style="padding:20px">
+              <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Rodar atualização em lote</h2>
+              <p style="margin:0 0 14px;font-size:12px;color:#64748b">Completa relê o catálogo. Incremental puxa só o que mudou. Não duplica o que já está na vitrine.</p>
+              <div style="display:flex;gap:8px;margin-bottom:14px">
+                <button onclick="runFeed('feed-full')" class="btn-dark" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualização completa</button>
+                <button onclick="runFeed('feed-delta')" class="btn-primary" style="flex:1;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Só o que mudou</button>
+              </div>
+              <div id="feed-result" style="padding:12px;background:#0b1220;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:8px;min-height:60px">Aguardando execução…</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: LINKS CURTOS ============ -->
+      <section id="admin-view-catalogo-links" class="admin-view">
+        <div class="am-card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Links curtos</h2>
+              <p id="shortlink-status-line" style="margin:2px 0 0;font-size:12px;color:#64748b">Verificando…</p>
+            </div>
+            <button type="button" id="btn-shortlink-backfill" onclick="runShortlinkBackfill()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Gerar tudo que falta</button>
+          </div>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Só produtos que já estão na vitrine e ainda não têm link curto — em lotes de 50.</p>
+          <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden">
+            <div id="shortlink-status-bar" style="width:0%;height:100%;background:#94a3b8;border-radius:999px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: PRODUTOS ============ -->
+      <section id="admin-view-produtos" class="admin-view">
+        <!-- Toolbar -->
+        <div class="am-card am-section" style="padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" id="btn-load-full-catalog" onclick="loadAdminCatalogFull({force:true})" class="btn-dark">Carregar catálogo completo</button>
+            <button onclick="openNewProductForm()" class="btn-primary">+ Produto manual</button>
+            <button onclick="switchAdminView('campanhas')" class="btn-ghost">→ Campanhas</button>
+          </div>
+          <div style="font-size:11.5px;color:#64748b">
+            <span id="count-db-items">0</span> no banco · <span id="count-db-loaded"></span> carregados · <span id="admin-filter-summary"></span>
+          </div>
+        </div>
+
+        <!-- New product form (hidden by default) -->
+        <div id="new-product-form-card" class="am-card am-section hidden" style="display:none">
+          <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+            <h2 style="margin:0;font-size:15px;font-weight:700">Novo produto pela URL</h2>
+            <button onclick="closeNewProductForm()" class="btn-ghost" style="padding:6px 10px;font-size:11.5px">Fechar</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <div style="grid-column:1 / -1"><label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px">URL Shopee (obrigatória)</label><input id="add-source-url" type="url" placeholder="https://shopee.com.br/..." style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px"/></div>
+            <div><label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px">Categoria</label><select id="add-category" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px">
+              <option value="">Automática (pelo título)</option>
+              <option value="moda">Moda Feminina</option>
+              <option value="beleza">Beleza</option>
+              <option value="acessorios">Acessórios</option>
+              <option value="maternidade">Mãe &amp; Bebê</option>
+              <option value="fitness">Fitness</option>
+              <option value="casa">Casa</option>
+              <option value="pet">Pet Shop</option>
+              <option value="eletronicos">Eletrônicos</option>
+              <option value="celular">Celular</option>
+              <option value="infantil">Infantil</option>
+              <option value="utilidades">Utilidades</option>
+              <option value="automotivo">Automotivo</option>
+            </select></div>
+            <div><label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px">Subcategoria</label><input id="add-subcategory" type="text" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px"/></div>
+            <div><label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px">Imagem custom (opcional)</label><input id="add-img-url" type="url" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px"/></div>
+          </div>
+          <button id="btn-save-product" onclick="saveNewProduct()" class="btn-primary" style="margin-top:14px;padding:10px 18px;font-size:13px">Salvar produto</button>
+          <div id="add-product-result" style="margin-top:10px;font-size:12px;color:#64748b"></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="am-card am-section" style="padding:18px 20px">
+          <div class="am-filters">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Busca</label>
+              <input id="admin-search" type="search" oninput="onAdminSearch()" placeholder="Buscar nome, ID, categoria, loja…" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Categoria</label>
+              <select id="admin-filter-category" onchange="onAdminFiltersChange()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"><option value="">Todas as categorias</option></select>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo</label>
+              <select id="admin-filter-type" onchange="onAdminFiltersChange()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+              <option value="">Todos os tipos</option>
+              <option value="flash">Só relâmpago</option>
+              <option value="normal">Só normal</option>
+            </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenar</label>
+              <select id="admin-filter-sort" onchange="onAdminFiltersChange()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+              <option value="recent">Mais recentes</option>
+              <option value="name">Nome A–Z</option>
+              <option value="price_asc">Menor preço</option>
+              <option value="price_desc">Maior preço</option>
+              <option value="discount">Maior desconto</option>
+              <option value="commission">Maior comissão</option>
+            </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Por página</label>
+              <select id="admin-page-size" onchange="onAdminPageSizeChange()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+              <option value="12">12</option>
+              <option value="24" selected>24</option>
+              <option value="48">48</option>
+              <option value="100">100</option>
+            </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569"><input id="admin-select-page" type="checkbox" onchange="toggleSelectAdminPage(this.checked)" style="accent-color:#ee4d2d"/> Selecionar página</label>
+            <button class="btn-ghost" style="padding:6px 12px;border-radius:7px;font-size:11.5px;cursor:pointer" onclick="selectAllFilteredProducts()">Selecionar filtrados</button>
+            <button class="btn-ghost" style="padding:6px 12px;border-radius:7px;font-size:11.5px;cursor:pointer" onclick="clearAdminProductSelection()">Limpar seleção</button>
+            <button class="btn-ghost" style="padding:6px 12px;border-radius:7px;font-size:11.5px;cursor:pointer" onclick="clearAdminFilters()">Limpar filtros</button>
+          </div>
+        </div>
+
+        <!-- Bulk bar -->
+        <div id="admin-bulk-bar" class="hidden" style="display:none;background:#0b1220;color:#fff;border-radius:12px;padding:12px 20px;margin-bottom:16px;justify-content:space-between;align-items:center">
+          <div><span id="admin-selected-count">0</span> selecionados</div>
+          <button onclick="addSelectedProductsToCampaign()" class="btn-primary" style="padding:8px 14px;border-radius:7px;font-size:12px;cursor:pointer">Adicionar à campanha</button>
+        </div>
+
+        <!-- Product list -->
+        <div id="console-products-list" class="am-card" style="padding:0;overflow:hidden"></div>
+
+        <!-- Pagination -->
+        <div id="console-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px">
+          <button type="button" id="admin-prev" onclick="adminPrevPage()" class="btn-ghost" style="padding:7px 12px;border-radius:7px;font-size:12px;cursor:pointer">← Anterior</button>
+          <span id="admin-page-info" style="font-size:12px;color:#64748b">Página 1</span>
+          <button type="button" id="admin-next" onclick="adminNextPage()" class="btn-ghost" style="padding:7px 12px;border-radius:7px;font-size:12px;cursor:pointer">Próximo →</button>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: DUPLICADOS ============ -->
+      <section id="admin-view-duplicados" class="admin-view">
+        <div class="am-card am-section">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+            <div>
+              <h2 style="margin:0;font-size:15px;font-weight:700">Limpar catálogo</h2>
+              <p id="duplicates-status-line" style="margin:2px 0 0;font-size:12px;color:#64748b">Nenhuma análise recente</p>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button type="button" onclick="scanCatalogDuplicates()" class="btn-primary" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Analisar duplicados</button>
+              <button type="button" id="btn-remove-duplicates" onclick="removeCatalogDuplicates()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Remover duplicados</button>
+              <button type="button" onclick="scanWeakOffers()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Analisar fracos</button>
+              <button type="button" id="btn-purge-weak" onclick="purgeWeakOffers()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Limpar fracos</button>
+              <button type="button" onclick="refreshTopOffers()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar top</button>
+            </div>
+          </div>
+          <div id="duplicates-table" style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#94a3b8">Nenhuma análise ainda.</div>
+          <div id="weak-offers-table" class="hidden" style="display:none;margin-top:14px"></div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: CAMPANHAS ============ -->
+      <section id="admin-view-campanhas" class="admin-view">
+        <div class="am-card am-section" style="max-width:820px">
+          <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Nova campanha</h2>
+          <p style="margin:0 0 16px;font-size:12px;color:#64748b">Cole o produto, defina a Sub ID e clique em Obter Link.</p>
+
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Produto</label>
+            <div style="display:flex;gap:8px;align-items:stretch">
+              <input id="campaign-product-search" type="search" oninput="renderCampaignProductPicker()" onkeydown="onCampaignProductSearchKey(event)" placeholder="Nome, ID ou link da Shopee" style="flex:1;min-width:0;padding:9px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+              <button type="button" onclick="convertCampaignProduct()" class="btn-primary" style="padding:9px 16px;white-space:nowrap">Adicionar</button>
+            </div>
+            <div id="campaign-product-status" style="font-size:11px;color:#64748b;margin-top:4px"></div>
+            <div id="campaign-product-picker" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;background:#f8fafc"></div>
+          </div>
+
+          <div style="margin-top:14px">
+            <div id="campaign-selected-products" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+
+          <div style="margin-top:14px">
+            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Título</label>
+            <input id="campaign-link-title" type="text" value="" oninput="updateCampaignLinkPreview()" placeholder="ex: Vestidos verão Ads" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+          </div>
+          <div style="margin-top:14px">
+            <label for="campaign-link-name" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Sub ID</label>
+            <input id="campaign-link-name" type="text" value="" oninput="updateCampaignLinkPreview()" placeholder="só letras e números — ex: vestidosverao" autocomplete="off" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc;font-family:ui-monospace,monospace"/>
+            <div id="campaign-name-normalized" style="font-size:10.5px;color:#94a3b8;margin-top:3px;font-family:'JetBrains Mono',monospace"></div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">
+            <button type="button" onclick="obterCampaignLink()" class="btn-primary" style="padding:10px 18px;font-size:13px">Obter Link</button>
+            <button type="button" onclick="resetCampaignForm()" class="btn-ghost" style="padding:8px 14px;font-size:12px">Limpar</button>
+            <button type="button" onclick="switchAdminView('produtos')" class="btn-ghost" style="padding:8px 14px;font-size:12px">Lista de produtos</button>
+            <button type="button" onclick="switchAdminView('campanha-desempenho')" class="btn-ghost" style="padding:8px 14px;font-size:12px">Desempenho</button>
+          </div>
+
+          <div id="campaign-subid-box" style="display:none;margin-top:14px;padding:12px;background:#0b1220;border-radius:9px">
+            <div id="subid-preview" style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#f97316;word-break:break-all"></div>
+          </div>
+          <div id="campaign-link-preview" style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;word-break:break-all"></div>
+        </div>
+        <div class="am-card am-section" style="max-width:820px;margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+            <div style="min-width:0;flex:1">
+              <h2 style="margin:0 0 4px;font-size:15px;font-weight:700">Campanhas salvas</h2>
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Links para anunciar no Facebook.</p>
+            </div>
+            <button type="button" id="regen-all-campaigns-btn" onclick="regenerateAllCampaignShortlinks()" class="btn-dark" style="padding:8px 12px;font-size:12px;white-space:nowrap" title="Gera shortlinks Shopee no formato standalone (Sub_id = nome da campanha, 1 slot só)">Regerar links Shopee</button>
+          </div>
+          <div id="campaigns-saved-list"></div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: CAMPANHA DESEMPENHO ============ -->
+      <section id="admin-view-campanha-desempenho" class="admin-view">
+        <!-- Filter bar -->
+        <div class="am-card am-section" style="padding:16px 20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+          <button onclick="resetCampaignForm(); switchAdminView('campanhas')" class="btn-primary" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">+ Nova campanha</button>
+          <div>
+            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período</label>
+            <select id="camp-perf-days" onchange="loadCampaignPerformance({reset:true,pull:false})" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+            <option value="7">Últimos 7 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Status</label>
+            <select id="camp-perf-status" onchange="loadCampaignPerformance({reset:true,pull:false})" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+            <option value="">Todos os status</option>
+            <option value="PENDING">Pendente</option>
+            <option value="COMPLETED">Concluído</option>
+            <option value="CANCELLED">Cancelado</option>
+            <option value="UNPAID">Não pago</option>
+          </select>
+          </div>
+          <button onclick="loadCampaignPerformance({reset:true,pull:true})" class="btn-ghost" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;margin-left:auto">Atualizar</button>
+        </div>
+
+        <!-- KPIs -->
+        <div class="am-kpi-grid">
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.06em">Campanhas</div><div id="camp-perf-count" style="font-size:24px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.06em">Conversões</div><div id="camp-perf-conversions" style="font-size:24px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.06em">Pedidos</div><div id="camp-perf-orders" style="font-size:24px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div></div>
+          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#059669;letter-spacing:.06em">Comissão</div><div id="camp-perf-commission" style="font-size:24px;font-weight:800;margin-top:4px;color:#047857;letter-spacing:-.02em">R$ 0,00</div></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.06em">Itens</div><div id="camp-perf-items" style="font-size:24px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div></div>
+        </div>
+
+        <!-- Campaign cards -->
+        <div id="camp-perf-list" style="display:flex;flex-direction:column;gap:12px"><div style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">Carregando campanhas…</div></div>
+
+        <div id="camp-perf-pagination"></div>
+
+        <!-- Detail drawer (hidden) -->
+        <div id="camp-perf-detail" class="am-card hidden" style="display:none;margin-top:16px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+            <h2 id="camp-perf-detail-title" style="margin:0;font-size:16px;font-weight:700"></h2>
+            <button onclick="closeCampaignPerfDetail()" class="btn-ghost" style="padding:6px 10px;border-radius:7px;font-size:11.5px;cursor:pointer">Fechar</button>
+          </div>
+          <div id="camp-perf-detail-meta" style="font-size:12px;color:#64748b;margin-bottom:14px"></div>
+          <div id="camp-perf-detail-stats"></div>
+          <div id="camp-perf-detail-channels"></div>
+          <div id="camp-perf-detail-products"></div>
+          <div id="camp-perf-detail-orders"></div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: DESEMPENHO GERAL ============ -->
+      <section id="admin-view-desempenho" class="admin-view">
+        <!-- Header controls -->
+        <div id="performance-section" class="am-card am-section conv-toolbar">
+          <div>
+            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período</label>
+            <select id="conversion-days" onchange="loadConversions({reset:true,pull:false})" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+            <option value="7">Últimos 7 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+          </div>
+          <input type="hidden" id="conversion-status" value="">
+          <div class="conv-toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button onclick="loadConversions({reset:true,forcePull:true})" class="btn-primary">Atualizar Shopee</button>
+            <button onclick="prioritizeConversionWinners()" class="btn-dark">Priorizar no sync</button>
+            <button onclick="loadConversionSummary()" class="btn-ghost" style="margin-left:auto">Por canal</button>
+          </div>
+        </div>
+
+        <div class="am-card am-section conv-lookup">
+          <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Localizar pedido</h2>
+          <p style="margin:0 0 10px;font-size:12px;color:#64748b">Cole o ID do pedido, do produto ou da loja para ver se a venda é nossa.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch">
+            <input id="conversion-lookup-q" type="text" placeholder="Pedido, produto ou loja" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
+            <button type="button" onclick="lookupConversion()" class="btn-primary" style="padding:9px 14px;font-size:12.5px">Buscar</button>
+          </div>
+          <div id="conversion-lookup-result" style="margin-top:10px;font-size:12px;color:#64748b"></div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="am-kpi-grid conv-kpi-grid">
+          <div style="background:#059669;color:#fff;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.9">Confirmado</div>
+            <div id="conversion-confirmed" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">R$ 0,00</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px">Σ COMPLETED</div>
+          </div>
+          <div style="background:#d97706;color:#fff;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.9">Estimado</div>
+            <div id="conversion-estimated" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">R$ 0,00</div>
+            <div style="font-size:11px;opacity:.85;margin-top:2px">Σ PENDING+UNPAID</div>
+          </div>
+          <div class="am-card" style="padding:18px;border-radius:12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b">Pedidos</div>
+            <div id="conversion-orders" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px"><span id="conversion-total">0</span> conv · <span id="conversion-subids">0</span> canais</div>
+          </div>
+          <div style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Cancelados</div>
+            <div id="conversion-cancelled" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div>
+            <div style="font-size:11px;margin-top:2px">Sem comissão</div>
+          </div>
+        </div>
+
+        <!-- Funnel -->
+        <div id="conversion-funnel" class="am-card am-section" style="padding:14px 18px;border-radius:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
+
+        <!-- Tabs + search -->
+        <div class="am-card" style="padding:0;overflow:hidden">
+          <div class="conv-list-tools" style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <div id="conversion-status-tabs" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+            <input id="conversion-search" oninput="onConversionSearch()" type="search" placeholder="Buscar pedido, produto ou Sub ID" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
+            <span id="conversion-filter-hint" style="font-size:11px;color:#64748b"></span>
+          </div>
+
+          <!-- Compact rows -->
+          <div id="conversion-list"><div style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">Clique em Atualizar Shopee para carregar.</div></div>
+
+          <!-- Pagination -->
+          <div id="conversion-pagination" class="hidden" style="display:none;justify-content:space-between;align-items:center;padding:12px 18px;border-top:1px solid #e2e8f0;flex-wrap:wrap;gap:8px">
+            <select id="conversion-page-size" onchange="onConversionPageSizeChange()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:11.5px;background:#f8fafc">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+            </select>
+            <div style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:wrap">
+              <button type="button" id="conversion-prev" onclick="previousConversionPage()" class="btn-ghost" style="padding:6px 10px;font-size:11px">Anterior</button>
+              <div id="conversion-page-buttons"></div>
+              <button type="button" id="conversion-next" onclick="nextConversionPage()" class="btn-dark" style="padding:6px 10px;font-size:11px">Próxima</button>
+            </div>
+            <span id="conversion-page-info" style="font-size:11px;color:#64748b">Página 1</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: FINANCEIRO ============ -->
+      <section id="admin-view-financeiro" class="admin-view">
+        <div class="am-card am-section" style="padding:16px 20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+          <div>
+            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período</label>
+            <select id="fin-days" onchange="loadFinanceiro({pull:false})" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+              <option value="7">Últimos 7 dias</option>
+              <option value="30" selected>Últimos 30 dias</option>
+              <option value="60">Últimos 60 dias</option>
+              <option value="90">Últimos 90 dias</option>
+            </select>
+          </div>
+          <button type="button" onclick="loadFinanceiro({pull:true})" class="btn-primary" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;margin-left:auto">Atualizar</button>
+        </div>
+
+        <div class="am-kpi-grid">
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b">Comissão total</div>
+            <div id="fin-total" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em;color:#0f172a">R$ 0,00</div>
+            <div style="font-size:11px;color:#64748b;margin-top:4px">Comissão total das conversões do período</div>
+          </div>
+          <div style="background:#059669;color:#fff;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.9">Comissão confirmada</div>
+            <div id="fin-confirmed" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">R$ 0,00</div>
+            <div id="fin-confirmed-hint" style="font-size:11px;opacity:.85;margin-top:4px">0 pedidos concluídos</div>
+          </div>
+          <div style="background:#d97706;color:#fff;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.9">Comissão estimada</div>
+            <div id="fin-estimated" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">R$ 0,00</div>
+            <div id="fin-estimated-hint" style="font-size:11px;opacity:.85;margin-top:4px">0 pendentes + 0 não pago</div>
+          </div>
+          <div style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:12px;padding:18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Cancelamentos</div>
+            <div id="fin-cancelled" style="font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.02em">0</div>
+            <div id="fin-cancelled-hint" style="font-size:11px;margin-top:4px">0% dos pedidos</div>
+          </div>
+        </div>
+
+        <div class="am-card am-section" style="padding:20px;margin-bottom:16px">
+          <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Resumo dos pedidos</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+            <div style="padding:12px 14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b">Pedidos</div>
+              <div id="fin-orders-total" style="font-size:20px;font-weight:800;margin-top:4px;color:#0f172a">0</div>
+            </div>
+            <div style="padding:12px 14px;background:#ecfdf5;border-radius:10px;border:1px solid #a7f3d0">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#059669">Concluídos</div>
+              <div id="fin-orders-completed" style="font-size:20px;font-weight:800;margin-top:4px;color:#047857">0</div>
+            </div>
+            <div style="padding:12px 14px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#d97706">Pendentes</div>
+              <div id="fin-orders-pending" style="font-size:20px;font-weight:800;margin-top:4px;color:#b45309">0</div>
+            </div>
+            <div style="padding:12px 14px;background:#fff7ed;border-radius:10px;border:1px solid #fed7aa">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#ea580c">Não pagos</div>
+              <div id="fin-orders-unpaid" style="font-size:20px;font-weight:800;margin-top:4px;color:#c2410c">0</div>
+            </div>
+            <div style="padding:12px 14px;background:#fff1f2;border-radius:10px;border:1px solid #fecdd3">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#be123c">Cancelados</div>
+              <div id="fin-orders-cancelled" style="font-size:20px;font-weight:800;margin-top:4px;color:#be123c">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="am-card" style="padding:20px">
+          <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Comissão por origem/campanha</h2>
+          <div id="fin-by-campaign" style="font-size:12.5px;color:#64748b">Carregando…</div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:700;color:#0f172a">Total</span>
+            <span id="fin-by-campaign-total" style="font-size:16px;font-weight:800;color:#0f172a">R$ 0,00</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: MEU SITE ============ -->
+      <section id="admin-view-meu-site" class="admin-view">
+        <div class="am-card am-section" style="padding:16px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+          <div>
+            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período</label>
+            <select id="ms-days" onchange="loadMeuSiteSummary({pull:false})" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+            <option value="1">Hoje</option>
+            <option value="7">Últimos 7 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#475569;padding:9px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer">
+            <input id="ms-only-me" type="checkbox" checked onchange="loadMeuSiteSummary({pull:false})" style="accent-color:#ee4d2d"/>
+            Somente Meu Site
+          </label>
+          <button onclick="loadMeuSiteSummary({pull:true})" class="btn-primary" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar</button>
+          <button onclick="pullConversionsNow()" class="btn-dark" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Puxar Shopee</button>
+        </div>
+
+        <!-- Funnel -->
+        <div id="ms-funnel" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+
+        <!-- KPIs -->
+        <div class="am-kpi-grid">
+          <div style="background:#059669;color:#fff;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;opacity:.9">Líquido (Completed)</div><div id="ms-net" style="font-size:24px;font-weight:800;margin-top:4px">R$ 0,00</div></div>
+          <div style="background:#d97706;color:#fff;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;opacity:.9">Estimado</div><div id="ms-pending-net" style="font-size:24px;font-weight:800;margin-top:4px">R$ 0,00</div></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b">Pedidos</div><div id="ms-orders" style="font-size:24px;font-weight:800;margin-top:4px">0</div><div id="ms-orders-break" style="font-size:11px;color:#64748b;margin-top:2px">—</div></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#be123c">Cancelamentos</div><div style="font-size:18px;font-weight:800;margin-top:4px"><span id="ms-cancel-count">0</span> · <span id="ms-cancel-pct">0%</span></div><div style="font-size:11px;color:#64748b;margin-top:2px">Fraude: <span id="ms-fraud-pct">0%</span></div></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b">Bruto / Ticket</div><div style="font-size:18px;font-weight:800;margin-top:4px"><span id="ms-gross">R$ 0,00</span></div><div style="font-size:11px;color:#64748b;margin-top:2px">Ticket: <span id="ms-ticket">R$ 0,00</span></div></div>
+        </div>
+        <div id="ms-health" style="display:none"></div>
+
+        <!-- Tops (3 columns, no photos) -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px">
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+            <h3 style="margin:0 0 12px;font-size:13px;font-weight:700">Top itens</h3>
+            <div id="ms-top-items" style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#94a3b8">—</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+            <h3 style="margin:0 0 12px;font-size:13px;font-weight:700">Top lojas</h3>
+            <div id="ms-top-shops" style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#94a3b8">—</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+            <h3 style="margin:0 0 12px;font-size:13px;font-weight:700">Top campanhas</h3>
+            <div id="ms-top-campaigns" style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#94a3b8">—</div>
+          </div>
+        </div>
+
+        <!-- Footer tools -->
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div style="font-size:11.5px;color:#64748b">
+            Janela: <span id="ms-window">—</span> · Amostra: <span id="ms-sample">0</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="reprocessSubIdsDry()" class="btn-ghost" style="padding:7px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Reprocessar (dry)</button>
+            <button onclick="reprocessSubIdsRun()" class="btn-dark" style="padding:7px 12px;border-radius:7px;font-size:11.5px;cursor:pointer">Reprocessar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Saúde da Shopee -->
+      <section id="admin-view-catalogo-saude" class="admin-view">
+        <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));margin-bottom:0">
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Atualizar preços e comissão</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Atualiza vendas, nota e comissão dos produtos que já estão na vitrine.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+              <div><label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase">Quantidade</label><input id="refresh-metrics-batch" type="number" value="60" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/></div>
+              <div><label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase">Horas sem atualizar</label><input id="refresh-metrics-stale" type="number" value="12" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/></div>
+            </div>
+            <button onclick="runRefreshMetrics()" class="btn-primary" style="width:100%;padding:10px;border-radius:8px;font-size:12.5px;cursor:pointer">Atualizar preços e comissão</button>
+            <div id="refresh-metrics-result" style="margin-top:12px;padding:10px;background:#f8fafc;border-radius:8px;font-size:11.5px;color:#64748b;min-height:40px">Aguardando execução…</div>
+          </div>
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Saúde da Shopee</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Últimas consultas à Shopee — para ver se a conexão está ok.</p>
+            <button onclick="loadShopeeHealth()" class="btn-ghost" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;margin-bottom:12px">Atualizar</button>
+            <div id="shopee-health-result"></div>
+          </div>
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 4px;font-size:14px;font-weight:700">Comissão validada</h2>
+            <p style="margin:0 0 14px;font-size:12px;color:#64748b">Consulte pelo <strong>ID da validação</strong> (validationId, número da rodada de validação da Shopee).</p>
+            <div style="display:flex;gap:8px">
+              <input id="validated-id" type="text" placeholder="ex: 4123 (validationId)" style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
+              <button onclick="loadValidatedReport()" class="btn-dark" style="padding:8px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">Consultar</button>
+            </div>
+            <div id="validated-result" style="margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;font-size:11.5px;color:#64748b;min-height:60px">Nenhuma consulta</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Visualizações (Cloudflare Analytics) -->
+      <section id="admin-view-visualizacoes" class="admin-view">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+          <button onclick="loadAnalytics('-1440')" class="btn-ghost" style="padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer" id="analytics-btn-24h">Últimas 24h</button>
+          <button onclick="loadAnalytics('-10080')" class="btn-primary" style="padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer" id="analytics-btn-7d">Últimos 7 dias</button>
+          <button onclick="loadAnalytics('-43200')" class="btn-ghost" style="padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer" id="analytics-btn-30d">Últimos 30 dias</button>
+        </div>
+        <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));margin-bottom:16px">
+          <div class="am-card" style="padding:16px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:6px">Visitas únicas</div>
+            <div id="analytics-uniques" style="font-size:24px;font-weight:800;color:#0f172a">—</div>
+          </div>
+          <div class="am-card" style="padding:16px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:6px">Visitas</div>
+            <div id="analytics-visits" style="font-size:24px;font-weight:800;color:#0f172a">—</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px">sessões com origem externa</div>
+          </div>
+          <div class="am-card" style="padding:16px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:6px">Pageviews</div>
+            <div id="analytics-pageviews" style="font-size:24px;font-weight:800;color:#0f172a">—</div>
+          </div>
+          <div class="am-card" style="padding:16px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:6px">Requisições</div>
+            <div id="analytics-requests" style="font-size:24px;font-weight:800;color:#0f172a">—</div>
+          </div>
+          <div class="am-card" style="padding:16px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:6px">Banda (MB)</div>
+            <div id="analytics-bandwidth" style="font-size:24px;font-weight:800;color:#0f172a">—</div>
+          </div>
+          <div class="am-card" style="padding:16px;text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin-bottom:6px">Cache CDN</div>
+            <div id="analytics-cache-rate" style="font-size:24px;font-weight:800;color:#0f172a">—</div>
+          </div>
+        </div>
+        <div class="am-card" style="padding:16px;margin-bottom:16px">
+          <h2 id="analytics-chart-title" style="margin:0 0 10px;font-size:13px;font-weight:700">Visitas por dia</h2>
+          <div id="analytics-chart" style="width:100%;overflow-x:auto;position:relative;height:140px;max-height:140px">
+            <canvas id="analytics-canvas" style="width:100%;height:100%"></canvas>
+          </div>
+        </div>
+        <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));margin-bottom:16px">
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Origem do tráfego</h2>
+            <div id="analytics-referrers" style="font-size:12.5px;color:#475569">Carregando…</div>
+          </div>
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Campanhas vs vitrine</h2>
+            <div id="analytics-traffic-split" style="font-size:12.5px;color:#475569">Carregando…</div>
+          </div>
+        </div>
+        <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));margin-bottom:16px">
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Cache CDN</h2>
+            <div id="analytics-cache" style="font-size:12.5px;color:#475569">Carregando…</div>
+          </div>
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Dispositivos</h2>
+            <div id="analytics-devices" style="font-size:12.5px;color:#475569">Carregando…</div>
+          </div>
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Navegadores</h2>
+            <div id="analytics-browsers" style="font-size:12.5px;color:#475569">Carregando…</div>
+          </div>
+        </div>
+        <div class="am-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));margin-bottom:16px">
+          <div class="am-card" style="padding:20px">
+            <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Top países</h2>
+            <div id="analytics-countries" style="font-size:12.5px;color:#475569">Carregando…</div>
+          </div>
+          <div class="am-card" style="padding:20px;display:none">
+            <div id="analytics-status"></div>
+          </div>
+        </div>
+        <div class="am-card" style="padding:20px">
+          <h2 style="margin:0 0 14px;font-size:14px;font-weight:700">Páginas mais acessadas</h2>
+          <div id="analytics-paths" style="font-size:12.5px;color:#475569;overflow-x:auto">Carregando…</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+    </div>
+
+
+    <!-- POPUP DE DETALHES DO PRODUTO (cliente) -->
+    <div id="product-modal" class="fixed inset-0 bg-black/40 backdrop-blur-[2px] hidden items-stretch sm:items-center justify-center z-50 p-0 sm:p-6 opacity-0 transition-opacity duration-200" onclick="if(event.target===this) closeProductModal()">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full sm:max-w-lg h-auto max-h-[78dvh] sm:max-h-[76vh] flex flex-col transform scale-95 transition-transform duration-200" id="modal-card">
+            <!-- Botão de fechar: branco sólido + × em SVG inline (não depende do Font Awesome, que é deferido).
+                 44x44 é o mínimo Apple HIG pra área de toque. Sombra forte garante contraste em foto clara OU escura. -->
+            <button type="button" onclick="closeProductModal()" class="absolute right-3 z-30 h-11 w-11 rounded-full bg-white text-slate-900 flex items-center justify-center transition hover:bg-slate-100 active:scale-95" style="top: calc(env(safe-area-inset-top, 0px) + 0.75rem); box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.08);" aria-label="Fechar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+            </button>
+
+            <!-- Área rolável (imagem + info). CTA fica fixo abaixo, fora do scroll. -->
+            <div id="product-modal-scroll" class="relative">
+                <div id="modal-img-box" class="img-skeleton">
+                    <img id="modal-img" src="" alt="" decoding="async" fetchpriority="high" onerror="this.onerror=null; this.src='https://placehold.co/500x500/ffebd7/ee4d2d?text=Shopee'">
+                    <span id="modal-discount" class="absolute top-3 left-3 bg-shopee-orange text-white font-black text-xs px-2.5 py-1 rounded-lg shadow"></span>
+                </div>
+
+                <div id="modal-info">
+                    <div class="flex flex-col gap-1.5 min-w-0">
+                        <span id="modal-category" class="self-start bg-orange-50 text-shopee-orange text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wide"></span>
+                        <h3 id="modal-title"></h3>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div id="modal-stars" class="text-amber-400 text-xs flex"></div>
+                            <span id="modal-sales" class="text-[11px] text-slate-500"></span>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl px-3.5 py-3" style="background:#fff7f5; border:1px solid #ffe0d2;">
+                        <p id="modal-old-price" class="text-xs text-slate-400 line-through"></p>
+                        <p id="modal-new-price" class="text-shopee-orange font-black leading-none tracking-tight" style="font-size:1.75rem;"></p>
+                    </div>
+
+                    <div id="modal-options" class="hidden flex flex-wrap gap-1.5"></div>
+                    <p id="modal-options-hint" class="hidden text-[11px] text-slate-500 leading-relaxed"></p>
+
+                    <div class="flex flex-wrap gap-2">
+                        <span id="modal-shop" class="hidden bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded items-center gap-1">
+                            <span id="modal-shop-name"></span>
+                        </span>
+                    </div>
+
+                    <ul id="modal-benefits" class="space-y-2 text-[12.5px] text-slate-600"></ul>
+                    <p id="modal-deadline" class="hidden text-[11px] text-red-600 font-bold flex items-center justify-center gap-1"></p>
+                </div>
+            </div>
+
+            <!-- CTA fixo na base — sempre visível (fora do scroll) -->
+            <div id="modal-cta-bar">
+                <a id="modal-buy-btn" href="#" target="_blank" rel="nofollow sponsored noopener" class="block" onclick="return handleBuyClick(event)">
+                    <span class="w-full bg-shopee-orange hover:bg-shopee-orangeHover text-white py-3 px-4 rounded-xl font-extrabold text-sm shadow flex items-center justify-center gap-2 transition tracking-wide" style="min-height:48px;">
+                        <span id="modal-buy-label">Ver na Shopee</span> <span aria-hidden="true">→</span>
+                    </span>
+                </a>
+                <p class="text-[10px] text-slate-400 text-center mt-2">Você será direcionado de forma segura para o app/site oficial da Shopee.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST INJECTOR BOX -->
+    <div id="toast-container" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 space-y-2 z-50 pointer-events-none">
+        <!-- Managed dynamically in scripts -->
+    </div>
+
+    <footer class="bg-white border-t border-slate-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="space-y-3">
+                <picture>
+                    <source srcset="/uploads/logo-bg.webp" type="image/webp">
+                    <img src="/uploads/logo-bg.png" alt="Afiliada Mestre" width="240" height="126" class="h-14 w-auto rounded-lg" decoding="async" loading="lazy">
+                </picture>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Seleção diária de ofertas da Shopee. Ao clicar, você é direcionado para a página oficial do produto.
+                </p>
+                <p class="text-[11px] font-semibold text-slate-700 leading-relaxed">
+                    Nenhum pagamento é feito neste site. Finalize a compra com 100% de segurança no app/site da Shopee.
+                </p>
+            </div>
+            <div>
+                <h4 class="font-extrabold text-xs uppercase text-slate-700 tracking-wider mb-3">Como comprar</h4>
+                <ul class="text-xs text-slate-500 space-y-2">
+                    <li>1. Escolha um produto na vitrine</li>
+                    <li>2. Você abre a página na Shopee</li>
+                    <li>3. Finalize a compra com segurança</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-extrabold text-xs uppercase text-slate-700 tracking-wider mb-3">Aviso</h4>
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                    Site independente de divulgação de ofertas. Não somos a Shopee. Marcas e produtos pertencem aos respectivos donos. Preços e estoque podem mudar na Shopee. Ao comprar pelos nossos links, ganhamos uma comissão sem custo extra para você.
+                </p>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto mt-8 pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400 gap-4 px-4">
+            <p>© 2026 Afiliada Mestre</p>
+            <span id="api-status-badge" class="hidden text-shopee-orange font-bold">API Status: verificando…</span>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT APP ARCHITECTURE -->
+    <script src="/uploads/storefront.min.js" defer></script>
+    <!-- Cloudflare Web Analytics: só visita, depois do Pixel (head). Não mexe no Facebook. -->
+    <script>
+    (function(){
+      try { if (window.self !== window.top) return; } catch (e) { return; }
+      if (/^\/admin(\/|$)/.test(location.pathname) || /[?&](admin=|mode=admin)/.test(location.search)) return;
+      function loadCf(){
+        if (document.querySelector('script[data-cf-beacon]')) return;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+        s.setAttribute('data-cf-beacon', '{"token": "6006928dd14c407285f05f287c812513"}');
+        document.body.appendChild(s);
+      }
+      if (document.readyState === 'complete') loadCf();
+      else window.addEventListener('load', loadCf, { once: true });
+    })();
+    </script>
+    <!-- End Cloudflare Web Analytics -->
+
+</body>
+</html>
