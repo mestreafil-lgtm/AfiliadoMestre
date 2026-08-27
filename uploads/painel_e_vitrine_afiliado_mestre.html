@@ -27,6 +27,7 @@
     (function(){
       var p = location.pathname, q = location.search;
       if (window.self !== window.top) return;
+      if (/[?&]am_embed=1(?:&|$)/.test(q)) return;
       if (/^\/admin(\/|$)/.test(p) || /[?&](admin=|mode=admin)/.test(q)) return;
       !function(f,b,e,v,n,t,s)
       {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -38,9 +39,9 @@
       'https://connect.facebook.net/pt_BR/fbevents.js');
       fbq('init', '2217009299032183');
       fbq('set', 'autoConfig', false, '2217009299032183');
-      // Campanha com ?produto= abre o popup na hora → o 1º evento deve ser ProductOpen
-      // (disparado no JS). PageView fica para navegação/busca, não para deep-link de produto.
-      if (!/[?&](produto|product|item)=/.test(q)) {
+      // Campanha /p/:id ou ?produto= abre o popup na hora → 1º evento é ProductOpen.
+      var isCampaignProduct = /^\/p\/\d+/.test(p) || /[?&](produto|product|item)=/.test(q);
+      if (!isCampaignProduct) {
         fbq('track', 'PageView');
       }
     })();

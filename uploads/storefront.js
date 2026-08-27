@@ -488,6 +488,7 @@
         }
         function amPixelPageView() {
             try { if (window.self !== window.top) return; } catch (_) { return; }
+            try { if (/[?&]am_embed=1(?:&|$)/.test(window.location.search || "")) return; } catch (_) {}
             if (isAdminMode()) return;
             const path = pathClean() + (window.location.search || "");
             // 1ª chamada: memoriza o path. Se o snippet HTML já enviou PageView, não
@@ -504,6 +505,8 @@
 
         function hasCampaignProductDeepLink() {
             try {
+                const path = pathClean();
+                if (/^\/p\/\d+/.test(path)) return true;
                 const params = new URLSearchParams(window.location.search || "");
                 return !!(params.get("produto") || params.get("product") || params.get("item"));
             } catch (_) {
@@ -694,7 +697,11 @@
                 renderHomeSections();
             }
             } finally {
-                amPixelPageView();
+                // Landing de campanha (popup) não dispara PageView nesta entrada.
+                if (!hasCampaignProductDeepLink()) amPixelPageView();
+                else if (lastPixelPagePath === null) {
+                    lastPixelPagePath = pathClean() + (window.location.search || "");
+                }
             }
         }
 
@@ -3464,7 +3471,9 @@ async function loadOffersFromSupabase(opts = {}) {
 
         async function applyCampaignLanding() {
             const params = new URLSearchParams(location.search);
-            const productId = params.get('produto') || params.get('product') || params.get('item');
+            const pathParts = pathClean().split("/").filter(Boolean);
+            const productId = params.get('produto') || params.get('product') || params.get('item')
+                || (pathParts[0] === "p" && pathParts[1] ? pathParts[1] : "");
             const multi = (params.get('produtos') || '')
                 .split(/[,|]+/)
                 .map(s => s.trim())

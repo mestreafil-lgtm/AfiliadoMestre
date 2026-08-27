@@ -3161,12 +3161,19 @@ app.get("/p/:itemId", async (req, res) => {
       utm_source: attribution.channel,
       utm_medium: attribution.medium,
     }).toString();
+    const embedHref = "/?" + new URLSearchParams({
+      utm_campaign: attribution.campaign,
+      utm_source: attribution.channel,
+      utm_medium: attribution.medium,
+      am_embed: "1",
+    }).toString();
 
-    res.set("Cache-Control", "public, max-age=120, s-maxage=600, stale-while-revalidate=1800");
+    res.set("Cache-Control", "public, max-age=0, s-maxage=30, stale-while-revalidate=60, must-revalidate");
     res.send(renderFastPopup({
       product,
       buyHref,
       backHref,
+      embedHref,
       oldPriceHtml,
       discountHtml,
       shopName,
@@ -3243,7 +3250,7 @@ function pixelProductJsonSSR(product) {
   return JSON.stringify(payload).replace(/</g, "\\u003c");
 }
 
-function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtml, shopName, priceNewFmt }) {
+function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, discountHtml, shopName, priceNewFmt }) {
   const title = escapeHtmlSSR(product.title || "Oferta Shopee");
   const image = escapeHtmlSSR(product.image || "");
   const category = escapeHtmlSSR(categoryLabelSSR(product.category));
@@ -3256,6 +3263,7 @@ function renderFastPopup({ product, buyHref, backHref, oldPriceHtml, discountHtm
   ).join("");
   const pixelPayload = pixelProductJsonSSR(product);
   const backHrefSafe = escapeHtmlSSR(backHref);
+  const embedHrefSafe = escapeHtmlSSR(embedHref || backHref);
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -3297,21 +3305,50 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   t.src=v;s=b.getElementsByTagName(e)[0];
   s.parentNode.insertBefore(t,s)}(window, document,'script',
   'https://connect.facebook.net/en_US/fbevents.js');
-  fbq('init', PIXEL_ID);
   fbq('set', 'autoConfig', false, PIXEL_ID);
-  fbq('track', 'PageView', {}, { eventID: eid('pv') });
+  fbq('init', PIXEL_ID);
+  // Campanha /p/:id já é o popup. 1º evento = ProductOpen (não PageView).
+  fbq('trackCustom', 'ProductOpen', payload, { eventID: eid('po') });
+  try {
+    fetch('/api/analytics/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        event: 'ProductOpen',
+        payload: Object.assign({ product_id: Number(payload.content_ids && payload.content_ids[0]) || null, section: 'campaign' }, payload)
+      })
+    }).catch(function(){});
+  } catch (_) {}
 
+  var openedAt = Date.now();
+  var sentClose = false;
+  function trackClose(){
+    if (sentIC || sentClose || typeof fbq !== 'function') return;
+    sentClose = true;
+    var closePayload = {
+      product_id: Number(payload.content_ids && payload.content_ids[0]) || null,
+      duration_ms: Math.max(0, Date.now() - openedAt)
+    };
+    fbq('trackCustom', 'ProductClose', closePayload, { eventID: eid('pc') });
+    try {
+      fetch('/api/analytics/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({ event: 'ProductClose', payload: closePayload })
+      }).catch(function(){});
+    } catch (_) {}
+  }
   function trackCheckout(){
     if (sentIC || typeof fbq !== 'function') return;
     sentIC = true;
     fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eid('ic') });
   }
   window.__amPixelCheckout = trackCheckout;
+  window.__amPixelClose = trackClose;
 })();
 </script>
-<noscript>
-<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=2217009299032183&ev=PageView&noscript=1" alt="" />
-</noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--orange:#ee4d2d;--orange-hover:#d33b1c;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f1f5f9;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
@@ -3370,7 +3407,7 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
 </style>
 </head>
 <body>
-<iframe class="store-bg" src="${backHrefSafe}" title="Vitrine Afiliada Mestre" loading="eager" referrerpolicy="no-referrer"></iframe>
+<iframe class="store-bg" src="${embedHrefSafe}" title="Vitrine Afiliada Mestre" loading="eager" referrerpolicy="no-referrer"></iframe>
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="p-title">
   <main class="card" role="main">
     <header class="head">
@@ -3414,7 +3451,10 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
   var backHref = ${JSON.stringify(backHref)};
   var buyHref = ${JSON.stringify(buyHref)};
   function goVitrine(){
-    if (backHref) location.href = backHref;
+    try { if (typeof window.__amPixelClose === 'function') window.__amPixelClose(); } catch (_) {}
+    setTimeout(function(){
+      if (backHref) location.href = backHref;
+    }, 220);
   }
   function inAppBrowser(){
     return /FBAN|FBAV|FB_IAB|Instagram|Line\/|TikTok|Bytedance|Twitter/i.test(navigator.userAgent || '');
