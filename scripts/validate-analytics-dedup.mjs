@@ -1,5 +1,6 @@
 /**
- * Validação estática: cada ação gera no máximo 1 evento customizado.
+ * Validação estática V1: PageView · ProductOpen · ProductClose · Search · InitiateCheckout
+ * Uma ação lógica = um evento. Sem paralelos SiteView/ViewContent/ClickShopee/SearchProduct.
  * Uso: node scripts/validate-analytics-dedup.mjs
  */
 import fs from "fs";
@@ -11,64 +12,66 @@ const src = fs.readFileSync(path.join(__dirname, "../uploads/storefront.js"), "u
 
 const checks = [
   {
-    name: "SiteView só via amPixelPageView",
-    pass: (src.match(/amEventTrack\("SiteView"/g) || []).length === 1,
-    detail: "1 chamada amEventTrack('SiteView')",
+    name: "SiteView removido",
+    pass: !src.includes('amEventTrack("SiteView"') && !src.includes("SiteView"),
+    detail: "nenhum SiteView no storefront",
   },
   {
-    name: "SiteView dedupe por path (early return)",
-    pass: src.includes("if (path === lastPixelPagePath) return") && src.includes("const isFirst = lastPixelPagePath === null"),
-    detail: "lastPixelPagePath impede PageView/SiteView repetido no mesmo path",
+    name: "ViewContent removido",
+    pass: !src.includes('amPixelTrack("ViewContent"') && !src.includes('"ViewContent"'),
+    detail: "nenhum ViewContent",
   },
   {
-    name: "SearchProduct dedupe por termo",
-    pass: src.includes("lastPixelSearch") && src.includes('term !== lastPixelSearch'),
-    detail: "lastPixelSearch + debounce 400ms",
+    name: "ClickShopee removido",
+    pass: !src.includes("ClickShopee") && !src.includes("trackClickShopee"),
+    detail: "nenhum ClickShopee",
   },
   {
-    name: "SearchProduct só via searchStoreProducts debounce",
-    pass: (src.match(/amEventTrack\("SearchProduct"/g) || []).length === 1,
-    detail: "1 chamada amEventTrack('SearchProduct')",
+    name: "SearchProduct removido",
+    pass: !src.includes('amEventTrack("SearchProduct"') && !src.includes("SearchProduct"),
+    detail: "nenhum SearchProduct",
   },
   {
-    name: "ProductOpen só via openProductModal",
-    pass: (src.match(/amEventTrack\("ProductOpen"/g) || []).length === 1,
-    detail: "1 chamada amEventTrack('ProductOpen')",
+    name: "PageView: 1ª carga só memoriza path",
+    pass: src.includes("if (lastPixelPagePath === null)")
+      && src.includes("lastPixelPagePath = path")
+      && src.includes('amPixelTrack("PageView")'),
+    detail: "snippet HTML = 1ª PageView; SPA = amPixelPageView",
+  },
+  {
+    name: "Search só em busca confirmada (immediate)",
+    pass: src.includes("immediate && term !== lastPixelSearch")
+      && (src.match(/amPixelTrack\("Search"/g) || []).length === 1,
+    detail: "Search 1x; lastPixelSearch; não no debounce de digitação",
+  },
+  {
+    name: "ProductOpen só via openProductModal (1 call + dedupe)",
+    pass: (src.match(/amEventTrack\("ProductOpen"/g) || []).length === 1
+      && src.includes("sameOpen"),
+    detail: "dedupe se mesmo produto já aberto",
   },
   {
     name: "ProductClose só via closeProductModal",
-    pass: (src.match(/amEventTrack\("ProductClose"/g) || []).length === 1,
-    detail: "1 chamada amEventTrack('ProductClose')",
+    pass: (src.match(/amEventTrack\("ProductClose"/g) || []).length === 1
+      && src.includes("productModalOpenedFor = null"),
+    detail: "1 call; limpa estado após close",
   },
   {
-    name: "ClickShopee só via trackClickShopee",
-    pass: (src.match(/amEventTrack\("ClickShopee"/g) || []).length === 1
-      && (src.match(/trackClickShopee\(/g) || []).length === 3,
-    detail: "helper único; chamado em handleBuyClick e buyFromCard",
+    name: "InitiateCheckout único ponto por fluxo",
+    pass: src.includes("amPixelCheckout")
+      && src.includes("trackCheckout: false")
+      && !src.includes("ClickShopee"),
+    detail: "handleBuyClick dispara 1x; openAffiliateInNewTab com trackCheckout false no modal",
   },
   {
-    name: "Meta trackCustom preservado em amEventTrack",
+    name: "Meta trackCustom preservado para ProductOpen/Close",
     pass: src.includes('fbq("trackCustom", eventName, payload)'),
-    detail: "dispatcher duplo Meta + Supabase",
-  },
-  {
-    name: "Eventos padrão Meta separados (amPixelTrack)",
-    pass: src.includes('amPixelTrack("PageView")')
-      && src.includes('amPixelTrack("Search"')
-      && src.includes('amPixelTrack("ViewContent"')
-      && src.includes('amPixelTrack("InitiateCheckout"'),
-    detail: "PageView, Search, ViewContent, InitiateCheckout intactos",
-  },
-  {
-    name: "ClickShopee não dispara InitiateCheckout (camadas distintas)",
-    pass: src.includes("trackClickShopee") && src.includes("amPixelCheckout")
-      && !src.includes('amEventTrack("InitiateCheckout"'),
-    detail: "ClickShopee = custom; InitiateCheckout = amPixelTrack separado",
+    detail: "amEventTrack ainda envia custom + Supabase",
   },
 ];
 
 let failed = 0;
-console.log("Validação dedupe analytics:\n");
+console.log("Validação V1 tracking:\n");
 for (const c of checks) {
   const mark = c.pass ? "✓" : "✗";
   console.log(`  ${mark} ${c.name} — ${c.detail}`);
@@ -79,4 +82,4 @@ if (failed) {
   console.error(`\n${failed} verificação(ões) falharam.`);
   process.exit(1);
 }
-console.log("\nTodas as verificações passaram.");
+console.log("\nTodas as verificações V1 passaram.");

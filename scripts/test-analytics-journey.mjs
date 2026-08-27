@@ -1,6 +1,7 @@
 /**
- * E2E: jornada vitrine → busca → abrir → 5s → fechar → abrir → Ver na Shopee.
- * Valida no Supabase a sequência exata de eventos com o mesmo session_id.
+ * E2E V1: jornada vitrine → busca confirmada → abrir → 5s → fechar → abrir → Ver na Shopee.
+ * No Supabase (amEventTrack) esperamos só ProductOpen / ProductClose.
+ * PageView, Search e InitiateCheckout vão só ao Meta (amPixelTrack / snippet).
  *
  * Uso: node scripts/test-analytics-journey.mjs
  * Requer: servidor em localhost:3789, .env com Supabase, playwright (npx instala sob demanda).
@@ -16,13 +17,11 @@ const { supabaseRequest } = require("../server/supabase.js");
 const BASE = process.env.ANALYTICS_TEST_BASE || "http://localhost:3789";
 const SESSION_ID = crypto.randomUUID();
 const SEARCH_TERM = "calça";
+// V1: só custom events no Supabase (ProductOpen / ProductClose).
 const EXPECTED = [
-  "SiteView",
-  "SearchProduct",
   "ProductOpen",
   "ProductClose",
   "ProductOpen",
-  "ClickShopee",
 ];
 
 function sleep(ms) {
@@ -69,8 +68,10 @@ async function runBrowserJourney() {
   const search = page.locator("#store-search-input");
   await search.waitFor({ state: "visible", timeout: 15000 });
   await search.fill(SEARCH_TERM);
-  console.log(`[e2e] Buscando "${SEARCH_TERM}"…`);
-  await sleep(700);
+  // V1: Search só na confirmação (Enter / Buscar).
+  await search.press("Enter");
+  console.log(`[e2e] Busca confirmada "${SEARCH_TERM}"…`);
+  await sleep(900);
 
   const card = page.locator("#store-grid-section [onclick*='openProductModal']").first();
   await card.waitFor({ state: "visible", timeout: 20000 });
@@ -93,7 +94,7 @@ async function runBrowserJourney() {
     window.open = () => ({ location: { href: "" }, closed: false, close() {} });
   });
   await page.locator("#modal-buy-btn").click();
-  console.log("[e2e] Clique em Ver na Shopee");
+  console.log("[e2e] Clique em Ver na Shopee (InitiateCheckout só no Meta)");
 
   await sleep(1500);
   await browser.close();
@@ -107,6 +108,11 @@ function validateRows(rows) {
   const names = rows.map((r) => r.event_name);
   const issues = [];
 
+  const forbidden = ["SiteView", "SearchProduct", "ClickShopee"];
+  for (const f of forbidden) {
+    if (names.includes(f)) issues.push(`evento paralelo indesejado na V1: ${f}`);
+  }
+
   if (names.length !== EXPECTED.length) {
     issues.push(`quantidade: esperado ${EXPECTED.length}, recebido ${names.length} (${names.join(" → ")})`);
   }
@@ -119,11 +125,8 @@ function validateRows(rows) {
   const counts = {};
   for (const n of names) counts[n] = (counts[n] || 0) + 1;
   const expectedCounts = {
-    SiteView: 1,
-    SearchProduct: 1,
     ProductOpen: 2,
     ProductClose: 1,
-    ClickShopee: 1,
   };
   for (const [evt, max] of Object.entries(expectedCounts)) {
     if ((counts[evt] || 0) > max) {
@@ -134,11 +137,6 @@ function validateRows(rows) {
   const closeRow = rows.find((r) => r.event_name === "ProductClose");
   if (closeRow && Number(closeRow.duration_ms) < 4000) {
     issues.push(`ProductClose duration_ms=${closeRow.duration_ms} (esperado ≥ 4000 após espera de 5s)`);
-  }
-
-  const clickRow = rows.find((r) => r.event_name === "ClickShopee");
-  if (clickRow && clickRow.source !== "modal") {
-    issues.push(`ClickShopee source=${clickRow.source} (esperado modal)`);
   }
 
   return { ok: issues.length === 0, issues, names, rows };
@@ -157,7 +155,7 @@ async function main() {
   const rows = await fetchEvents(SESSION_ID);
   const result = validateRows(rows);
 
-  console.log("\n[e2e] Eventos no Supabase:");
+  console.log("\n[e2e] Eventos no Supabase (V1 custom):");
   for (const r of rows) {
     const extra = [
       r.search_term ? `term=${r.search_term}` : "",
@@ -174,7 +172,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\n[e2e] OK — sequência e session_id validados.");
+  console.log("\n[e2e] OK — ProductOpen/ProductClose e session_id validados (V1).");
   console.log(`[e2e] session_id=${SESSION_ID}`);
 }
 

@@ -490,20 +490,15 @@
             try { if (window.self !== window.top) return; } catch (_) { return; }
             if (isAdminMode()) return;
             const path = pathClean() + (window.location.search || "");
-            // 1ª chamada: o snippet do HTML já enviou PageView — só memoriza o path
-            // (mas ainda dispara SiteView pra registrar a entrada no analytics próprio).
-            const isFirst = lastPixelPagePath === null;
-            if (isFirst) {
+            // 1ª carga: o snippet HTML já enviou PageView — só memoriza o path.
+            // Navegações SPA posteriores: 1 PageView por mudança real de path.
+            if (lastPixelPagePath === null) {
                 lastPixelPagePath = path;
-            } else {
-                if (path === lastPixelPagePath) return;
-                lastPixelPagePath = path;
-                amPixelTrack("PageView");
+                return;
             }
-            amEventTrack("SiteView", {
-                url: (window.location.href || "").slice(0, 500),
-                referrer: (document.referrer || "").slice(0, 500),
-            });
+            if (path === lastPixelPagePath) return;
+            lastPixelPagePath = path;
+            amPixelTrack("PageView");
         }
         function amPixelProductPayload(p) {
             if (!p) return {};
@@ -519,8 +514,7 @@
         }
 
         // Sessão de analytics: UUID por aba, expira em 30 min de inatividade.
-        // Serve como chave pro backend correlacionar a jornada do mesmo visitante
-        // (SiteView → Search → ProductOpen → Close → ClickShopee).
+        // Correlaciona ProductOpen / ProductClose no mesmo visitante (Supabase).
         const AM_SESSION_KEY = "am_session_v1";
         const AM_SESSION_IDLE_MS = 30 * 60 * 1000;
         function amGenSessionId() {
@@ -3009,16 +3003,10 @@ async function loadOffersFromSupabase(opts = {}) {
                     return;
                 }
 
-                if (term !== lastPixelSearch) {
+                // Search só na confirmação (Enter / Buscar / popular) — não a cada tecla.
+                if (immediate && term !== lastPixelSearch) {
                     lastPixelSearch = term;
                     amPixelTrack("Search", { search_string: term.slice(0, 100) });
-                    const t = normalizeSearchText(term);
-                    const resultsCount = (Array.isArray(productsDatabase) ? productsDatabase : [])
-                        .filter((p) => productMatchesSearch(p, t)).length;
-                    amEventTrack("SearchProduct", {
-                        term: term.slice(0, 100),
-                        results_count: resultsCount,
-                    });
                 }
 
                 setSearchBusy(true);
@@ -3213,19 +3201,22 @@ async function loadOffersFromSupabase(opts = {}) {
                 modal.classList.remove('opacity-0');
                 card.classList.remove('scale-95');
             });
-            amPixelTrack("ViewContent", amPixelProductPayload(p));
-            // Timestamp do open — usado por ProductClose pra calcular duration_ms.
-            productModalOpenedAt = Date.now();
-            productModalOpenedFor = p.id;
-            // Analytics próprio: posição em 1-based (mais natural pra relatórios).
-            const idxNum = Number(index);
-            const position1 = Number.isInteger(idxNum) && idxNum >= 0 ? idxNum + 1 : null;
-            amEventTrack("ProductOpen", {
-                product_id: Number(p.id),
-                product_name: String(p.title || "").slice(0, 200),
-                position: position1,
-                section: section || currentNavSection || null,
-            });
+            // Mesmo produto já aberto nesta ação → não reenvia ProductOpen.
+            const sameOpen = productModalOpenedFor != null
+                && String(productModalOpenedFor) === String(p.id)
+                && productModalOpenedAt > 0;
+            if (!sameOpen) {
+                productModalOpenedAt = Date.now();
+                productModalOpenedFor = p.id;
+                const idxNum = Number(index);
+                const position1 = Number.isInteger(idxNum) && idxNum >= 0 ? idxNum + 1 : null;
+                amEventTrack("ProductOpen", {
+                    product_id: Number(p.id),
+                    product_name: String(p.title || "").slice(0, 200),
+                    position: position1,
+                    section: section || currentNavSection || null,
+                });
+            }
             // Prefetch shortlink com Sub IDs do canal — CTA pronto no clique
             if (!hasMatchingTrackedLink(p)) {
                 resolveAffiliateUrl(p).then((url) => {
@@ -3573,11 +3564,14 @@ async function loadOffersFromSupabase(opts = {}) {
             return fallback;
         }
 
-        /** Abre aba em sync (anti popup-blocker) e navega quando o shortlink chegar. */
-        async function openAffiliateInNewTab(p, { labelEl = null } = {}) {
+        /** Abre aba em sync (anti popup-blocker) e navega quando o shortlink chegar.
+         *  InitiateCheckout fica a cargo do caller (1x por clique). */
+        async function openAffiliateInNewTab(p, { labelEl = null, trackCheckout = true } = {}) {
             if (!p) return;
-            amPixelCheckout(p);
-            await amPixelFlush(450);
+            if (trackCheckout) {
+                amPixelCheckout(p);
+                await amPixelFlush(450);
+            }
             // Abre direto apenas quando o link em cache já tem os Sub IDs deste
             // visitante. Caso contrário a aba nasce vazia: se ela abrisse no link
             // cacheado, a Shopee registraria o clique com a atribuição de outra
@@ -3616,35 +3610,23 @@ async function loadOffersFromSupabase(opts = {}) {
             }
         }
 
-        // Analytics próprio pro clique "Ver na Shopee". Dispara ANTES de qualquer
-        // window.open / navegação pra não perder o evento (keepalive já cobre unload,
-        // mas manter a ordem torna o rastro determinístico).
-        function trackClickShopee(p, source) {
-            if (!p) return;
-            amEventTrack("ClickShopee", {
-                product_id: Number(p.id),
-                product_name: String(p.title || "").slice(0, 200),
-                source: source || "unknown",
-            });
-        }
-
         async function handleBuyClick(event) {
             const p = activeProductForBuy;
             if (!p) return true;
             const label = document.getElementById('modal-buy-label');
             const btn = document.getElementById('modal-buy-btn');
             if (event) event.preventDefault();
-            trackClickShopee(p, 'modal');
+            // Um clique = um InitiateCheckout (único ponto de disparo neste fluxo).
+            amPixelCheckout(p);
+            await amPixelFlush(450);
             if (hasMatchingTrackedLink(p) && p.shortLink) {
-                amPixelCheckout(p);
                 if (btn) btn.href = p.shortLink;
-                await amPixelFlush(450);
                 const href = p.shortLink;
                 const tab = window.open(href, '_blank');
                 if (!tab) window.location.href = href;
                 return false;
             }
-            await openAffiliateInNewTab(p, { labelEl: label });
+            await openAffiliateInNewTab(p, { labelEl: label, trackCheckout: false });
             return false;
         }
 
@@ -3655,8 +3637,7 @@ async function loadOffersFromSupabase(opts = {}) {
             if (section) currentNavSection = section;
             // Sinal pro algoritmo — clique direto no "Comprar" também conta.
             pushClickSignal(p);
-            trackClickShopee(p, 'card');
-            await openAffiliateInNewTab(p);
+            await openAffiliateInNewTab(p, { trackCheckout: true });
         }
 
         function closeProductModal() {

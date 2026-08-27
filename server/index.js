@@ -2504,7 +2504,8 @@ app.post("/api/shortlink", shortlinkRateLimit, async (req, res) => {
 });
 
 /**
- * Analytics próprio: SiteView, SearchProduct, ProductOpen, ProductClose, ClickShopee.
+ * Analytics próprio (V1): ProductOpen, ProductClose (+ session).
+ * Meta padrão: PageView, Search, InitiateCheckout.
  * Público (SPA chama sem sessão) e sempre 204 — falha silenciosa pra nunca quebrar UX.
  * Toda validação e sanitização acontece em ./analytics; nada vindo do cliente é confiável.
  * Body pequeno (limite 2kb) porque cada evento é curto — parser local corta upload gigante.
