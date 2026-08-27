@@ -531,7 +531,7 @@ app.get("/api/health", (_req, res) => {
     // Ajuda a confirmar se o Railway publicou o commit certo.
     deploy: process.env.RAILWAY_GIT_COMMIT_SHA
       || process.env.RAILWAY_DEPLOYMENT_ID
-      || "search-page-v2",
+      || "search-page-v3",
     features: {
       searchPage: true,
       searchIlike: true,
