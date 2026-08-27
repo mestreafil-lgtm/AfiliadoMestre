@@ -1117,10 +1117,13 @@
                         <div class="bg-white p-1 rounded-lg flex items-center shadow-md border-2 border-white focus-within:border-amber-300 transition-all">
                             <i class="fas fa-search text-slate-400 ml-3 mr-2"></i>
                             <input 
-                                type="text" 
+                                type="search" 
                                 id="store-search-input"
                                 oninput="searchStoreProducts()"
+                                onkeydown="onStoreSearchKeydown(event)"
                                 placeholder="O que você está procurando?" 
+                                autocomplete="off"
+                                enterkeyhint="search"
                                 class="w-full bg-transparent text-base sm:text-sm text-slate-800 outline-none placeholder:text-slate-400"
                             >
                             <button
@@ -1131,7 +1134,9 @@
                                 aria-label="Limpar busca"
                             ><i class="fas fa-circle-xmark"></i></button>
                             <button 
-                                onclick="searchStoreProducts()"
+                                type="button"
+                                id="store-search-btn"
+                                onclick="runStoreSearch()"
                                 class="bg-shopee-orange hover:bg-shopee-orangeHover text-white px-6 py-2.5 rounded-md transition font-bold text-xs uppercase shrink-0"
                             >
                                 Buscar

@@ -1175,7 +1175,9 @@ async function loadOffersFromSupabase(opts = {}) {
             const input = document.getElementById('store-search-input');
             if (!input) return;
             input.value = '';
-            searchStoreProducts();
+            document.getElementById('store-search-clear')?.classList.add('hidden');
+            lastPixelSearch = "";
+            searchStoreProducts({ immediate: true });
             input.focus();
         }
         function scrollToStoreCategories() {
@@ -2422,9 +2424,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 const matchesCategory = currentStoreCategory === 'todos' || p.category === currentStoreCategory;
                 if (!matchesCategory) return false;
                 if (searchVal) {
-                    const title = (p.title || '').toLowerCase();
-                    const desc = (p.desc || '').toLowerCase();
-                    if (!title.includes(searchVal) && !desc.includes(searchVal)) return false;
+                    if (!productMatchesSearch(p, searchVal)) return false;
                 }
                 if (!productMatchesSubcategory(p, currentStoreCategory, currentStoreSubcategory)) return false;
                 // Filtros da sidebar Shopee-style (só quando dentro de categoria):
@@ -2541,7 +2541,7 @@ async function loadOffersFromSupabase(opts = {}) {
         // Quick search set
         function applyStoreSearch(term) {
             document.getElementById('store-search-input').value = term;
-            searchStoreProducts();
+            searchStoreProducts({ immediate: true });
             scrollToStoreGrid();
         }
 
@@ -2584,30 +2584,128 @@ async function loadOffersFromSupabase(opts = {}) {
 
         let searchDebounce = null;
         let lastPixelSearch = "";
-        async function searchStoreProducts() {
-            const term = (document.getElementById('store-search-input')?.value || "").trim();
-            document.getElementById('store-search-clear')?.classList.toggle('hidden', !term);
-            // Filtra o que já está carregado imediatamente (sem custo)
+        let searchInFlight = false;
+
+        function normalizeSearchText(value) {
+            return String(value || "")
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9\s]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function productMatchesSearch(p, searchVal) {
+            if (!searchVal) return true;
+            const hay = normalizeSearchText([
+                p.title, p.desc, p.keyword, p.shopName, p.category, p.subcategory,
+            ].filter(Boolean).join(" "));
+            const needle = normalizeSearchText(searchVal);
+            if (!needle) return true;
+            if (hay.includes(needle)) return true;
+            const tokens = needle.split(" ").filter((t) => t.length >= 2);
+            if (!tokens.length) return false;
+            // Qualquer token no título/keyword já conta — traz mais resultados.
+            return tokens.some((t) => hay.includes(t));
+        }
+
+        function setSearchBusy(busy) {
+            searchInFlight = !!busy;
+            const btn = document.getElementById("store-search-btn");
+            if (!btn) return;
+            btn.disabled = !!busy;
+            btn.classList.toggle("opacity-70", !!busy);
+            btn.classList.toggle("pointer-events-none", !!busy);
+            btn.textContent = busy ? "Buscando…" : "Buscar";
+        }
+
+        async function searchStoreProducts(opts = {}) {
+            const immediate = opts.immediate === true;
+            const term = (document.getElementById("store-search-input")?.value || "").trim();
+            document.getElementById("store-search-clear")?.classList.toggle("hidden", !term);
+
+            // Feedback imediato no que já está em memória
             renderStoreProducts();
-            clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(() => {
+
+            const run = async () => {
                 if (term.length >= 2 && term !== lastPixelSearch) {
                     lastPixelSearch = term;
                     amPixelTrack("Search", { search_string: term.slice(0, 100) });
-                    // Analytics próprio: 1 evento por termo final (nunca por tecla).
-                    // results_count = contagem client-side no que já está carregado,
-                    // suficiente pra "buscas com 0 resultado" e ranking de termos.
-                    const t = term.toLowerCase();
+                    const t = normalizeSearchText(term);
                     const resultsCount = (Array.isArray(productsDatabase) ? productsDatabase : [])
-                        .filter((p) => String(p?.title || "").toLowerCase().includes(t)).length;
+                        .filter((p) => productMatchesSearch(p, t)).length;
                     amEventTrack("SearchProduct", {
                         term: term.slice(0, 100),
                         results_count: resultsCount,
                     });
                 }
-                if (!apiLive || term.length < 2) return;
-                loadOffersFromSupabase({ silent: true, reset: true, keyword: term });
-            }, 400);
+
+                // Limpar busca: recarrega home
+                if (!term) {
+                    if (!apiLive) return;
+                    setSearchBusy(true);
+                    try {
+                        await loadOffersFromSupabase({
+                            silent: true,
+                            reset: true,
+                            keyword: "",
+                            category: "",
+                            subcategory: "",
+                        });
+                    } finally {
+                        setSearchBusy(false);
+                    }
+                    return;
+                }
+
+                if (term.length < 2) return;
+                if (!apiLive) {
+                    scrollToStoreGrid();
+                    return;
+                }
+
+                setSearchBusy(true);
+                try {
+                    // Busca global (sem filtrar categoria) + lote maior + sort por vendas
+                    const ok = await loadOffersFromSupabase({
+                        silent: true,
+                        reset: true,
+                        keyword: term,
+                        category: "",
+                        subcategory: "",
+                        limit: Math.max(PAGE_SIZE * 3, 72),
+                        sort: "sales",
+                    });
+                    if (!ok) {
+                        // Fallback: se o banco não trouxe nada, mantém filtro local
+                        renderStoreProducts();
+                    }
+                    scrollToStoreGrid();
+                } finally {
+                    setSearchBusy(false);
+                }
+            };
+
+            clearTimeout(searchDebounce);
+            if (immediate) {
+                await run();
+            } else {
+                searchDebounce = setTimeout(() => { run(); }, 350);
+            }
+        }
+
+        /** Clique / Enter — sem debounce */
+        function runStoreSearch() {
+            return searchStoreProducts({ immediate: true });
+        }
+
+        function onStoreSearchKeydown(event) {
+            if (!event) return;
+            if (event.key === "Enter") {
+                event.preventDefault();
+                runStoreSearch();
+            }
         }
 
         function scrollToStoreGrid() {
@@ -3325,7 +3423,13 @@ async function loadOffersFromSupabase(opts = {}) {
             renderStoreProducts, renderCategories, renderHomeSections,
             moneyScoreOf, femaleOnly, sortByMoney,
             checkApiHealth, loadHeroProducts,
+            searchStoreProducts, runStoreSearch, clearStoreSearch, applyStoreSearch,
         });
+        window.searchStoreProducts = searchStoreProducts;
+        window.runStoreSearch = runStoreSearch;
+        window.clearStoreSearch = clearStoreSearch;
+        window.applyStoreSearch = applyStoreSearch;
+        window.onStoreSearchKeydown = onStoreSearchKeydown;
         window.submitAdminLogin = function (e) {
             if (window.__AM_ADMIN && window.__AM_ADMIN.submitAdminLogin) return window.__AM_ADMIN.submitAdminLogin(e);
             return false;

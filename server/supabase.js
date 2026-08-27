@@ -162,6 +162,49 @@ async function listOfertas({ limit = 60, offset = 0, keyword = "", category = ""
   const safeLimit = Math.min(Math.max(Number(limit) || 60, 1), 200);
   const safeOffset = Math.max(Number(offset) || 0, 0);
 
+  /** Escape para padrões ilike do PostgREST (sem quebrar o filtro or=). */
+  function sanitizeSearchToken(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[",()]/g, " ")
+      .replace(/[%_]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  /**
+   * Busca textual ampla: título + keyword de sync.
+   * 1 termo → OR amplo (mais resultados).
+   * 2+ termos → frase completa OU cada termo precisa aparecer (AND).
+   */
+  function buildTextSearchFilter(rawKeyword) {
+    const phrase = sanitizeSearchToken(rawKeyword).slice(0, 80);
+    if (phrase.length < 2) return "";
+    const tokens = phrase.split(" ").filter((t) => t.length >= 2).slice(0, 6);
+    if (!tokens.length) return "";
+
+    const fieldsFor = (term) => {
+      const folded = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const parts = [`product_name.ilike.*${term}*`, `keyword.ilike.*${term}*`];
+      if (folded && folded !== term) {
+        parts.push(`product_name.ilike.*${folded}*`, `keyword.ilike.*${folded}*`);
+      }
+      return [...new Set(parts)];
+    };
+
+    if (tokens.length === 1) {
+      return `or=(${fieldsFor(tokens[0]).join(",")})`;
+    }
+
+    // and(or(token1 fields), or(token2 fields), ...) — todos os termos
+    const andInner = tokens
+      .map((t) => `or(${fieldsFor(t).join(",")})`)
+      .join(",");
+    const phraseFields = fieldsFor(phrase).join(",");
+    return `or=(${phraseFields},and(${andInner}))`;
+  }
+
   function buildPath(order, lim = safeLimit, off = safeOffset) {
     let path = `/ofertas?select=*&order=${order}&limit=${lim}&offset=${off}`;
     const kw = String(keyword || "").trim();
@@ -172,9 +215,11 @@ async function listOfertas({ limit = 60, offset = 0, keyword = "", category = ""
       path += `&${subcategoryFilterQuery(cat, sub)}`;
     } else if (cat && cat !== "todos") {
       path += `&category=eq.${encodeURIComponent(cat)}`;
-    } else if (kw) {
-      path += `&keyword=eq.${encodeURIComponent(kw)}`;
     }
+    // Busca por texto SEMPRE que houver termo — antes era keyword=eq e ignorada
+    // quando havia categoria, zerando ou estreitando demais os resultados.
+    const textFilter = buildTextSearchFilter(kw);
+    if (textFilter) path += `&${textFilter}`;
     return path;
   }
 
