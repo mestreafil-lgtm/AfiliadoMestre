@@ -490,8 +490,9 @@
             try { if (window.self !== window.top) return; } catch (_) { return; }
             if (isAdminMode()) return;
             const path = pathClean() + (window.location.search || "");
-            // 1ª carga: o snippet HTML já enviou PageView — só memoriza o path.
-            // Navegações SPA posteriores: 1 PageView por mudança real de path.
+            // 1ª chamada: memoriza o path. Se o snippet HTML já enviou PageView, não
+            // reenvia. Se a entrada foi campanha (?produto=) sem PageView, a 1ª
+            // navegação SPA (ex.: /busca) dispara PageView normalmente.
             if (lastPixelPagePath === null) {
                 lastPixelPagePath = path;
                 return;
@@ -499,6 +500,15 @@
             if (path === lastPixelPagePath) return;
             lastPixelPagePath = path;
             amPixelTrack("PageView");
+        }
+
+        function hasCampaignProductDeepLink() {
+            try {
+                const params = new URLSearchParams(window.location.search || "");
+                return !!(params.get("produto") || params.get("product") || params.get("item"));
+            } catch (_) {
+                return false;
+            }
         }
         function amPixelProductPayload(p) {
             if (!p) return {};
@@ -2208,6 +2218,8 @@ async function loadOffersFromSupabase(opts = {}) {
                 } else {
                     history.pushState({ path: next }, "", next);
                 }
+                // PageView só em busca confirmada — não a cada tecla do debounce.
+                if (opts.pixelPageView) amPixelPageView();
             }
 
             updateStoreGridTitle();
@@ -3003,18 +3015,18 @@ async function loadOffersFromSupabase(opts = {}) {
                     return;
                 }
 
-                // Search só na confirmação (Enter / Buscar / popular) — não a cada tecla.
-                if (immediate && term !== lastPixelSearch) {
-                    lastPixelSearch = term;
-                    amPixelTrack("Search", { search_string: term.slice(0, 100) });
-                }
-
+                // Search só na confirmação — depois da navegação /busca (PageView primeiro).
                 setSearchBusy(true);
                 try {
                     await enterSearchPage(term, {
                         replaceUrl: !immediate && pathClean().startsWith("/busca"),
                         silent: true,
+                        pixelPageView: immediate,
                     });
+                    if (immediate && term !== lastPixelSearch) {
+                        lastPixelSearch = term;
+                        amPixelTrack("Search", { search_string: term.slice(0, 100) });
+                    }
                 } finally {
                     setSearchBusy(false);
                 }
@@ -3210,11 +3222,13 @@ async function loadOffersFromSupabase(opts = {}) {
                 productModalOpenedFor = p.id;
                 const idxNum = Number(index);
                 const position1 = Number.isInteger(idxNum) && idxNum >= 0 ? idxNum + 1 : null;
+                // ProductOpen = evento da abertura do popup (campanha ou clique).
                 amEventTrack("ProductOpen", {
                     product_id: Number(p.id),
                     product_name: String(p.title || "").slice(0, 200),
                     position: position1,
-                    section: section || currentNavSection || null,
+                    section: section || currentNavSection || (hasCampaignProductDeepLink() ? "campaign" : null),
+                    ...amPixelProductPayload(p),
                 });
             }
             // Prefetch shortlink com Sub IDs do canal — CTA pronto no clique
@@ -3478,7 +3492,19 @@ async function loadOffersFromSupabase(opts = {}) {
                 return;
             }
             scrollToStoreGrid();
-            requestAnimationFrame(() => openProductModal(p.id));
+            // Abre o popup e dispara ProductOpen (sem PageView nesta entrada de campanha).
+            const openOnce = () => {
+                try { openProductModal(p.id, 'campaign', 0); } catch (e) {
+                    console.warn('[campaign] openProductModal', e);
+                }
+            };
+            requestAnimationFrame(() => {
+                openOnce();
+                // Reforço: se o 1º frame falhou em achar o produto, tenta de novo.
+                if (productModalOpenedFor == null || String(productModalOpenedFor) !== String(p.id)) {
+                    setTimeout(openOnce, 120);
+                }
+            });
         }
 
 
@@ -3769,6 +3795,10 @@ async function loadOffersFromSupabase(opts = {}) {
         window.setStoreSubcategory = setStoreSubcategory;
         window.setStoreCategory = setStoreCategory;
         window.setStoreSort = setStoreSort;
+        window.openProductModal = openProductModal;
+        window.closeProductModal = closeProductModal;
+        window.handleBuyClick = handleBuyClick;
+        window.buyFromCard = buyFromCard;
         window.submitAdminLogin = function (e) {
             if (window.__AM_ADMIN && window.__AM_ADMIN.submitAdminLogin) return window.__AM_ADMIN.submitAdminLogin(e);
             return false;
