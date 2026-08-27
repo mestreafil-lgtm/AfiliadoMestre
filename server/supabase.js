@@ -427,7 +427,10 @@ function rowToProduct(row) {
     newPrice: priceMin,
     discount: discountPct ? `${discountPct}%` : "0%",
     discountPct,
-    stars: Number(row.rating_star) || 4.5,
+    stars: (() => {
+      const r = Number(row.rating_star);
+      return Number.isFinite(r) ? r : 4.5;
+    })(),
     reviews: 0,
     sales: salesLabel || "—",
     salesRaw: sales,

@@ -247,7 +247,7 @@
             s += Math.min(18, tokHits * 1.8);
             return s;
         }
-        // Filtros da sidebar desktop estilo Shopee — só ativos dentro de uma categoria.
+        // Filtros da sidebar — valem em categoria E na página de busca.
         const storeFilters = {
             priceMin: null,
             priceMax: null,
@@ -264,7 +264,31 @@
             const s = storeFilters.shipping;
             return storeFilters.priceMin != null || storeFilters.priceMax != null
                 || storeFilters.onlyDiscount || storeFilters.minRating > 0 || storeFilters.onlyMall
-                || s.nacional || s.internacional;
+                || !!(s && (s.nacional || s.internacional));
+        }
+        /** Nota do produto em escala 0–5 (Shopee). */
+        function productRating(p) {
+            const n = Number(p?.stars);
+            if (!Number.isFinite(n) || n <= 0) return 0;
+            if (n > 5) return Math.min(5, n / 20);
+            return Math.min(5, n);
+        }
+        /** Aplica filtros da sidebar (preço, avaliação, mall, frete, desconto). */
+        function productMatchesStoreFilters(p) {
+            if (!storeFiltersActive()) return true;
+            const price = Number(p.newPrice) || 0;
+            if (storeFilters.priceMin != null && price < storeFilters.priceMin) return false;
+            if (storeFilters.priceMax != null && price > storeFilters.priceMax) return false;
+            if (storeFilters.onlyDiscount && displayDiscount(p) < 5) return false;
+            if (storeFilters.minRating > 0 && productRating(p) < storeFilters.minRating) return false;
+            if (storeFilters.onlyMall && !isOfficialShop(p.shopType)) return false;
+            const s = storeFilters.shipping;
+            if (s.nacional || s.internacional) {
+                const isIntl = productIsInternational(p);
+                if (s.nacional && !s.internacional && isIntl) return false;
+                if (s.internacional && !s.nacional && !isIntl) return false;
+            }
+            return true;
         }
         function productIsInternational(p) {
             const name = String(p.shopName || '').toLowerCase();
@@ -1995,7 +2019,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 return `<button type="button" onclick="setStoreMinRating(${n})"
                     class="w-full flex items-center gap-1.5 py-1 px-1 rounded ${active ? "bg-orange-50" : "hover:bg-slate-50"}">
                     <span class="flex gap-0.5">${stars}</span>
-                    <span class="text-[11px] ${active ? "text-shopee-orange font-bold" : "text-slate-500"}">${n === 5 ? "" : "e acima"}</span>
+                    <span class="text-[11px] ${active ? "text-shopee-orange font-bold" : "text-slate-500"}">${n === 5 ? "estrelas" : "e acima"}</span>
                 </button>`;
             };
             const shipCheck = (key, label, disabled = false) => {
@@ -2072,7 +2096,7 @@ async function loadOffersFromSupabase(opts = {}) {
         function renderSearchSidebar(side) {
             const q = String(currentSearchQuery || "").trim();
             const matched = (Array.isArray(productsDatabase) ? productsDatabase : [])
-                .filter((p) => productMatchesSearch(p, q));
+                .filter((p) => productMatchesSearch(p, q) && productMatchesStoreFilters(p));
             const counts = {};
             for (const p of matched) {
                 const id = p.category || "outros";
@@ -2273,7 +2297,7 @@ async function loadOffersFromSupabase(opts = {}) {
                 return `<button type="button" onclick="setStoreMinRating(${n})"
                     class="w-full flex items-center gap-1.5 py-1 px-1 rounded ${active ? 'bg-orange-50' : 'hover:bg-slate-50'}">
                     <span class="flex gap-0.5">${stars}</span>
-                    <span class="text-[11px] ${active ? 'text-shopee-orange font-bold' : 'text-slate-500'}">${n === 5 ? '' : 'e acima'}</span>
+                    <span class="text-[11px] ${active ? 'text-shopee-orange font-bold' : 'text-slate-500'}">${n === 5 ? 'estrelas' : 'e acima'}</span>
                 </button>`;
             };
             const shipCheck = (key, label, disabled = false) => {
@@ -2746,21 +2770,8 @@ async function loadOffersFromSupabase(opts = {}) {
                     if (!productMatchesSearch(p, searchVal)) return false;
                 }
                 if (!productMatchesSubcategory(p, currentStoreCategory, currentStoreSubcategory)) return false;
-                // Filtros da sidebar Shopee-style (só quando dentro de categoria):
-                if (currentStoreCategory !== 'todos' && storeFiltersActive()) {
-                    const price = Number(p.newPrice) || 0;
-                    if (storeFilters.priceMin != null && price < storeFilters.priceMin) return false;
-                    if (storeFilters.priceMax != null && price > storeFilters.priceMax) return false;
-                    if (storeFilters.onlyDiscount && displayDiscount(p) < 5) return false;
-                    if (storeFilters.minRating > 0 && Number(p.stars || 0) < storeFilters.minRating) return false;
-                    if (storeFilters.onlyMall && !isOfficialShop(p.shopType)) return false;
-                    const s = storeFilters.shipping;
-                    if (s.nacional || s.internacional) {
-                        const isIntl = productIsInternational(p);
-                        if (s.nacional && !s.internacional && isIntl) return false;
-                        if (s.internacional && !s.nacional && !isIntl) return false;
-                    }
-                }
+                // Filtros da sidebar: categoria E página de busca (antes só categoria).
+                if (!productMatchesStoreFilters(p)) return false;
                 return true;
             });
             if (onHome) {
@@ -3728,6 +3739,16 @@ async function loadOffersFromSupabase(opts = {}) {
         window.onStoreSearchKeydown = onStoreSearchKeydown;
         window.setSearchCategoryFilter = setSearchCategoryFilter;
         window.enterSearchPage = enterSearchPage;
+        window.setStoreMinRating = setStoreMinRating;
+        window.toggleOnlyDiscount = toggleOnlyDiscount;
+        window.toggleOnlyMall = toggleOnlyMall;
+        window.toggleShipping = toggleShipping;
+        window.toggleCondition = toggleCondition;
+        window.applyPriceFilter = applyPriceFilter;
+        window.clearStoreFilters = clearStoreFilters;
+        window.setStoreSubcategory = setStoreSubcategory;
+        window.setStoreCategory = setStoreCategory;
+        window.setStoreSort = setStoreSort;
         window.submitAdminLogin = function (e) {
             if (window.__AM_ADMIN && window.__AM_ADMIN.submitAdminLogin) return window.__AM_ADMIN.submitAdminLogin(e);
             return false;
