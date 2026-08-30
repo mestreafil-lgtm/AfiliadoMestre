@@ -2960,6 +2960,8 @@
                 orders: 0,
                 itemsQty: 0,
                 commission: 0,
+                commissionCompleted: 0,
+                ordersCompleted: 0,
                 sellerCommission: 0,
                 shopeeCommission: 0,
                 channels: {},
@@ -3006,9 +3008,22 @@
 
                 for (const order of (conversion.orders || [])) {
                     bucket.orders += 1;
-                    const st = String(order.orderStatus || 'UNKNOWN');
+                    const st = String(order.orderStatus || 'UNKNOWN').toUpperCase();
                     bucket.statuses[st] = (bucket.statuses[st] || 0) + 1;
-                    for (const item of (order.items || [])) {
+                    const items = order.items || [];
+                    let orderCommission = items.reduce(
+                        (sum, item) => sum + commissionNumber(item.itemTotalCommission),
+                        0
+                    );
+                    if (!orderCommission) {
+                        const nOrders = (conversion.orders || []).length || 1;
+                        orderCommission = commissionNumber(conversion.totalCommission) / nOrders;
+                    }
+                    if (st === 'COMPLETED') {
+                        bucket.ordersCompleted += 1;
+                        bucket.commissionCompleted += orderCommission;
+                    }
+                    for (const item of items) {
                         const qty = Number(item.qty) || 1;
                         bucket.itemsQty += qty;
                         const pid = String(item.itemId || item.itemName || 'item');
@@ -3038,7 +3053,8 @@
             }
 
             return [...map.values()].sort((a, b) =>
-                b.commission - a.commission
+                b.commissionCompleted - a.commissionCompleted
+                || b.commission - a.commission
                 || b.orders - a.orders
                 || new Date(b.saved?.createdAt || 0) - new Date(a.saved?.createdAt || 0)
                 || a.name.localeCompare(b.name)
@@ -3324,9 +3340,9 @@
                 </div>
                 <div class="camp-perf-kpi-grid">
                     <div class="camp-perf-kpi">
-                        <div class="camp-perf-kpi-label">Comissão total</div>
-                        <div class="camp-perf-kpi-value" style="color:#047857">${formatMoneyBRL(c.commission)}</div>
-                        <div class="camp-perf-kpi-hint">${c.conversions} conversão(ões)</div>
+                        <div class="camp-perf-kpi-label">Líquido (Completed)</div>
+                        <div class="camp-perf-kpi-value" style="color:#047857">${formatMoneyBRL(c.commissionCompleted)}</div>
+                        <div class="camp-perf-kpi-hint">${c.ordersCompleted} pedido(s) concluído(s) · total ${formatMoneyBRL(c.commission)}</div>
                     </div>
                     <div class="camp-perf-kpi">
                         <div class="camp-perf-kpi-label">Pedidos</div>
@@ -3533,7 +3549,13 @@
                 ? `Criada em ${new Date(c.saved.createdAt).toLocaleDateString("pt-BR")}`
                 : "";
             const summary = `${c.orders} ped. · ${c.conversions} conv. · ${c.itemsQty} itens`;
-            const comissaoStyle = c.commission ? "color:#047857;font-weight:800" : "color:#cbd5e1;font-weight:700";
+            const comissaoStyle = c.commissionCompleted
+                ? "color:#047857;font-weight:800"
+                : (c.commission ? "color:#64748b;font-weight:700" : "color:#cbd5e1;font-weight:700");
+            const comissaoMain = formatMoneyBRL(c.commissionCompleted || c.commission);
+            const comissaoHint = c.commissionCompleted && c.commission > c.commissionCompleted
+                ? `<span style="font-size:9px;color:#94a3b8;margin-left:4px">tot. ${formatMoneyBRL(c.commission)}</span>`
+                : '';
             return `
                 <div class="camp-perf-list-item${selected ? " is-selected" : ""}" role="button" tabindex="0"
                     onclick="openCampaignPerfDetail('${escapeAttr(c.key)}')"
@@ -3544,7 +3566,7 @@
                             <div style="display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap">
                                 <span style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:140px">${escapeHtml(c.name)}</span>
                                 <span class="camp-perf-badge ${badge.cls}" style="font-size:9px;padding:2px 6px">${badge.label}</span>
-                                <span style="margin-left:auto;font-size:11px;${comissaoStyle}">${formatMoneyBRL(c.commission)}</span>
+                                <span style="margin-left:auto;font-size:11px;${comissaoStyle}">${comissaoMain}${comissaoHint}</span>
                             </div>
                             ${when ? `<div style="font-size:10.5px;color:#94a3b8;margin-top:3px">${escapeHtml(when)}</div>` : ""}
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:3px">
@@ -3564,12 +3586,19 @@
             const totalOrders = campaigns.reduce((s, c) => s + c.orders, 0);
             const totalItems = campaigns.reduce((s, c) => s + c.itemsQty, 0);
             const totalCommission = campaigns.reduce((s, c) => s + c.commission, 0);
+            const totalCompleted = campaigns.reduce((s, c) => s + (c.commissionCompleted || 0), 0);
 
             document.getElementById('camp-perf-count').textContent = String(campaigns.length);
             document.getElementById('camp-perf-conversions').textContent = String(campaignPerfRows.length);
             document.getElementById('camp-perf-orders').textContent = String(totalOrders);
             document.getElementById('camp-perf-items').textContent = String(totalItems);
-            document.getElementById('camp-perf-commission').textContent = formatMoneyBRL(totalCommission);
+            document.getElementById('camp-perf-commission').textContent = formatMoneyBRL(totalCompleted);
+            const totalHint = document.getElementById('camp-perf-commission-total');
+            if (totalHint) {
+                totalHint.textContent = totalCommission > totalCompleted
+                    ? `Total no período: ${formatMoneyBRL(totalCommission)}`
+                    : '';
+            }
 
             const rangeEl = document.getElementById('camp-perf-list-range');
             if (rangeEl) {
