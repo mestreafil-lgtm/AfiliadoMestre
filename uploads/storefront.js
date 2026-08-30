@@ -480,8 +480,13 @@
             try { fbq("track", eventName, params || {}); } catch (_) {}
         }
         function amPixelCheckout(p) {
-            const payload = Object.assign({ num_items: 1 }, amPixelProductPayload(p));
+            const payload = Object.assign(
+                { num_items: 1, product_id: Number(p?.id) || null, product_name: String(p?.title || "").slice(0, 200) },
+                amAnalyticsUtm(),
+                amPixelProductPayload(p)
+            );
             amPixelTrack("InitiateCheckout", payload);
+            amBackendTrack("InitiateCheckout", payload);
         }
         function amPixelFlush(ms) {
             return new Promise((resolve) => setTimeout(resolve, Number(ms) > 0 ? Number(ms) : 450));
@@ -565,13 +570,19 @@
             }
         }
 
-        // Dispatcher duplo: Meta (trackCustom) + backend Supabase via /api/analytics/event.
-        // Mesmas guardas de amPixelTrack (iframe/admin) para nada vazar do modo admin.
-        function amEventTrack(eventName, params) {
+        function amAnalyticsUtm() {
+            const s = getSubIdSettings();
+            return {
+                utm_campaign: s.campaign || null,
+                utm_source: s.channel || null,
+                utm_medium: s.medium || null,
+            };
+        }
+
+        function amBackendTrack(eventName, params) {
             try { if (window.self !== window.top) return; } catch (_) { return; }
             if (isAdminMode()) return;
             const payload = params && typeof params === "object" ? params : {};
-            try { if (typeof fbq === "function") fbq("trackCustom", eventName, payload); } catch (_) {}
             try {
                 fetch(`${API_BASE}/api/analytics/event`, {
                     method: "POST",
@@ -584,6 +595,16 @@
                     }),
                 }).catch(() => {});
             } catch (_) {}
+        }
+
+        // Dispatcher duplo: Meta (trackCustom) + backend Supabase via /api/analytics/event.
+        // Mesmas guardas de amPixelTrack (iframe/admin) para nada vazar do modo admin.
+        function amEventTrack(eventName, params) {
+            try { if (window.self !== window.top) return; } catch (_) { return; }
+            if (isAdminMode()) return;
+            const payload = Object.assign({}, amAnalyticsUtm(), params && typeof params === "object" ? params : {});
+            try { if (typeof fbq === "function") fbq("trackCustom", eventName, payload); } catch (_) {}
+            amBackendTrack(eventName, payload);
         }
 
         function navigateTo(path, { replace = false } = {}) {

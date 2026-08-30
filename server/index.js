@@ -47,7 +47,7 @@ const {
   listOffersMissingShortlink,
   countShortlinkStatus,
 } = require("./supabase");
-const { insertAnalyticsEvent } = require("./analytics");
+const { insertAnalyticsEvent, queryCampaignFunnel } = require("./analytics");
 const { CATEGORIAS, categoryForKeyword, weightedKeywords, allKeywords, metaOnly, sortCategoriesForHome, DEFAULT_FEMALE_PERCENT, normalizeKeywordEntry, isFemaleAudience } = require("./categorias");
 const { buildCoverageReport, buildCoverageQueue } = require("./coverage");
 const { refillVitrine } = require("./refillVitrine");
@@ -1640,6 +1640,26 @@ app.get("/api/admin/campanhas/performance", requireAdmin, async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error("[/api/admin/campanhas/performance]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** Admin — funil do anúncio: abriram / Shopee / fecharam por campanha e produto. */
+app.get("/api/admin/campanhas/funnel", requireAdmin, async (req, res) => {
+  try {
+    const campaign = String(req.query.campaign || req.query.campanha || "").trim();
+    if (!campaign) {
+      return res.status(400).json({ error: "campaign obrigatorio" });
+    }
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const rawIds = String(req.query.product_ids || req.query.product_id || "").trim();
+    const productIds = rawIds
+      ? rawIds.split(/[,|]+/).map((s) => s.trim()).filter(Boolean)
+      : [];
+    const result = await queryCampaignFunnel({ campaign, days, productIds });
+    res.json(result);
+  } catch (err) {
+    console.error("[/api/admin/campanhas/funnel]", err.message);
     res.status(err.status || 500).json({ error: err.message });
   }
 });
@@ -3250,7 +3270,7 @@ function pixelProductJsonSSR(product) {
   return JSON.stringify(payload).replace(/</g, "\\u003c");
 }
 
-function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, discountHtml, shopName, priceNewFmt }) {
+function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, discountHtml, shopName, priceNewFmt, attribution }) {
   const title = escapeHtmlSSR(product.title || "Oferta Shopee");
   const image = escapeHtmlSSR(product.image || "");
   const category = escapeHtmlSSR(categoryLabelSSR(product.category));
@@ -3264,6 +3284,11 @@ function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, 
   const pixelPayload = pixelProductJsonSSR(product);
   const backHrefSafe = escapeHtmlSSR(backHref);
   const embedHrefSafe = escapeHtmlSSR(embedHref || backHref);
+  const utmPayload = JSON.stringify({
+    utm_campaign: sanitizeSubId(attribution?.campaign || "vitrine", "vitrine"),
+    utm_source: sanitizeSubId(attribution?.channel || "organico", "organico"),
+    utm_medium: sanitizeSubId(attribution?.medium || "", ""),
+  }).replace(/</g, "\\u003c");
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -3288,14 +3313,58 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
 <script>
 (function(){
   var PIXEL_ID = '2217009299032183';
+  var AM_SESSION_KEY = 'am_session_v1';
+  var AM_SESSION_IDLE_MS = 30 * 60 * 1000;
   try {
     if (window.self !== window.top && window.top.location.hostname === location.hostname) return;
   } catch (e) {}
   var payload = ${pixelPayload};
+  var utm = ${utmPayload};
   var checkoutPayload = Object.assign({ num_items: 1 }, payload);
   var sentIC = false;
   function eid(prefix){
     return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+  function amGenSessionId(){
+    try {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    } catch (_) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
+      var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+  function amSessionId(){
+    try {
+      var now = Date.now();
+      var raw = sessionStorage.getItem(AM_SESSION_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && parsed.id && parsed.last && now - parsed.last <= AM_SESSION_IDLE_MS) {
+        parsed.last = now;
+        sessionStorage.setItem(AM_SESSION_KEY, JSON.stringify(parsed));
+        return parsed.id;
+      }
+      var fresh = { id: amGenSessionId(), last: now };
+      sessionStorage.setItem(AM_SESSION_KEY, JSON.stringify(fresh));
+      return fresh.id;
+    } catch (_) {
+      return amGenSessionId();
+    }
+  }
+  function analyticsPost(event, extra){
+    try {
+      var body = {
+        event: event,
+        session_id: amSessionId(),
+        payload: Object.assign({}, utm, extra || {})
+      };
+      fetch('/api/analytics/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify(body)
+      }).catch(function(){});
+    } catch (_) {}
   }
   !function(f,b,e,v,n,t,s)
   {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -3309,17 +3378,11 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
   fbq('init', PIXEL_ID);
   // Campanha /p/:id já é o popup. 1º evento = ProductOpen (não PageView).
   fbq('trackCustom', 'ProductOpen', payload, { eventID: eid('po') });
-  try {
-    fetch('/api/analytics/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      keepalive: true,
-      body: JSON.stringify({
-        event: 'ProductOpen',
-        payload: Object.assign({ product_id: Number(payload.content_ids && payload.content_ids[0]) || null, section: 'campaign' }, payload)
-      })
-    }).catch(function(){});
-  } catch (_) {}
+  analyticsPost('ProductOpen', Object.assign({
+    product_id: Number(payload.content_ids && payload.content_ids[0]) || null,
+    product_name: payload.content_name || '',
+    section: 'campaign'
+  }, payload));
 
   var openedAt = Date.now();
   var sentClose = false;
@@ -3331,19 +3394,16 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
       duration_ms: Math.max(0, Date.now() - openedAt)
     };
     fbq('trackCustom', 'ProductClose', closePayload, { eventID: eid('pc') });
-    try {
-      fetch('/api/analytics/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        keepalive: true,
-        body: JSON.stringify({ event: 'ProductClose', payload: closePayload })
-      }).catch(function(){});
-    } catch (_) {}
+    analyticsPost('ProductClose', closePayload);
   }
   function trackCheckout(){
     if (sentIC || typeof fbq !== 'function') return;
     sentIC = true;
     fbq('track', 'InitiateCheckout', checkoutPayload, { eventID: eid('ic') });
+    analyticsPost('InitiateCheckout', Object.assign({
+      product_id: Number(payload.content_ids && payload.content_ids[0]) || null,
+      product_name: payload.content_name || ''
+    }, checkoutPayload));
   }
   window.__amPixelCheckout = trackCheckout;
   window.__amPixelClose = trackClose;

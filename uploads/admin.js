@@ -3197,6 +3197,99 @@
             setTimeout(tryOpen, 100);
         }
 
+        function funnelBar(label, value, max, color, sub) {
+            const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+            return `
+                <div style="margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
+                        <span style="font-size:12px;font-weight:700;color:#334155">${escapeHtml(label)}</span>
+                        <span style="font-size:13px;font-weight:800;color:${color}">${value}${sub ? ` <span style="font-size:10px;font-weight:600;color:#94a3b8">${escapeHtml(sub)}</span>` : ''}</span>
+                    </div>
+                    <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden">
+                        <div style="height:100%;width:${pct}%;background:${color};border-radius:999px;transition:width .3s ease"></div>
+                    </div>
+                </div>`;
+        }
+
+        function renderCampaignFunnel(data, savedProducts) {
+            const el = document.getElementById('camp-perf-detail-funnel');
+            if (!el) return;
+            const totals = data?.totals || { opens: 0, checkout: 0, close: 0 };
+            const products = Array.isArray(data?.products) ? data.products : [];
+            const savedMap = new Map((savedProducts || []).map((p) => [String(p.id), p]));
+            const maxBar = Math.max(totals.opens, 1);
+
+            if (!totals.opens && !products.length) {
+                el.innerHTML = `
+                    <div style="background:linear-gradient(135deg,#fff7f5,#f8fafc);border:1px solid #ffe0d2;border-radius:14px;padding:16px">
+                        <p style="margin:0 0 6px;font-size:13px;font-weight:800;color:#0f172a">Funil do anúncio</p>
+                        <p style="margin:0;font-size:12px;color:#64748b">Ainda sem cliques registrados neste período. Compartilhe o link <code style="font-size:11px">/p/ID?utm_campaign=...</code> e os dados aparecem aqui.</p>
+                    </div>`;
+                return;
+            }
+
+            const productCards = products.map((p) => {
+                const saved = savedMap.get(String(p.product_id));
+                const name = saved?.title || p.product_name || `Produto ${p.product_id}`;
+                const image = saved?.image || '';
+                const pMax = Math.max(p.opens, 1);
+                return `
+                    <article style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff">
+                        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+                            ${image ? `<img src="${escapeAttr(thumbUrl(image) || image)}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;background:#f1f5f9;flex-shrink:0" onerror="this.style.display='none'">` : ''}
+                            <div style="min-width:0">
+                                <p style="margin:0;font-size:12px;font-weight:800;color:#0f172a;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(name)}</p>
+                                <p style="margin:4px 0 0;font-size:10px;color:#94a3b8">ID ${escapeHtml(String(p.product_id))}</p>
+                            </div>
+                        </div>
+                        ${funnelBar('Abriram', p.opens, pMax, '#ee4d2d', '')}
+                        ${funnelBar('Clicaram Shopee', p.checkout, pMax, '#059669', p.opens ? PCT(p.checkout_rate) : '')}
+                        ${funnelBar('Fecharam', p.close, pMax, '#64748b', p.opens ? PCT(p.close_rate) : '')}
+                    </article>`;
+            }).join('');
+
+            el.innerHTML = `
+                <div style="background:linear-gradient(135deg,#fff7f5,#f8fafc);border:1px solid #ffe0d2;border-radius:14px;padding:16px;margin-bottom:12px">
+                    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:12px">
+                        <div>
+                            <p style="margin:0;font-size:13px;font-weight:800;color:#0f172a">Funil do anúncio</p>
+                            <p style="margin:4px 0 0;font-size:11px;color:#64748b">Visitantes únicos nos últimos ${Number(data?.days) || 30} dias</p>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <span style="font-size:10px;font-weight:700;background:#fff;border:1px solid #e2e8f0;color:#475569;padding:4px 8px;border-radius:999px">${totals.opens} aberturas</span>
+                            <span style="font-size:10px;font-weight:700;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;padding:4px 8px;border-radius:999px">${totals.checkout} Shopee (${PCT(totals.checkout_rate)})</span>
+                            <span style="font-size:10px;font-weight:700;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;padding:4px 8px;border-radius:999px">${totals.close} fecharam (${PCT(totals.close_rate)})</span>
+                        </div>
+                    </div>
+                    ${funnelBar('Abriram o produto', totals.opens, maxBar, '#ee4d2d', '')}
+                    ${funnelBar('Clicaram em Ver na Shopee', totals.checkout, maxBar, '#059669', totals.opens ? PCT(totals.checkout_rate) : '')}
+                    ${funnelBar('Fecharam sem ir à Shopee', totals.close, maxBar, '#64748b', totals.opens ? PCT(totals.close_rate) : '')}
+                </div>
+                ${products.length > 1 ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b">Por produto</p>` : ''}
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${productCards}</div>`;
+        }
+
+        async function loadCampaignFunnel(campaignKey, savedProducts) {
+            const el = document.getElementById('camp-perf-detail-funnel');
+            if (!el) return;
+            el.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando funil…</div>';
+            try {
+                const days = document.getElementById('camp-perf-days')?.value || '30';
+                const params = new URLSearchParams({ campaign: campaignKey, days: String(days) });
+                const ids = (savedProducts || []).map((p) => p.id).filter(Boolean);
+                if (ids.length) params.set('product_ids', ids.join(','));
+                const res = await adminFetch(`${API_BASE}/api/admin/campanhas/funnel?${params}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                renderCampaignFunnel(data, savedProducts);
+            } catch (err) {
+                el.innerHTML = `
+                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px;font-size:12px;color:#b91c1c">
+                        Não foi possível carregar o funil: ${escapeHtml(err.message)}
+                    </div>`;
+            }
+        }
+
         function openCampaignPerfDetail(key) {
             const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
             const c = campaigns.find(x => x.key === key);
@@ -3316,6 +3409,7 @@
 
             detail.classList.remove('hidden');
             detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            loadCampaignFunnel(key, c.saved?.products || []);
         }
 
         function closeCampaignPerfDetail() {
@@ -5590,7 +5684,7 @@
         onCampaignProductSearchKey, syncSavedCampaigns,
         generateCampaignShopeeLinks, copyCampaignShopeeLinks,
         updateCampaignLinkPreview, updateSubIdPreview, loadCampaignPerformance, openCampaignPerfDetail,
-        closeCampaignPerfDetail, openCampaignPerfByName, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
+        closeCampaignPerfDetail, openCampaignPerfByName, loadCampaignFunnel, renderCampaignFunnel, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
         previewFeed, lookupConversion, loadDashboardSales,
