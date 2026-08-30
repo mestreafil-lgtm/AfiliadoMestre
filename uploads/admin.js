@@ -192,12 +192,25 @@
     let campaignPerfRows = [];
     let campaignPerfSelected = "";
     let campaignPerfLoading = false;
+    let campaignPerfSearch = "";
+    let campaignPerfListPage = 0;
+    let campaignPerfDetailTab = "resumo";
+    let campaignPerfFunnelCache = null;
+    let campaignPerfSalesFilter = "";
+    let campaignPerfProdQ = "";
+    let campaignPerfProdPage = 0;
+    const CAMP_PERF_LIST_PAGE_SIZE = 12;
+    const CAMP_PERF_PROD_PAGE_SIZE = 10;
+    const CAMP_PERF_SALES_PAGE_SIZE = 15;
     let campaignSavedList = [];
     let campaignProductResolving = false;
     let campaignShopeeLinks = {};
     let campaignShopeeKey = "";
     let campaignShopeeLoading = false;
     let campaignEditingId = "";
+    let campaignSavedSearch = "";
+    let campaignSavedPage = 0;
+    const CAMP_SAVED_PAGE_SIZE = 10;
     const CAMPAIGN_CHANNEL = "ads";
 
     const ADMIN_VIEWS = {
@@ -1863,32 +1876,19 @@
                 box.innerHTML = '';
                 return;
             }
-            box.innerHTML = campaignSelectedProducts.map(p => {
-                const price = Number(p.price) > 0 ? formatMoneyBRL(p.price) : '';
+            box.innerHTML = campaignSelectedProducts.map((p) => {
                 const hasAff = productHasAffiliate(p);
-                const affiliate = p.shortLink && isTrackedAffiliateUrl(p.shortLink)
-                    ? `<span class="text-emerald-600 font-bold"><i class="fas fa-link mr-0.5"></i>${escapeHtml(p.shortLink)}</span>`
-                    : isTrackedAffiliateUrl(p.affiliateLink)
-                        ? '<span class="text-emerald-600 font-bold"><i class="fas fa-check mr-0.5"></i>link de afiliado da API</span>'
-                        : `<span class="text-amber-600 font-bold"><i class="fas fa-triangle-exclamation mr-0.5"></i>sem link de afiliado</span>
-                           <button type="button" onclick="repairCampaignProduct('${String(p.id).replace(/'/g, '')}')" class="ml-1 underline font-black">Corrigir agora</button>`;
+                const warn = hasAff ? '' : ' camp-prod-pill--warn';
+                const warnBtn = hasAff
+                    ? ''
+                    : `<button type="button" class="camp-prod-pill-remove" title="Corrigir link de afiliado" onclick="repairCampaignProduct('${String(p.id).replace(/'/g, '')}')">!</button>`;
                 return `
-                <div class="flex items-center gap-2 bg-white border ${hasAff ? 'border-slate-200' : 'border-amber-300'} rounded-lg p-2">
-                    <img src="${escapeAttr(thumbUrl(p.image) || p.image || '')}" class="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0" alt=""
-                        onerror="this.style.display='none'">
-                    <div class="min-w-0 flex-1">
-                        <p class="text-[11px] font-semibold text-slate-700 truncate">${escapeHtml(p.title)}</p>
-                        <p class="text-[9px] text-slate-400">
-                            <span class="font-mono">p${escapeHtml(String(p.id))}</span>
-                            ${p.category ? ` · ${escapeHtml(p.category)}` : ''}
-                            ${price ? ` · <span class="text-emerald-600 font-bold">${price}</span>` : ''}
-                        </p>
-                        <p class="text-[9px]">${affiliate}</p>
-                    </div>
-                    <button type="button" onclick="removeProductFromCampaign('${String(p.id).replace(/'/g, '')}')"
-                        class="text-red-400 hover:text-red-600 px-2" title="Remover"><i class="fas fa-times"></i></button>
-                </div>`;
-            }).join("");
+                <span class="camp-prod-pill${warn}" title="${escapeAttr(p.title)}">
+                    <span class="camp-prod-pill-name">${escapeHtml(p.title)}</span>
+                    ${warnBtn}
+                    <button type="button" class="camp-prod-pill-remove" title="Remover" onclick="removeProductFromCampaign('${String(p.id).replace(/'/g, '')}')">×</button>
+                </span>`;
+            }).join('');
         }
 
         /**
@@ -1945,15 +1945,15 @@
                 return;
             }
             if (!slug) {
-                el.textContent = 'Use pelo menos uma letra ou número.';
+                el.textContent = typed ? 'Use pelo menos uma letra ou número.' : '';
                 return;
             }
             const typedClean = typed.toLowerCase().replace(/[^a-z0-9]/g, '');
-            el.innerHTML = typedClean !== slug
-                ? `Shopee grava: <span class="font-mono font-bold text-slate-700">${escapeHtml(slug)}</span>`
+            el.textContent = typedClean !== slug
+                ? `sub_id: ${slug}`
                 : (isCampaignSlugLocked()
-                    ? `Sub ID desta campanha: <span class="font-mono font-bold text-slate-700">${escapeHtml(slug)}</span>`
-                    : '');
+                    ? `sub_id: ${slug}`
+                    : `sub_id: ${slug}`);
         }
 
         function currentCampaignSignature() {
@@ -1978,37 +1978,28 @@
             renderCampaignNameHint(getCampaignTitle());
 
             if (!selected.length) {
-                el.innerHTML = '';
+                el.textContent = '';
                 updateSubIdPreview(channel, campaign, null);
                 return;
             }
             if (!campaign) {
-                el.innerHTML = '';
+                el.textContent = '';
                 updateSubIdPreview(channel, '', selected[0]);
                 return;
             }
 
-            el.innerHTML = selected.map(p => {
-                const url = buildCampaignShareUrl(channel, campaign, p.id);
-                return `
-                <div class="border border-slate-200 rounded-lg p-2 bg-white space-y-1.5">
-                    <div class="flex items-center gap-2">
-                        <img src="${escapeAttr(thumbUrl(p.image) || p.image || '')}" class="w-9 h-9 rounded object-cover bg-slate-100 shrink-0" alt=""
-                            onerror="this.style.display='none'">
-                        <p class="text-[10px] font-bold text-slate-700 truncate min-w-0 flex-1">${escapeHtml(p.title)}</p>
-                    </div>
-                    <div>
-                        <p class="text-[9px] uppercase font-black text-slate-400">Link do anúncio (popup + Pixel)</p>
-                        <p class="font-mono text-[9px] text-slate-600 break-all select-all" data-campaign-url="${escapeAttr(url)}">${escapeHtml(url)}</p>
-                    </div>
-                </div>`;
-            }).join('');
+            const urls = selected.map((p) => buildCampaignShareUrl(channel, campaign, p.id));
+            el.textContent = urls.join('\n');
             updateSubIdPreview(channel, campaign, selected[0]);
         }
 
         function copyCampaignLink() {
+            const preview = document.getElementById('campaign-link-preview');
+            const fromPreview = String(preview?.textContent || '').trim();
             const nodes = document.querySelectorAll('#campaign-link-preview [data-campaign-url]');
-            const urls = [...nodes].map(n => n.getAttribute('data-campaign-url') || n.textContent.trim()).filter(Boolean);
+            const urls = fromPreview
+                ? fromPreview.split('\n').map((s) => s.trim()).filter(Boolean)
+                : [...nodes].map(n => n.getAttribute('data-campaign-url') || n.textContent.trim()).filter(Boolean);
             if (!urls.length) {
                 showToast('Converta um produto e clique em Obter Link', 'error');
                 return;
@@ -2024,7 +2015,12 @@
             const preview = document.getElementById('subid-preview');
             const box = document.getElementById('campaign-subid-box');
             const camp = sanitizeSubId(campaign || getCampaignSlug(), '');
-            if (preview) preview.textContent = camp || '';
+            const ch = sanitizeSubId(channel || getCampaignChannel(), CAMPAIGN_CHANNEL);
+            if (preview) {
+                preview.textContent = camp
+                    ? `utm_source=${ch}&utm_medium=social&utm_campaign=${camp}`
+                    : '';
+            }
             if (box) box.style.display = camp ? 'block' : 'none';
         }
 
@@ -2225,39 +2221,115 @@
             );
         }
 
+        function onCampaignSavedSearch(value) {
+            campaignSavedSearch = String(value || '');
+            campaignSavedPage = 0;
+            renderSavedCampaignsList();
+        }
+
+        function setCampaignSavedPage(page) {
+            campaignSavedPage = Math.max(0, Number(page) || 0);
+            renderSavedCampaignsList();
+        }
+
         function renderSavedCampaignsList() {
             const box = document.getElementById('campaigns-saved-list');
+            const pager = document.getElementById('campaigns-saved-pagination');
             if (!box) return;
             const list = dedupeCampaignsBySlug(
                 campaignSavedList.length ? campaignSavedList : readSavedCampaigns()
             );
+            const q = String(campaignSavedSearch || '').trim().toLowerCase();
+            const filtered = q
+                ? list.filter((c) => {
+                    const slug = String(c.campaign || '').toLowerCase();
+                    const title = String(c.title || '').toLowerCase();
+                    return slug.includes(q) || title.includes(q);
+                })
+                : list;
+
             if (!list.length) {
-                box.innerHTML = `<p style="font-size:12px;color:#94a3b8;margin:0">Nenhuma campanha ainda.</p>`;
+                box.innerHTML = `<p style="padding:24px;text-align:center;font-size:12px;color:#94a3b8;margin:0">Nenhuma campanha ainda.</p>`;
+                if (pager) pager.innerHTML = '';
                 return;
             }
-            box.innerHTML = list.map(c => {
+
+            if (!filtered.length) {
+                box.innerHTML = `<p style="padding:24px;text-align:center;font-size:12px;color:#94a3b8;margin:0">Nenhuma campanha corresponde à busca.</p>`;
+                if (pager) pager.innerHTML = '';
+                return;
+            }
+
+            const pages = Math.ceil(filtered.length / CAMP_SAVED_PAGE_SIZE);
+            if (campaignSavedPage >= pages) campaignSavedPage = Math.max(0, pages - 1);
+            const slice = filtered.slice(
+                campaignSavedPage * CAMP_SAVED_PAGE_SIZE,
+                (campaignSavedPage + 1) * CAMP_SAVED_PAGE_SIZE
+            );
+
+            const rows = slice.map((c) => {
                 const slug = c.campaign || '';
                 const name = String(c.title || '').trim();
                 const showTitle = name && sanitizeSubId(name, '') !== sanitizeSubId(slug, '');
                 const n = (c.products || []).length;
                 const thumb = c.products?.[0]?.image || c.links?.[0]?.image || '';
+                const created = c.createdAt
+                    ? new Date(c.createdAt).toLocaleDateString('pt-BR')
+                    : '—';
+                const prodLabel = `${n} ${n === 1 ? 'produto' : 'produtos'}`;
                 return `
-                <article style="border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#f8fafc;margin-bottom:8px">
-                    <div style="display:flex;gap:8px;align-items:flex-start">
-                        ${thumb ? `<img src="${escapeAttr(thumbUrl(thumb) || thumb)}" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover;background:#e2e8f0" onerror="this.style.display='none'">` : ''}
-                        <div style="min-width:0;flex:1">
-                            <p style="margin:0;font-size:12.5px;font-weight:700;color:#0f172a">${escapeHtml(showTitle ? name : slug || 'Campanha')}</p>
-                            <p style="margin:2px 0 0;font-size:10px;color:#64748b">${showTitle ? `<span style="font-family:ui-monospace,monospace">${escapeHtml(slug)}</span> · ` : ''}${n} produto${n === 1 ? '' : 's'}</p>
+                <tr>
+                    <td style="padding:9px 20px">
+                        <div class="camp-perf-table-prod">
+                            ${thumb
+                                ? `<img src="${escapeAttr(thumbUrl(thumb) || thumb)}" alt="" onerror="this.style.display='none'">`
+                                : `<div style="width:32px;height:32px;border-radius:6px;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 4px,#e9eef4 4px,#e9eef4 8px);border:1px solid #e2e8f0;flex-shrink:0"></div>`}
+                            <div style="min-width:0">
+                                <div class="camp-perf-table-name" style="font-weight:600">${escapeHtml(showTitle ? name : slug || 'Campanha')}</div>
+                                <div class="camp-perf-table-id">utm_campaign=${escapeHtml(slug)}</div>
+                            </div>
                         </div>
-                    </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
-                        <button type="button" onclick="copySavedCampaignLinks('${escapeAttr(String(c.id))}')" class="btn-dark" style="padding:5px 8px;font-size:10px">Copiar link</button>
-                        <button type="button" onclick="loadSavedCampaignIntoEditor('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Editar</button>
-                        <button type="button" onclick="renameSavedCampaign('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px">Renomear</button>
-                        <button type="button" onclick="deleteSavedCampaign('${escapeAttr(String(c.id))}')" class="btn-ghost" style="padding:5px 8px;font-size:10px;color:#be123c">Apagar</button>
-                    </div>
-                </article>`;
+                    </td>
+                    <td style="padding:9px 12px;color:#475569;white-space:nowrap">${prodLabel}</td>
+                    <td style="padding:9px 12px;color:#64748b;white-space:nowrap">${escapeHtml(created)}</td>
+                    <td style="padding:9px 20px">
+                        <div class="camp-saved-actions">
+                            <button type="button" class="camp-saved-btn camp-saved-btn--dark" onclick="copySavedCampaignLinks('${escapeAttr(String(c.id))}')">Copiar link</button>
+                            <button type="button" class="camp-saved-btn camp-saved-btn--ghost" onclick="loadSavedCampaignIntoEditor('${escapeAttr(String(c.id))}')">Editar</button>
+                            <button type="button" class="camp-saved-btn camp-saved-btn--ghost" onclick="renameSavedCampaign('${escapeAttr(String(c.id))}')">Renomear</button>
+                            <button type="button" class="camp-saved-btn camp-saved-btn--danger" onclick="deleteSavedCampaign('${escapeAttr(String(c.id))}')">Apagar</button>
+                        </div>
+                    </td>
+                </tr>`;
             }).join('');
+
+            box.innerHTML = `
+                <table class="camp-perf-table">
+                    <thead>
+                        <tr>
+                            <th style="padding-left:20px">Campanha</th>
+                            <th>Produtos</th>
+                            <th>Criada em</th>
+                            <th class="num" style="padding-right:20px;text-align:right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+
+            if (pager) {
+                if (filtered.length <= CAMP_SAVED_PAGE_SIZE) {
+                    pager.innerHTML = '';
+                } else {
+                    const start = campaignSavedPage * CAMP_SAVED_PAGE_SIZE + 1;
+                    const end = Math.min(filtered.length, (campaignSavedPage + 1) * CAMP_SAVED_PAGE_SIZE);
+                    pager.innerHTML = `
+                        <button type="button" class="camp-perf-pager-btn" ${campaignSavedPage <= 0 ? 'disabled' : ''}
+                            onclick="setCampaignSavedPage(${campaignSavedPage - 1})">Anterior</button>
+                        <span class="camp-perf-mono" style="font-size:11px;color:#94a3b8">${start}–${end} de ${filtered.length} campanhas</span>
+                        <button type="button" class="camp-perf-pager-btn" ${(campaignSavedPage + 1) * CAMP_SAVED_PAGE_SIZE >= filtered.length ? 'disabled' : ''}
+                            onclick="setCampaignSavedPage(${campaignSavedPage + 1})">Próxima</button>`;
+                }
+            }
         }
 
         function summarizeRegenResponse(data) {
@@ -3012,6 +3084,7 @@
             if (reset) {
                 campaignPerfRows = [];
                 campaignPerfSelected = '';
+                campaignPerfDetailTab = 'resumo';
                 closeCampaignPerfDetail();
             }
             list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando vendas do banco…</div>';
@@ -3100,10 +3173,394 @@
             return `<p class="text-[10px] text-slate-500 mt-1 truncate">${escapeHtml(all[0].title)}${rest > 0 ? ` <span class="text-slate-400">+${rest} item(ns)</span>` : ''}</p>`;
         }
 
+        function campPerfPct(part, total) {
+            const t = Number(total) || 0;
+            if (!t) return "0%";
+            return `${Math.round((Number(part) / t) * 1000) / 10}%`.replace(".", ",");
+        }
+
+        function campPerfBadgeMeta(c) {
+            if (!c.saved) {
+                return { label: "Fora do painel", cls: "camp-perf-badge--orphan" };
+            }
+            if (c.orders > 0) {
+                return { label: "Ativa", cls: "camp-perf-badge--active" };
+            }
+            return { label: "Sem vendas ainda", cls: "camp-perf-badge--pending" };
+        }
+
+        function filterCampaignPerfList(campaigns) {
+            const q = String(campaignPerfSearch || "").trim().toLowerCase();
+            if (!q) return campaigns;
+            return campaigns.filter((c) => {
+                const utm = String(c.key || "").toLowerCase();
+                const name = String(c.name || "").toLowerCase();
+                return name.includes(q) || utm.includes(q);
+            });
+        }
+
+        function onCampPerfSearch(value) {
+            campaignPerfSearch = String(value || "");
+            campaignPerfListPage = 0;
+            renderCampaignPerformance();
+        }
+
+        function setCampPerfListPage(page) {
+            campaignPerfListPage = Math.max(0, Number(page) || 0);
+            renderCampaignPerformance();
+        }
+
+        function switchCampPerfTab(tab) {
+            campaignPerfDetailTab = tab || "resumo";
+            document.querySelectorAll("[data-camp-perf-tab]").forEach((btn) => {
+                const on = btn.getAttribute("data-camp-perf-tab") === campaignPerfDetailTab;
+                btn.classList.toggle("is-active", on);
+                btn.setAttribute("aria-selected", on ? "true" : "false");
+            });
+            document.querySelectorAll("[data-camp-perf-panel]").forEach((panel) => {
+                panel.classList.toggle("is-active", panel.getAttribute("data-camp-perf-panel") === campaignPerfDetailTab);
+            });
+        }
+
+        function setCampPerfSalesFilter(status) {
+            campaignPerfSalesFilter = String(status || "");
+            const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
+            const c = campaigns.find((x) => x.key === campaignPerfSelected);
+            if (c) renderCampPerfSalesTable(c);
+        }
+
+        function setCampPerfProdSearch(value) {
+            campaignPerfProdQ = String(value || "");
+            campaignPerfProdPage = 0;
+            const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
+            const c = campaigns.find((x) => x.key === campaignPerfSelected);
+            if (c) renderCampPerfProductsTable(c, campaignPerfFunnelCache);
+        }
+
+        function setCampPerfProdPage(page) {
+            campaignPerfProdPage = Math.max(0, Number(page) || 0);
+            const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
+            const c = campaigns.find((x) => x.key === campaignPerfSelected);
+            if (c) renderCampPerfProductsTable(c, campaignPerfFunnelCache);
+        }
+
+        function renderCampPerfPagination(total, page, pageSize, onPageFn) {
+            const box = document.getElementById("camp-perf-pagination");
+            if (!box) return;
+            const pages = Math.max(1, Math.ceil(total / pageSize));
+            if (total <= pageSize) {
+                box.innerHTML = "";
+                return;
+            }
+            const start = page * pageSize + 1;
+            const end = Math.min(total, (page + 1) * pageSize);
+            box.innerHTML = `
+                <button type="button" class="camp-perf-pager-btn" ${page <= 0 ? "disabled" : ""}
+                    onclick="${onPageFn}(${page - 1})">Anterior</button>
+                <span class="camp-perf-mono" style="font-size:11px;color:#94a3b8">${start}–${end} de ${total}</span>
+                <button type="button" class="camp-perf-pager-btn" ${page >= pages - 1 ? "disabled" : ""}
+                    onclick="${onPageFn}(${page + 1})">Próxima</button>`;
+        }
+
+        function buildCampPerfProductRows(c, funnelData) {
+            const funnelMap = new Map(
+                (funnelData?.products || []).map((p) => [String(p.product_id), p])
+            );
+            const soldMap = c.products || {};
+            const saved = c.saved?.products || [];
+            const orderCountByProduct = new Map();
+            for (const conv of c.conversionsList || []) {
+                for (const order of conv.orders || []) {
+                    const seenInOrder = new Set();
+                    for (const item of order.items || []) {
+                        const pid = String(item.itemId || "");
+                        if (!pid || seenInOrder.has(pid)) continue;
+                        seenInOrder.add(pid);
+                        orderCountByProduct.set(pid, (orderCountByProduct.get(pid) || 0) + 1);
+                    }
+                }
+            }
+            const ids = new Set();
+            saved.forEach((p) => ids.add(String(p.id)));
+            Object.keys(soldMap).forEach((id) => ids.add(String(id)));
+            (funnelData?.products || []).forEach((p) => ids.add(String(p.product_id)));
+
+            return [...ids].map((id) => {
+                const savedP = saved.find((p) => String(p.id) === id);
+                const sold = Object.values(soldMap).find((p) => String(p.id) === id);
+                const funnel = funnelMap.get(id);
+                return {
+                    id,
+                    name: savedP?.title || sold?.name || funnel?.product_name || `Produto ${id}`,
+                    image: savedP?.image || sold?.image || "",
+                    opens: Number(funnel?.opens) || 0,
+                    checkout: Number(funnel?.checkout) || 0,
+                    close: Number(funnel?.close) || 0,
+                    orders: orderCountByProduct.get(id) || 0,
+                    qty: sold?.qty || 0,
+                    commission: sold?.commission || 0,
+                };
+            }).sort((a, b) => b.commission - a.commission || b.qty - a.qty || b.opens - a.opens);
+        }
+
+        function renderCampPerfResumo(c, funnelData) {
+            const el = document.getElementById("camp-perf-panel-resumo");
+            if (!el) return;
+            const totals = funnelData?.totals || { opens: 0, checkout: 0, close: 0 };
+            const channelEntries = Object.entries(c.channels).sort((a, b) => b[1] - a[1]);
+            const channelsText = channelEntries.length
+                ? channelEntries.map(([ch, n]) => `${ch} (${n})`).join(" · ")
+                : (c.saved?.channel || "—");
+            const lastSale = c.lastPurchase
+                ? `Última venda: ${conversionDate(c.lastPurchase)}`
+                : "Sem vendas no período";
+            const statusEntries = Object.entries(c.statuses).sort((a, b) => b[1] - a[1]);
+            const statusTotal = statusEntries.reduce((s, [, n]) => s + n, 0) || c.orders;
+
+            el.innerHTML = `
+                <div class="camp-perf-channels-bar">
+                    <span><span class="muted">Canais:</span> ${escapeHtml(channelsText)}</span>
+                    <span class="right">${escapeHtml(lastSale)}</span>
+                </div>
+                <div class="camp-perf-kpi-grid">
+                    <div class="camp-perf-kpi">
+                        <div class="camp-perf-kpi-label">Comissão total</div>
+                        <div class="camp-perf-kpi-value" style="color:#047857">${formatMoneyBRL(c.commission)}</div>
+                        <div class="camp-perf-kpi-hint">${c.conversions} conversão(ões)</div>
+                    </div>
+                    <div class="camp-perf-kpi">
+                        <div class="camp-perf-kpi-label">Pedidos</div>
+                        <div class="camp-perf-kpi-value">${c.orders}</div>
+                        <div class="camp-perf-kpi-hint">no período filtrado</div>
+                    </div>
+                    <div class="camp-perf-kpi">
+                        <div class="camp-perf-kpi-label">Itens vendidos</div>
+                        <div class="camp-perf-kpi-value">${c.itemsQty}</div>
+                        <div class="camp-perf-kpi-hint">unidades</div>
+                    </div>
+                    <div class="camp-perf-kpi">
+                        <div class="camp-perf-kpi-label">Comissão loja</div>
+                        <div class="camp-perf-kpi-value">${formatMoneyBRL(c.sellerCommission)}</div>
+                    </div>
+                    <div class="camp-perf-kpi">
+                        <div class="camp-perf-kpi-label">Comissão Shopee</div>
+                        <div class="camp-perf-kpi-value">${formatMoneyBRL(c.shopeeCommission)}</div>
+                    </div>
+                    <div class="camp-perf-kpi">
+                        <div class="camp-perf-kpi-label">Canais ativos</div>
+                        <div class="camp-perf-kpi-value">${Object.keys(c.channels).length || (c.saved?.channel ? 1 : 0)}</div>
+                    </div>
+                </div>
+                <div class="camp-perf-split-grid">
+                    <div class="camp-perf-card">
+                        <div class="camp-perf-card-title">Funil da campanha</div>
+                        ${totals.opens > 0 ? `
+                            <div class="camp-perf-mini-row"><span>Abriram o produto</span><strong>${formatFunnelCount(totals.opens)} <span class="pct">100%</span></strong></div>
+                            <div class="camp-perf-mini-row"><span>Clicaram Ver na Shopee</span><strong>${formatFunnelCount(totals.checkout)} <span class="pct">${campPerfPct(totals.checkout, totals.opens)}</span></strong></div>
+                            <div class="camp-perf-mini-row"><span>Fecharam sem ir à Shopee</span><strong>${formatFunnelCount(totals.close)} <span class="pct">${campPerfPct(totals.close, totals.opens)}</span></strong></div>
+                            <button type="button" class="camp-perf-link-btn" onclick="switchCampPerfTab('funil')">Ver funil completo →</button>
+                        ` : `<p style="font-size:12px;color:#94a3b8;margin:0">Ainda sem eventos neste período.</p>`}
+                    </div>
+                    <div class="camp-perf-card">
+                        <div class="camp-perf-card-title">Status dos pedidos</div>
+                        ${statusEntries.length ? statusEntries.map(([st, n]) => {
+                            const meta = conversionStatusMeta(st);
+                            const colors = { "bg-emerald-500": "#10b981", "bg-amber-400": "#fbbf24", "bg-red-500": "#ef4444", "bg-slate-400": "#94a3b8" };
+                            const dotColor = colors[meta.bar] || "#cbd5e1";
+                            return `
+                            <div class="camp-perf-status-row">
+                                <span class="camp-perf-status-dot" style="background:${dotColor}"></span>
+                                <span style="flex:1">${escapeHtml(conversionStatusLabel(st))}</span>
+                                <span class="count">${n}</span>
+                                <span class="pct">${campPerfPct(n, statusTotal)}</span>
+                            </div>`;
+                        }).join("") : `<p style="font-size:12px;color:#94a3b8;margin:0">Sem pedidos no período.</p>`}
+                    </div>
+                </div>`;
+        }
+
+        function renderCampPerfProductsTable(c, funnelData) {
+            const el = document.getElementById("camp-perf-detail-products");
+            if (!el) return;
+            const all = buildCampPerfProductRows(c, funnelData);
+            const q = String(campaignPerfProdQ || "").trim().toLowerCase();
+            const filtered = q
+                ? all.filter((p) => p.name.toLowerCase().includes(q) || String(p.id).includes(q))
+                : all;
+            const page = campaignPerfProdPage;
+            const pageSize = CAMP_PERF_PROD_PAGE_SIZE;
+            const slice = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+            const rows = slice.map((p) => `
+                <tr>
+                    <td>
+                        <div class="camp-perf-table-prod">
+                            <img src="${escapeAttr(thumbUrl(p.image) || p.image || "https://placehold.co/68x68/ffebd7/ee4d2d?text=S")}" alt=""
+                                onerror="this.onerror=null;this.src='https://placehold.co/68x68/ffebd7/ee4d2d?text=S'">
+                            <div style="min-width:0">
+                                <div class="camp-perf-table-name">${escapeHtml(p.name)}</div>
+                                <div class="camp-perf-table-id">${escapeHtml(String(p.id))}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="num">${formatFunnelCount(p.opens)}</td>
+                    <td class="num">${formatFunnelCount(p.checkout)}</td>
+                    <td class="num" style="font-weight:600">${p.orders}</td>
+                    <td class="num" style="color:#64748b">${p.qty}</td>
+                    <td class="num" style="font-weight:700;color:#047857">${formatMoneyBRL(p.commission)}</td>
+                </tr>`).join("");
+
+            el.innerHTML = `
+                <div class="camp-perf-panel-toolbar">
+                    <h3>Produtos da campanha <span>(${all.length})</span></h3>
+                    <input type="search" class="camp-perf-filter-input" placeholder="Filtrar produto"
+                        value="${escapeAttr(campaignPerfProdQ)}" oninput="setCampPerfProdSearch(this.value)">
+                </div>
+                <div class="camp-perf-table-wrap">
+                    <table class="camp-perf-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th class="num">Abriram</th>
+                                <th class="num">Shopee</th>
+                                <th class="num">Pedidos</th>
+                                <th class="num">Itens</th>
+                                <th class="num" style="padding-right:16px">Comissão</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows || `<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8">Nenhum produto</td></tr>`}</tbody>
+                    </table>
+                    ${filtered.length > pageSize ? `
+                    <div class="camp-perf-pager">
+                        <span class="camp-perf-mono" style="font-size:11px;color:#94a3b8">${page * pageSize + 1}–${Math.min(filtered.length, (page + 1) * pageSize)} de ${filtered.length}</span>
+                        <div style="display:flex;gap:8px">
+                            <button type="button" class="camp-perf-pager-btn" ${page <= 0 ? "disabled" : ""} onclick="setCampPerfProdPage(${page - 1})">Anterior</button>
+                            <button type="button" class="camp-perf-pager-btn" ${(page + 1) * pageSize >= filtered.length ? "disabled" : ""} onclick="setCampPerfProdPage(${page + 1})">Próxima</button>
+                        </div>
+                    </div>` : ""}
+                </div>`;
+        }
+
+        function renderCampPerfSalesTable(c) {
+            const el = document.getElementById("camp-perf-detail-orders");
+            if (!el) return;
+            const allRows = c.conversionsList.flatMap((conv) =>
+                (conv.orders || []).map((order) => ({ conv, order }))
+            );
+            const filter = String(campaignPerfSalesFilter || "").toUpperCase();
+            const filtered = filter
+                ? allRows.filter(({ order }) => String(order.orderStatus || "").toUpperCase() === filter)
+                : allRows;
+            const pageSize = CAMP_PERF_SALES_PAGE_SIZE;
+            const page = 0;
+            const slice = filtered.slice(0, pageSize);
+
+            const filterBtn = (key, label) => {
+                const active = campaignPerfSalesFilter === key;
+                return `<button type="button" class="camp-perf-sales-filter${active ? " is-active" : ""}"
+                    onclick="setCampPerfSalesFilter('${key}')">${label}</button>`;
+            };
+
+            if (!allRows.length) {
+                el.innerHTML = (c.saved?.links || []).length
+                    ? `<div style="font-size:12px;color:#64748b">
+                        <p>Nenhum pedido ainda. Links desta campanha:</p>
+                        ${c.saved.links.map((l) => `<p class="camp-perf-mono" style="font-size:10px;word-break:break-all;background:#f8fafc;padding:8px;border-radius:8px;margin:8px 0">${escapeHtml(l.url)}</p>`).join("")}
+                        <button type="button" class="camp-perf-btn camp-perf-btn--dark" onclick="copySavedCampaignLinks('${escapeAttr(String(c.saved.id))}')">Copiar links</button>
+                    </div>`
+                    : `<p style="font-size:12px;color:#94a3b8;text-align:center;padding:24px">Nenhuma venda no período.</p>`;
+                return;
+            }
+
+            const statusPill = (status) => {
+                const st = String(status || "").toUpperCase();
+                const styles = {
+                    COMPLETED: "background:#ecfdf5;color:#047857",
+                    CANCELLED: "background:#fef2f2;color:#b91c1c",
+                    PENDING: "background:#fffbeb;color:#b45309",
+                    UNPAID: "background:#f1f5f9;color:#64748b",
+                };
+                const style = styles[st] || "background:#f1f5f9;color:#64748b";
+                return `<span class="camp-perf-status-pill" style="${style}">${escapeHtml(conversionStatusLabel(status))}</span>`;
+            };
+
+            el.innerHTML = `
+                <div class="camp-perf-panel-toolbar">
+                    <h3>Vendas <span>(${allRows.length})</span></h3>
+                    <div class="camp-perf-sales-filters">
+                        ${filterBtn("", "Todos")}
+                        ${filterBtn("PENDING", "Pendente")}
+                        ${filterBtn("COMPLETED", "Concluído")}
+                        ${filterBtn("CANCELLED", "Cancelado")}
+                        ${filterBtn("UNPAID", "Não pago")}
+                    </div>
+                </div>
+                <div class="camp-perf-table-wrap">
+                    <table class="camp-perf-table">
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Data</th>
+                                <th>Produto</th>
+                                <th class="num">Itens</th>
+                                <th class="num">Comissão</th>
+                                <th class="num" style="padding-right:16px">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filtered.length ? slice.map(({ conv, order }) => {
+                                const items = order.items || [];
+                                const itemNames = items.map((i) => i.itemName || i.itemId).filter(Boolean).join(", ") || "—";
+                                const qty = items.reduce((s, i) => s + (Number(i.qty) || 1), 0);
+                                return `<tr>
+                                    <td class="camp-perf-mono" style="font-size:11px">${escapeHtml(String(order.orderId || "—"))}</td>
+                                    <td style="font-size:11.5px;color:#64748b">${escapeHtml(conversionDate(conv.purchaseTime))}</td>
+                                    <td><div class="camp-perf-table-name" style="max-width:220px">${escapeHtml(itemNames)}</div></td>
+                                    <td class="num">${qty}</td>
+                                    <td class="num" style="font-weight:700;color:#047857">${formatMoneyBRL(conv.totalCommission)}</td>
+                                    <td class="num">${statusPill(order.orderStatus)}</td>
+                                </tr>`;
+                            }).join("") : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8">Nenhuma venda com este filtro</td></tr>`}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        function renderCampaignListRow(c) {
+            const badge = campPerfBadgeMeta(c);
+            const selected = campaignPerfSelected === c.key;
+            const when = c.saved?.createdAt
+                ? `Criada em ${new Date(c.saved.createdAt).toLocaleDateString("pt-BR")}`
+                : "";
+            const summary = `${c.orders} ped. · ${c.conversions} conv. · ${c.itemsQty} itens`;
+            const comissaoStyle = c.commission ? "color:#047857;font-weight:800" : "color:#cbd5e1;font-weight:700";
+            return `
+                <div class="camp-perf-list-item${selected ? " is-selected" : ""}" role="button" tabindex="0"
+                    onclick="openCampaignPerfDetail('${escapeAttr(c.key)}')"
+                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCampaignPerfDetail('${escapeAttr(c.key)}')}">
+                    <div style="display:flex;gap:10px;min-width:0">
+                        ${campaignThumbsHtml(c)}
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap">
+                                <span style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:140px">${escapeHtml(c.name)}</span>
+                                <span class="camp-perf-badge ${badge.cls}" style="font-size:9px;padding:2px 6px">${badge.label}</span>
+                                <span style="margin-left:auto;font-size:11px;${comissaoStyle}">${formatMoneyBRL(c.commission)}</span>
+                            </div>
+                            ${when ? `<div style="font-size:10.5px;color:#94a3b8;margin-top:3px">${escapeHtml(when)}</div>` : ""}
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:3px">
+                                <span class="camp-perf-mono" style="font-size:10px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(c.key)}</span>
+                                <span style="font-size:10.5px;color:#64748b;white-space:nowrap">${summary}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
         function renderCampaignPerformance() {
             const list = document.getElementById('camp-perf-list');
             if (!list) return;
             const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
+            const filtered = filterCampaignPerfList(campaigns);
             const totalOrders = campaigns.reduce((s, c) => s + c.orders, 0);
             const totalItems = campaigns.reduce((s, c) => s + c.itemsQty, 0);
             const totalCommission = campaigns.reduce((s, c) => s + c.commission, 0);
@@ -3114,73 +3571,44 @@
             document.getElementById('camp-perf-items').textContent = String(totalItems);
             document.getElementById('camp-perf-commission').textContent = formatMoneyBRL(totalCommission);
 
+            const rangeEl = document.getElementById('camp-perf-list-range');
+            if (rangeEl) {
+                const total = filtered.length;
+                if (!total) rangeEl.textContent = "0 campanhas";
+                else {
+                    const start = campaignPerfListPage * CAMP_PERF_LIST_PAGE_SIZE + 1;
+                    const end = Math.min(total, (campaignPerfListPage + 1) * CAMP_PERF_LIST_PAGE_SIZE);
+                    rangeEl.textContent = `${start}–${end} de ${total}`;
+                }
+            }
+
             if (!campaigns.length) {
                 list.innerHTML = `
-                    <div class="py-10 text-center text-slate-400 text-xs space-y-2">
+                    <div class="camp-perf-list-empty">
                         <i class="fas fa-chart-pie text-2xl block mb-2"></i>
                         <p class="font-bold text-slate-600">Nenhuma campanha ainda</p>
                         <p>Crie uma campanha e ela já aparece aqui, mesmo antes da primeira venda.</p>
-                        <button onclick="switchAdminView('campanhas')" class="mt-2 text-shopee-orange font-bold">Criar campanha</button>
+                        <button onclick="switchAdminView('campanhas')" class="mt-2 text-shopee-orange font-bold" style="border:0;background:transparent;cursor:pointer">Criar campanha</button>
                     </div>`;
+                renderCampPerfPagination(0, 0, CAMP_PERF_LIST_PAGE_SIZE, 'setCampPerfListPage');
                 return;
             }
 
-            list.innerHTML = campaigns.map(c => {
-                const saved = c.saved;
-                const topChannels = Object.entries(c.channels)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
-                    .map(([ch, n]) => `${escapeHtml(ch)} (${n})`)
-                    .join(' · ') || (saved ? escapeHtml(saved.channel || '—') : '—');
-                const statusBits = Object.entries(c.statuses)
-                    .map(([st, n]) => `${escapeHtml(conversionStatusLabel(st))}: ${n}`)
-                    .join(' · ');
-                const selected = campaignPerfSelected === c.key ? 'ring-2 ring-shopee-orange border-shopee-orange' : 'border-slate-200';
-                const nProd = (saved?.products || []).length;
-                const when = saved?.createdAt ? new Date(saved.createdAt).toLocaleDateString('pt-BR') : '';
-                const badge = saved
-                    ? (c.orders
-                        ? '<span class="text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">Ativa</span>'
-                        : '<span class="text-[9px] font-bold uppercase bg-amber-50 text-amber-700 px-2 py-0.5 rounded">Sem vendas ainda</span>')
-                    : '<span class="text-[9px] font-bold uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded">Fora do painel</span>';
-                const savedMeta = saved
-                    ? `<p class="text-[10px] text-slate-400">${nProd ? nProd + ' produto(s)' : 'vitrine'}${when ? ' · criada em ' + escapeHtml(when) : ''}</p>`
-                    : '';
-                const actions = saved
-                    ? `<div class="flex flex-wrap gap-2 pt-3 mt-3 border-t border-slate-100" onclick="event.stopPropagation()">
-                            <button type="button" onclick="copySavedCampaignLinks('${escapeAttr(String(saved.id))}')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-bold">Copiar link</button>
-                            <button type="button" onclick="renameSavedCampaign('${escapeAttr(String(saved.id))}')" class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600">Renomear</button>
-                            <button type="button" onclick="loadSavedCampaignIntoEditor('${escapeAttr(String(saved.id))}')" class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600">Editar</button>
-                            <button type="button" onclick="deleteSavedCampaign('${escapeAttr(String(saved.id))}')" class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-500">Apagar</button>
-                        </div>`
-                    : '';
-                return `
-                <article onclick="openCampaignPerfDetail('${escapeAttr(c.key)}')"
-                    class="admin-stat-card border ${selected} rounded-xl p-4 text-xs bg-white hover:bg-orange-50/40">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div class="flex gap-3 min-w-0 flex-1">
-                            ${campaignThumbsHtml(c)}
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <p class="font-black text-slate-800 text-sm truncate">${escapeHtml(c.name)}</p>
-                                    ${badge}
-                                </div>
-                                ${savedMeta}
-                                ${campaignProductNamesHtml(c)}
-                                <p class="text-[10px] text-slate-400 mt-1">Canais: ${topChannels}</p>
-                                <p class="text-[10px] text-slate-400">${escapeHtml(statusBits || 'Sem pedidos no período')}</p>
-                                ${c.lastPurchase ? `<p class="text-[10px] text-slate-400 mt-1">Última venda: ${escapeHtml(conversionDate(c.lastPurchase))}</p>` : ''}
-                            </div>
-                        </div>
-                        <div class="text-right shrink-0 space-y-1">
-                            <p class="text-lg font-black ${c.commission ? 'text-emerald-600' : 'text-slate-300'}">${formatMoneyBRL(c.commission)}</p>
-                            <p class="text-[10px] text-slate-500">${c.orders} pedido(s) · ${c.conversions} conv. · ${c.itemsQty} item(ns)</p>
-                            <span class="inline-block text-[9px] font-bold uppercase text-shopee-orange">Ver detalhes →</span>
-                        </div>
-                    </div>
-                    ${actions}
-                </article>`;
-            }).join('');
+            if (!filtered.length) {
+                list.innerHTML = `<div class="camp-perf-list-empty">Nenhuma campanha corresponde à busca.</div>`;
+                renderCampPerfPagination(0, 0, CAMP_PERF_LIST_PAGE_SIZE, 'setCampPerfListPage');
+                return;
+            }
+
+            const pages = Math.ceil(filtered.length / CAMP_PERF_LIST_PAGE_SIZE);
+            if (campaignPerfListPage >= pages) campaignPerfListPage = Math.max(0, pages - 1);
+            const slice = filtered.slice(
+                campaignPerfListPage * CAMP_PERF_LIST_PAGE_SIZE,
+                (campaignPerfListPage + 1) * CAMP_PERF_LIST_PAGE_SIZE
+            );
+
+            list.innerHTML = slice.map((c) => renderCampaignListRow(c)).join('');
+            renderCampPerfPagination(filtered.length, campaignPerfListPage, CAMP_PERF_LIST_PAGE_SIZE, 'setCampPerfListPage');
         }
 
         function openCampaignPerfByName(campaignName) {
@@ -3197,18 +3625,52 @@
             setTimeout(tryOpen, 100);
         }
 
-        function funnelBar(label, value, max, color, sub) {
-            const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+        function formatFunnelCount(value) {
+            return Number(value || 0).toLocaleString('pt-BR');
+        }
+
+        function renderFunnelStep(name, count, description, variant) {
+            const mod = variant ? ` camp-funnel-step--${variant}` : '';
             return `
-                <div style="margin-bottom:10px">
-                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
-                        <span style="font-size:12px;font-weight:700;color:#334155">${escapeHtml(label)}</span>
-                        <span style="font-size:13px;font-weight:800;color:${color}">${value}${sub ? ` <span style="font-size:10px;font-weight:600;color:#94a3b8">${escapeHtml(sub)}</span>` : ''}</span>
+                <div class="camp-funnel-step${mod}">
+                    <span class="camp-funnel-step-name">${escapeHtml(name)}</span>
+                    <span class="camp-funnel-step-value">${formatFunnelCount(count)}</span>
+                    <span class="camp-funnel-step-desc">${escapeHtml(description)}</span>
+                </div>`;
+        }
+
+        function renderFunnelFlow(opens, checkout, close, { compact = false } = {}) {
+            const flowClass = compact ? 'camp-funnel-flow camp-funnel-flow--compact' : 'camp-funnel-flow';
+            return `
+                <div class="${flowClass}">
+                    <div class="camp-funnel-main">
+                        ${renderFunnelStep('Abriram o produto', opens, 'Pessoas que abriram o popup', 'open')}
+                        <div class="camp-funnel-connector" aria-hidden="true"></div>
+                        ${renderFunnelStep('Clicaram Ver na Shopee', checkout, 'Pessoas que seguiram para a Shopee', 'checkout')}
                     </div>
-                    <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden">
-                        <div style="height:100%;width:${pct}%;background:${color};border-radius:999px;transition:width .3s ease"></div>
+                    <div class="camp-funnel-exit">
+                        ${renderFunnelStep('Fecharam sem ir à Shopee', close, 'Pessoas que fecharam o popup sem seguir para a Shopee', 'close')}
                     </div>
                 </div>`;
+        }
+
+        function bindCampaignFunnelTabs(root) {
+            if (!root) return;
+            const tabs = root.querySelectorAll('[data-camp-funnel-tab]');
+            const panels = root.querySelectorAll('[data-camp-funnel-panel]');
+            tabs.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const view = btn.getAttribute('data-camp-funnel-tab');
+                    tabs.forEach((t) => {
+                        const on = t === btn;
+                        t.classList.toggle('is-active', on);
+                        t.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                    panels.forEach((p) => {
+                        p.classList.toggle('is-active', p.getAttribute('data-camp-funnel-panel') === view);
+                    });
+                });
+            });
         }
 
         function renderCampaignFunnel(data, savedProducts) {
@@ -3217,56 +3679,109 @@
             const totals = data?.totals || { opens: 0, checkout: 0, close: 0 };
             const products = Array.isArray(data?.products) ? data.products : [];
             const savedMap = new Map((savedProducts || []).map((p) => [String(p.id), p]));
-            const maxBar = Math.max(totals.opens, 1);
+            const days = Number(data?.days) || 30;
+            const hasData = totals.opens > 0 || products.some((p) => p.opens > 0 || p.checkout > 0 || p.close > 0);
+            const clickPct = campPerfPct(totals.checkout, totals.opens);
+            const closePct = campPerfPct(totals.close, totals.opens);
+            const clickWidth = totals.opens ? Math.round((totals.checkout / totals.opens) * 100) : 0;
+            const closeWidth = totals.opens ? Math.round((totals.close / totals.opens) * 100) : 0;
 
-            if (!totals.opens && !products.length) {
+            if (!hasData) {
                 el.innerHTML = `
-                    <div style="background:linear-gradient(135deg,#fff7f5,#f8fafc);border:1px solid #ffe0d2;border-radius:14px;padding:16px">
-                        <p style="margin:0 0 6px;font-size:13px;font-weight:800;color:#0f172a">Funil do anúncio</p>
-                        <p style="margin:0;font-size:12px;color:#64748b">Ainda sem cliques registrados neste período. Compartilhe o link <code style="font-size:11px">/p/ID?utm_campaign=...</code> e os dados aparecem aqui.</p>
-                    </div>`;
+                    <div class="camp-perf-panel-toolbar">
+                        <div>
+                            <div style="font-size:13px;font-weight:700">Funil do anúncio</div>
+                            <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · últimos ${days} dias</div>
+                        </div>
+                    </div>
+                    <p class="camp-funnel-empty-msg" style="font-size:12px;color:#94a3b8">Ainda sem eventos neste período. Use o link da campanha com <code>utm_campaign</code> para registrar aberturas, cliques na Shopee e fechamentos.</p>`;
                 return;
             }
 
-            const productCards = products.map((p) => {
+            const productRows = products.map((p) => {
                 const saved = savedMap.get(String(p.product_id));
                 const name = saved?.title || p.product_name || `Produto ${p.product_id}`;
-                const image = saved?.image || '';
-                const pMax = Math.max(p.opens, 1);
+                const pct = campPerfPct(p.checkout, p.opens);
+                const barW = p.opens ? Math.round((p.checkout / p.opens) * 100) : 0;
                 return `
-                    <article style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff">
-                        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
-                            ${image ? `<img src="${escapeAttr(thumbUrl(image) || image)}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;background:#f1f5f9;flex-shrink:0" onerror="this.style.display='none'">` : ''}
-                            <div style="min-width:0">
-                                <p style="margin:0;font-size:12px;font-weight:800;color:#0f172a;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(name)}</p>
-                                <p style="margin:4px 0 0;font-size:10px;color:#94a3b8">ID ${escapeHtml(String(p.product_id))}</p>
+                    <tr>
+                        <td style="padding:9px 16px">
+                            <div class="camp-perf-table-name">${escapeHtml(name)}</div>
+                            <div class="camp-perf-table-id">ID ${escapeHtml(String(p.product_id))}</div>
+                        </td>
+                        <td class="num" style="font-weight:600">${formatFunnelCount(p.opens)}</td>
+                        <td class="num">${formatFunnelCount(p.checkout)}</td>
+                        <td class="num" style="color:#64748b">${formatFunnelCount(p.close)}</td>
+                        <td style="padding:9px 16px;width:150px">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <div class="camp-perf-mini-bar"><span style="width:${barW}%"></span></div>
+                                <span style="font-size:10.5px;color:#64748b;width:34px;text-align:right">${pct}</span>
                             </div>
-                        </div>
-                        ${funnelBar('Abriram', p.opens, pMax, '#ee4d2d', '')}
-                        ${funnelBar('Clicaram Shopee', p.checkout, pMax, '#059669', p.opens ? PCT(p.checkout_rate) : '')}
-                        ${funnelBar('Fecharam', p.close, pMax, '#64748b', p.opens ? PCT(p.close_rate) : '')}
-                    </article>`;
+                        </td>
+                    </tr>`;
             }).join('');
 
             el.innerHTML = `
-                <div style="background:linear-gradient(135deg,#fff7f5,#f8fafc);border:1px solid #ffe0d2;border-radius:14px;padding:16px;margin-bottom:12px">
-                    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:12px">
+                <div class="camp-perf-panel-toolbar">
+                    <div>
+                        <div style="font-size:13px;font-weight:700">Funil do anúncio</div>
+                        <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · últimos ${days} dias · utm_campaign=${escapeHtml(String(data?.campaign || campaignPerfSelected || ''))}</div>
+                    </div>
+                    <div class="camp-perf-mono" style="font-size:11px;color:#94a3b8">Total da campanha</div>
+                </div>
+                <div class="camp-perf-funil-hero">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
                         <div>
-                            <p style="margin:0;font-size:13px;font-weight:800;color:#0f172a">Funil do anúncio</p>
-                            <p style="margin:4px 0 0;font-size:11px;color:#64748b">Visitantes únicos nos últimos ${Number(data?.days) || 30} dias</p>
+                            <div style="font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.06em">Abriram o produto</div>
+                            <div style="font-size:34px;font-weight:800;letter-spacing:-.03em;margin-top:2px">${formatFunnelCount(totals.opens)}</div>
                         </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
-                            <span style="font-size:10px;font-weight:700;background:#fff;border:1px solid #e2e8f0;color:#475569;padding:4px 8px;border-radius:999px">${totals.opens} aberturas</span>
-                            <span style="font-size:10px;font-weight:700;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;padding:4px 8px;border-radius:999px">${totals.checkout} Shopee (${PCT(totals.checkout_rate)})</span>
-                            <span style="font-size:10px;font-weight:700;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;padding:4px 8px;border-radius:999px">${totals.close} fecharam (${PCT(totals.close_rate)})</span>
+                        <div style="font-size:11.5px;color:#94a3b8;max-width:260px">Pessoas que abriram o popup do produto.</div>
+                    </div>
+                    <div class="camp-perf-funil-bar">
+                        <div class="camp-perf-funil-bar-click" style="width:${clickWidth}%"></div>
+                        <div class="camp-perf-funil-bar-close" style="width:${closeWidth}%"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#94a3b8">
+                        <span>${clickPct} foram à Shopee</span>
+                        <span>${closePct} fecharam</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px">
+                        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#fff">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:8px;height:8px;border-radius:2px;background:#0f172a"></span>
+                                <span style="font-size:11.5px;font-weight:600;color:#334155">Clicaram Ver na Shopee</span>
+                            </div>
+                            <div style="font-size:26px;font-weight:800;margin-top:6px">${formatFunnelCount(totals.checkout)}</div>
+                            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${clickPct} de quem abriu o produto</div>
+                        </div>
+                        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#f8fafc">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:8px;height:8px;border-radius:2px;background:#cbd5e1"></span>
+                                <span style="font-size:11.5px;font-weight:600;color:#334155">Fecharam sem ir à Shopee</span>
+                            </div>
+                            <div style="font-size:26px;font-weight:800;margin-top:6px">${formatFunnelCount(totals.close)}</div>
+                            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${closePct} de quem abriu o produto</div>
                         </div>
                     </div>
-                    ${funnelBar('Abriram o produto', totals.opens, maxBar, '#ee4d2d', '')}
-                    ${funnelBar('Clicaram em Ver na Shopee', totals.checkout, maxBar, '#059669', totals.opens ? PCT(totals.checkout_rate) : '')}
-                    ${funnelBar('Fecharam sem ir à Shopee', totals.close, maxBar, '#64748b', totals.opens ? PCT(totals.close_rate) : '')}
                 </div>
-                ${products.length > 1 ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b">Por produto</p>` : ''}
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">${productCards}</div>`;
+                ${products.length > 1 ? `
+                <div class="camp-perf-table-wrap" style="margin-top:18px">
+                    <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b">Funil por produto</div>
+                    <div style="max-height:320px;overflow-y:auto">
+                        <table class="camp-perf-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th class="num">Abriram</th>
+                                    <th class="num">Shopee</th>
+                                    <th class="num">Fecharam</th>
+                                    <th>Distribuição</th>
+                                </tr>
+                            </thead>
+                            <tbody>${productRows}</tbody>
+                        </table>
+                    </div>
+                </div>` : ''}`;
         }
 
         async function loadCampaignFunnel(campaignKey, savedProducts) {
@@ -3281,8 +3796,16 @@
                 const res = await adminFetch(`${API_BASE}/api/admin/campanhas/funnel?${params}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                campaignPerfFunnelCache = data;
                 renderCampaignFunnel(data, savedProducts);
+                const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
+                const c = campaigns.find((x) => x.key === campaignKey);
+                if (c) {
+                    renderCampPerfResumo(c, data);
+                    renderCampPerfProductsTable(c, data);
+                }
             } catch (err) {
+                campaignPerfFunnelCache = null;
                 el.innerHTML = `
                     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px;font-size:12px;color:#b91c1c">
                         Não foi possível carregar o funil: ${escapeHtml(err.message)}
@@ -3294,127 +3817,69 @@
             const campaigns = buildCampaignPerformanceMap(campaignPerfRows);
             const c = campaigns.find(x => x.key === key);
             const detail = document.getElementById('camp-perf-detail');
+            const empty = document.getElementById('camp-perf-detail-empty');
             if (!c || !detail) {
                 showToast('Campanha não encontrada — atualize o período', 'error');
                 return;
             }
             campaignPerfSelected = key;
+            campaignPerfSalesFilter = '';
+            campaignPerfProdQ = '';
+            campaignPerfProdPage = 0;
             renderCampaignPerformance();
 
+            const badge = campPerfBadgeMeta(c);
             document.getElementById('camp-perf-detail-title').textContent = c.name;
-            const savedMeta = c.saved
-                ? ` · canal ${c.saved.channel || '—'} · ${(c.saved.products || []).length || 'sem'} produto(s) no link`
-                : '';
-            document.getElementById('camp-perf-detail-meta').textContent =
-                `${c.conversions} conversões · ${c.orders} pedidos · ${Object.keys(c.channels).length} canal(is)${savedMeta}`;
+            const badgeEl = document.getElementById('camp-perf-detail-badge');
+            if (badgeEl) {
+                badgeEl.textContent = badge.label;
+                badgeEl.className = `camp-perf-badge ${badge.cls}`;
+            }
+            const createdEl = document.getElementById('camp-perf-detail-created');
+            if (createdEl) {
+                const nProd = (c.saved?.products || []).length;
+                const when = c.saved?.createdAt
+                    ? `Criada em ${new Date(c.saved.createdAt).toLocaleDateString('pt-BR')}`
+                    : '';
+                createdEl.textContent = c.saved
+                    ? `${nProd ? nProd + ' produto(s)' : 'Vitrine'}${when ? ' · ' + when : ''} · ${c.conversions} conversões · ${c.orders} pedidos`
+                    : `${c.conversions} conversões · ${c.orders} pedidos · fora do painel`;
+            }
+            const utmEl = document.getElementById('camp-perf-detail-utm');
+            if (utmEl) utmEl.textContent = `utm_campaign=${c.key}`;
 
-            document.getElementById('camp-perf-detail-stats').innerHTML = `
-                <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Comissão total</p>
-                    <p class="text-lg font-black text-emerald-600">${formatMoneyBRL(c.commission)}</p>
-                </div>
-                <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Comissão loja</p>
-                    <p class="text-sm font-black text-slate-800">${formatMoneyBRL(c.sellerCommission)}</p>
-                </div>
-                <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Comissão Shopee</p>
-                    <p class="text-sm font-black text-slate-800">${formatMoneyBRL(c.shopeeCommission)}</p>
-                </div>
-                <div class="bg-slate-50 rounded-lg p-3">
-                    <p class="text-[9px] uppercase font-bold text-slate-400">Itens / pedidos</p>
-                    <p class="text-lg font-black text-shopee-orange">${c.itemsQty} / ${c.orders}</p>
-                </div>`;
-
-            const channelsEl = document.getElementById('camp-perf-detail-channels');
-            const channelEntries = Object.entries(c.channels).sort((a, b) => b[1] - a[1]);
-            channelsEl.innerHTML = channelEntries.length
-                ? channelEntries.map(([ch, n]) => `
-                    <div class="flex justify-between items-center border border-slate-100 rounded-lg px-3 py-2">
-                        <span class="font-bold text-slate-700">${escapeHtml(ch)}</span>
-                        <span class="text-slate-500">${n} venda(s)</span>
-                    </div>`).join('')
-                : '<p class="text-slate-400">Sem canais</p>';
-
-            const productsEl = document.getElementById('camp-perf-detail-products');
-            const products = Object.values(c.products).sort((a, b) => b.qty - a.qty || b.commission - a.commission).slice(0, 12);
-            const productCard = (image, name, meta) => `
-                    <div class="flex items-center gap-2 border border-slate-100 rounded-lg p-2">
-                        <img src="${escapeAttr(image || 'https://placehold.co/64x64/ffebd7/ee4d2d?text=S')}" alt=""
-                            class="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0"
-                            onerror="this.onerror=null;this.src='https://placehold.co/64x64/ffebd7/ee4d2d?text=S'">
-                        <div class="min-w-0 flex-1">
-                            <p class="font-semibold text-slate-700 line-clamp-1">${escapeHtml(name)}</p>
-                            <p class="text-[10px] text-slate-400">${meta}</p>
-                        </div>
-                    </div>`;
-            if (products.length) {
-                productsEl.innerHTML = products.map(p =>
-                    productCard(p.image, p.name, `${p.qty} un. · ${formatMoneyBRL(p.commission)}${p.shop ? ' · ' + escapeHtml(p.shop) : ''}`)
-                ).join('');
-            } else if ((c.saved?.products || []).length) {
-                productsEl.innerHTML = `<p class="text-[10px] text-slate-400 mb-1">Produtos divulgados (ainda sem venda):</p>`
-                    + c.saved.products.map(p =>
-                        productCard(p.image, p.title || `Produto ${p.id}`, `ID ${escapeHtml(String(p.id))}${p.category ? ' · ' + escapeHtml(p.category) : ''}`)
-                    ).join('');
-            } else {
-                productsEl.innerHTML = '<p class="text-slate-400">Sem produtos</p>';
+            const actionsEl = document.getElementById('camp-perf-detail-actions');
+            if (actionsEl) {
+                actionsEl.innerHTML = c.saved ? `
+                    <button type="button" class="camp-perf-btn camp-perf-btn--dark" onclick="copySavedCampaignLinks('${escapeAttr(String(c.saved.id))}')">Copiar link</button>
+                    <button type="button" class="camp-perf-btn" onclick="renameSavedCampaign('${escapeAttr(String(c.saved.id))}')">Renomear</button>
+                    <button type="button" class="camp-perf-btn" onclick="loadSavedCampaignIntoEditor('${escapeAttr(String(c.saved.id))}')">Editar</button>
+                    <button type="button" class="camp-perf-btn camp-perf-btn--danger" onclick="deleteSavedCampaign('${escapeAttr(String(c.saved.id))}')">Apagar</button>
+                ` : '';
             }
 
-            const ordersEl = document.getElementById('camp-perf-detail-orders');
-            const orderRows = c.conversionsList.flatMap(conv =>
-                (conv.orders || []).map(order => ({ conv, order }))
-            );
-            ordersEl.innerHTML = orderRows.length
-                ? orderRows.map(({ conv, order }) => {
-                    const attr = resolveCampaignAttribution(conv.utmContent);
-                    const status = conversionStatusLabel(order.orderStatus);
-                    const statusClass = order.orderStatus === 'COMPLETED'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : order.orderStatus === 'CANCELLED'
-                            ? 'bg-red-50 text-red-600'
-                            : 'bg-amber-50 text-amber-700';
-                    const items = (order.items || []).map(item =>
-                        `<p class="text-[10px] text-slate-600">${escapeHtml(String(item.itemName || item.itemId))} · qtd ${item.qty || 1} · ${formatMoneyBRL(item.itemTotalCommission)}</p>`
-                    ).join('');
-                    return `
-                    <article class="border border-slate-200 rounded-xl p-3 text-xs">
-                        <div class="flex flex-wrap justify-between gap-2 mb-2">
-                            <div>
-                                <p class="font-bold text-slate-800">Pedido ${escapeHtml(String(order.orderId || '—'))}</p>
-                                <p class="text-[10px] text-slate-400">${escapeHtml(conversionDate(conv.purchaseTime))} · canal ${escapeHtml(attr.channel || '—')}</p>
-                            </div>
-                            <span class="self-start px-2 py-1 rounded-md text-[9px] font-bold ${statusClass}">${escapeHtml(status)}</span>
-                        </div>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] mb-2 bg-slate-50 rounded-lg p-2">
-                            <div><span class="text-slate-400">Device</span><br><strong>${escapeHtml(String(conv.device || '—'))}</strong></div>
-                            <div><span class="text-slate-400">Buyer</span><br><strong>${escapeHtml(String(conv.buyerType || '—'))}</strong></div>
-                            <div><span class="text-slate-400">Clique</span><br><strong>${escapeHtml(conversionDate(conv.clickTime))}</strong></div>
-                            <div><span class="text-slate-400">Comissão</span><br><strong class="text-emerald-600">${formatMoneyBRL(conv.totalCommission)}</strong></div>
-                        </div>
-                        ${items}
-                        <p class="font-mono text-[9px] text-slate-400 mt-2 break-all">${escapeHtml(String(conv.utmContent || ''))}</p>
-                    </article>`;
-                }).join('')
-                : (c.saved?.links || []).length
-                    ? `<div class="space-y-2">
-                            <p class="text-slate-400 text-xs">Nenhum pedido ainda. Links desta campanha:</p>
-                            ${c.saved.links.map(l => `
-                                <p class="font-mono text-[9px] text-slate-600 break-all bg-slate-50 rounded px-2 py-1">${escapeHtml(l.url)}</p>
-                            `).join('')}
-                            <button type="button" onclick="copySavedCampaignLinks('${escapeAttr(String(c.saved.id))}')"
-                                class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-bold">Copiar links</button>
-                        </div>`
-                    : '<p class="text-slate-400 text-xs text-center py-4">Nenhum pedido</p>';
+            const prodCount = buildCampPerfProductRows(c, campaignPerfFunnelCache).length;
+            const salesCount = c.conversionsList.flatMap((conv) => conv.orders || []).length;
+            const prodTab = document.getElementById('camp-perf-tab-prod-count');
+            const salesTab = document.getElementById('camp-perf-tab-sales-count');
+            if (prodTab) prodTab.textContent = prodCount ? `(${prodCount})` : '';
+            if (salesTab) salesTab.textContent = salesCount ? `(${salesCount})` : '';
 
+            empty?.classList.add('hidden');
             detail.classList.remove('hidden');
-            detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            switchCampPerfTab(campaignPerfDetailTab || 'resumo');
+
+            renderCampPerfResumo(c, campaignPerfFunnelCache);
+            renderCampPerfProductsTable(c, campaignPerfFunnelCache);
+            renderCampPerfSalesTable(c);
             loadCampaignFunnel(key, c.saved?.products || []);
         }
 
         function closeCampaignPerfDetail() {
             campaignPerfSelected = '';
+            campaignPerfFunnelCache = null;
             document.getElementById('camp-perf-detail')?.classList.add('hidden');
+            document.getElementById('camp-perf-detail-empty')?.classList.remove('hidden');
             renderCampaignPerformance();
         }
 
@@ -5678,13 +6143,16 @@
         copySavedCampaignLinks, regenerateCampaignShortlinks, regenerateAllCampaignShortlinks,
         addProductToCampaign, removeProductFromCampaign, addCampaignProductById,
         convertCampaignProduct, obterCampaignLink, renameSavedCampaign, renderSavedCampaignsList,
+        onCampaignSavedSearch, setCampaignSavedPage,
         pickCampaignCatalogProduct, resetCampaignForm,
         renderCampaignProductPicker, resolveCampaignProductById, clearCampaignProductSearch,
         repairCampaignProduct, ensureCampaignProduct, repairMissingCampaignAffiliates,
         onCampaignProductSearchKey, syncSavedCampaigns,
         generateCampaignShopeeLinks, copyCampaignShopeeLinks,
         updateCampaignLinkPreview, updateSubIdPreview, loadCampaignPerformance, openCampaignPerfDetail,
-        closeCampaignPerfDetail, openCampaignPerfByName, loadCampaignFunnel, renderCampaignFunnel, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
+        closeCampaignPerfDetail, openCampaignPerfByName, loadCampaignFunnel, renderCampaignFunnel,
+        onCampPerfSearch, setCampPerfListPage, switchCampPerfTab, setCampPerfSalesFilter,
+        setCampPerfProdSearch, setCampPerfProdPage, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
         previewFeed, lookupConversion, loadDashboardSales,

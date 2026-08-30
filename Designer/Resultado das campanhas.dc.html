@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"/>
+<style>
+  html,body{margin:0;padding:0;background:#f1f5f9;-webkit-font-smoothing:antialiased}
+  *{box-sizing:border-box}
+  a{color:#ee4d2d;text-decoration:none}
+  a:hover{color:#c93d20;text-decoration:underline}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px;border:3px solid #f1f5f9}
+  @media (max-width:1000px){
+    #am-sidebar{display:none !important}
+    #am-main{height:auto !important;min-height:100vh;overflow:visible !important}
+    #am-cols{flex-direction:column !important}
+    #am-list-pane{flex:none !important;width:100% !important}
+    #am-list-body{max-height:340px !important;overflow-y:auto !important}
+    #am-detail-body{max-height:none !important;overflow:visible !important}
+    #am-filters{flex-direction:column !important;align-items:stretch !important}
+    #am-filters-count{margin-left:0 !important;align-self:flex-start}
+    #am-camp-cols{flex-direction:column !important}
+    #am-camp-cols > section:first-child{flex:none !important;width:100% !important}
+  }
+</style>
+</helmet>
+<div style="display:flex;min-height:100vh;background:#f1f5f9;color:#0f172a;font-family:Inter,system-ui,sans-serif;font-size:13px;line-height:1.45">
+
+  <aside id="am-sidebar" style="flex:0 0 232px;width:232px;background:#0b1220;padding:0 0 12px;display:flex;flex-direction:column;color:#cbd5e1;overflow-y:auto">
+    <div style="padding:16px 16px 18px;display:flex;align-items:center;gap:9px">
+      <div style="width:28px;height:28px;border-radius:8px;background:#ee4d2d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">AM</div>
+      <div style="line-height:1.15">
+        <div style="font-size:11px;color:#94a3b8">Afiliada</div>
+        <div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-.01em">MESTRE</div>
+      </div>
+    </div>
+    <div style="padding:6px 16px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#64748b">Início</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Início</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Ver vitrine</div>
+    <div style="padding:14px 16px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#64748b">Catálogo</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Catálogo</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Produtos na vitrine</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Limpar catálogo</div>
+    <div style="padding:14px 16px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#64748b">Campanhas</div>
+    <div onClick="{{ goCampanhas }}" style="{{ navCampStyle }}"><span style="{{ navCampDot }}"></span>Campanhas</div>
+    <div onClick="{{ goResultado }}" style="{{ navResStyle }}"><span style="{{ navResDot }}"></span>Resultado das campanhas</div>
+    <div style="padding:14px 16px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#64748b">Vendas</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Vendas do site</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Todas as conversões</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Financeiro</div>
+    <div style="padding:14px 16px 6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#64748b">Operação</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Saúde da Shopee</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;color:#cbd5e1"><span style="width:5px;height:5px;border-radius:50%;background:#475569"></span>Visualizações</div>
+    <div style="margin:16px 12px 0;padding:9px 12px;border:1px solid #1e293b;border-radius:9px;font-size:11.5px;color:#cbd5e1">Ver vitrine pública</div>
+    <div style="margin:12px 12px 0;padding-top:12px;border-top:1px solid #1e293b;display:flex;align-items:center;gap:9px">
+      <div style="width:26px;height:26px;border-radius:50%;background:#ee4d2d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">AM</div>
+      <div style="flex:1;line-height:1.2">
+        <div style="font-size:11.5px;font-weight:600;color:#fff">Admin</div>
+        <div style="font-size:10px;color:#64748b">Sessão ativa</div>
+      </div>
+      <div style="font-size:10px;color:#94a3b8;border:1px solid #1e293b;border-radius:6px;padding:3px 7px">Sair</div>
+    </div>
+  </aside>
+
+  <main id="am-main" style="flex:1;min-width:0;height:100vh;overflow:hidden;display:flex;flex-direction:column">
+
+   <div style="{{ viewResultadoStyle }}">
+    <div style="padding:22px 24px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>
+        <h1 style="margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em">Resultado das campanhas</h1>
+        <p style="margin:4px 0 0;font-size:12px;color:#64748b">Resultados por Sub ID · selecione uma campanha para ver resumo, funil, produtos e vendas.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="padding:4px 10px;border-radius:999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;font-size:10.5px;font-weight:600">API online</span>
+        <button type="button" style="padding:9px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:12.5px;color:#0f172a;cursor:pointer" style-hover="background:#f8fafc">Atualizar</button>
+        <button type="button" style="padding:9px 14px;border-radius:8px;border:0;background:#ee4d2d;color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#d8421f">+ Nova campanha</button>
+      </div>
+    </div>
+
+    <div style="padding:0 24px 14px">
+      <div id="am-filters" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+        <div>
+          <label style="display:block;font-size:10px;font-weight:700;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período</label>
+          <select value="{{ period }}" onChange="{{ onPeriod }}" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc;font-family:inherit;color:#0f172a">
+            <option value="7">Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="60">Últimos 60 dias</option>
+            <option value="90">Últimos 90 dias</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:10px;font-weight:700;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Status</label>
+          <select value="{{ status }}" onChange="{{ onStatus }}" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc;font-family:inherit;color:#0f172a">
+            <option value="">Todos os status</option>
+            <option value="PENDING">Pendente</option>
+            <option value="COMPLETED">Concluído</option>
+            <option value="CANCELLED">Cancelado</option>
+            <option value="UNPAID">Não pago</option>
+          </select>
+        </div>
+        <div id="am-filters-count" style="margin-left:auto;font-size:11.5px;color:#94a3b8;font-family:'JetBrains Mono',monospace">{{ totalCampaigns }} campanhas no período</div>
+      </div>
+    </div>
+
+    <sc-if value="{{ showKpis }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:0 24px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.06em">{{ k.label }}</div>
+            <div style="font-size:22px;font-weight:800;margin-top:4px;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ k.value }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div id="am-cols" style="flex:1;min-height:0;display:flex;gap:16px;padding:0 24px 24px">
+
+      <section id="am-list-pane" style="flex:0 0 340px;width:340px;min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:10px">
+          <input value="{{ q }}" onInput="{{ onSearch }}" placeholder="Buscar campanha ou utm_campaign" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;font-family:inherit;background:#f8fafc;color:#0f172a"/>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:#94a3b8">
+            <span style="font-weight:700;text-transform:uppercase;letter-spacing:.08em">Campanhas</span>
+            <span style="font-family:'JetBrains Mono',monospace">{{ listRangeLabel }}</span>
+          </div>
+        </div>
+
+        <div id="am-list-body" style="flex:1;min-height:0;overflow-y:auto">
+          <sc-for list="{{ list }}" as="c" hint-placeholder-count="8">
+            <div onClick="{{ c.onSelect }}" style="{{ c.rowStyle }}" style-hover="background:#f8fafc">
+              <div style="display:flex;gap:10px;min-width:0">
+                <div style="width:32px;height:32px;border-radius:6px;flex:0 0 32px;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 4px,#e9eef4 4px,#e9eef4 8px);border:1px solid #e2e8f0"></div>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:7px;min-width:0">
+                    <span style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ c.nome }}</span>
+                    <span style="{{ c.badgeStyle }}">{{ c.badgeLabel }}</span>
+                    <span style="{{ c.comissaoStyle }}">{{ c.comissao }}</span>
+                  </div>
+                  <div style="font-size:10.5px;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.criada }}</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:3px">
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.utm }}</span>
+                    <span style="font-size:10.5px;color:#64748b;white-space:nowrap;font-variant-numeric:tabular-nums">{{ c.summary }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding:10px 14px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <button type="button" onClick="{{ prevPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Anterior</button>
+          <span style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace">{{ pageLabel }}</span>
+          <button type="button" onClick="{{ nextPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Próxima</button>
+        </div>
+      </section>
+
+      <section style="flex:1;min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+
+        <div style="padding:16px 20px 0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap">
+            <div style="min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <h2 style="margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em">{{ sel.nome }}</h2>
+                <span style="{{ sel.badgeStyle }}">{{ sel.statusLabel }}</span>
+              </div>
+              <div style="margin-top:4px;font-size:11.5px;color:#94a3b8">{{ sel.criada }}</div>
+              <div style="margin-top:3px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b">utm_campaign={{ sel.utm }}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button type="button" style="padding:7px 12px;border-radius:7px;border:0;background:#0b1220;color:#fff;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer" style-hover="background:#1e293b">Copiar link</button>
+              <button type="button" style="padding:7px 12px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer" style-hover="background:#f8fafc">Renomear</button>
+              <button type="button" style="padding:7px 12px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer" style-hover="background:#f8fafc">Editar</button>
+              <button type="button" style="padding:7px 10px;border-radius:7px;border:0;background:transparent;font-family:inherit;font-size:11.5px;color:#be123c;cursor:pointer" style-hover="background:#fff1f2">Apagar</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:2px;margin-top:14px;border-bottom:1px solid #e2e8f0">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+              <button type="button" onClick="{{ t.onClick }}" style="{{ t.style }}">
+                {{ t.label }}<span style="{{ t.countStyle }}">{{ t.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div id="am-detail-body" style="flex:1;min-height:0;overflow-y:auto;padding:18px 20px 22px">
+
+          <sc-if value="{{ isResumo }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="display:flex;gap:18px;flex-wrap:wrap;padding:10px 14px;margin-bottom:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:11.5px;color:#475569">
+                <span><span style="color:#94a3b8">Canais:</span> {{ sel.canais }}</span>
+                <span style="margin-left:auto;color:#64748b">{{ sel.ultimaVenda }}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+                <sc-for list="{{ resumoCards }}" as="r" hint-placeholder-count="6">
+                  <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;background:#fff">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b">{{ r.label }}</div>
+                    <div style="font-size:19px;font-weight:800;margin-top:3px;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ r.value }}</div>
+                    <div style="font-size:10.5px;color:#94a3b8;margin-top:2px">{{ r.hint }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:16px">
+                <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:12px">Funil da campanha</div>
+                  <sc-for list="{{ funnel }}" as="s" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:7px 0">
+                      <span style="font-size:12px;color:#334155;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.label }}</span>
+                      <span style="font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap">{{ s.value }} <span style="font-size:11px;font-weight:500;color:#94a3b8">{{ s.pct }}</span></span>
+                    </div>
+                  </sc-for>
+                  <button type="button" onClick="{{ goFunil }}" style="margin-top:10px;padding:0;border:0;background:transparent;font-family:inherit;font-size:11.5px;color:#ee4d2d;cursor:pointer">Ver funil completo →</button>
+                </div>
+
+                <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px">
+                  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:12px">Status dos pedidos</div>
+                  <sc-for list="{{ statusRows }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+                      <span style="{{ s.dotStyle }}"></span>
+                      <span style="font-size:12px;color:#334155;flex:1">{{ s.label }}</span>
+                      <span style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums">{{ s.count }}</span>
+                      <span style="font-size:11px;color:#94a3b8;width:44px;text-align:right;font-variant-numeric:tabular-nums">{{ s.pct }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isFunil }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+                <div>
+                  <div style="font-size:13px;font-weight:700">Funil do anúncio</div>
+                  <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · {{ periodLabel }} · utm_campaign={{ sel.utm }}</div>
+                </div>
+                <div style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace">{{ funnelScopeLabel }}</div>
+              </div>
+
+              <div style="border:1px solid #e2e8f0;border-radius:10px;padding:18px 20px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <div>
+                    <div style="font-size:11px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:.06em">Abriram o produto</div>
+                    <div style="font-size:34px;font-weight:800;letter-spacing:-.03em;margin-top:2px;font-variant-numeric:tabular-nums">{{ f0.value }}</div>
+                  </div>
+                  <div style="font-size:11.5px;color:#94a3b8;max-width:260px;text-wrap:pretty">Pessoas que abriram o popup do produto.</div>
+                </div>
+
+                <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:#f1f5f9;margin:16px 0 6px">
+                  <div style="{{ barClick }}"></div>
+                  <div style="{{ barClose }}"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#94a3b8;font-variant-numeric:tabular-nums">
+                  <span>{{ f1.pct }} foram à Shopee</span>
+                  <span>{{ f2.pct }} fecharam</span>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px">
+                  <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#fff">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#0f172a"></span>
+                      <span style="font-size:11.5px;font-weight:600;color:#334155">Clicaram Ver na Shopee</span>
+                    </div>
+                    <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums">{{ f1.value }}</div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px">{{ f1.pct }} de quem abriu o produto</div>
+                  </div>
+                  <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#f8fafc">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#cbd5e1"></span>
+                      <span style="font-size:11.5px;font-weight:600;color:#334155">Fecharam sem ir à Shopee</span>
+                    </div>
+                    <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums">{{ f2.value }}</div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px">{{ f2.pct }} de quem abriu o produto</div>
+                  </div>
+                </div>
+              </div>
+
+              <sc-if value="{{ hasManyProducts }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:18px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                  <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b">Funil por produto</div>
+                    <input value="{{ prodQ }}" onInput="{{ onProdSearch }}" placeholder="Filtrar produto" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:11.5px;font-family:inherit;background:#f8fafc;color:#0f172a;width:180px"/>
+                  </div>
+                  <div style="max-height:320px;overflow-y:auto">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                      <thead>
+                        <tr style="background:#f8fafc">
+                          <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0">Produto</th>
+                          <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0">Abriram</th>
+                          <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0">Shopee</th>
+                          <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0">Fecharam</th>
+                          <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0;width:150px">Distribuição</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <sc-for list="{{ funnelProducts }}" as="p" hint-placeholder-count="6">
+                          <tr style="border-bottom:1px solid #f1f5f9">
+                            <td style="{{ cellPad }}">
+                              <div style="font-size:12px;color:#0f172a;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.nome }}</div>
+                              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;margin-top:2px">{{ p.id }}</div>
+                            </td>
+                            <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums;font-weight:600">{{ p.abriram }}</td>
+                            <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums">{{ p.clicaram }}</td>
+                            <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums;color:#64748b">{{ p.fecharam }}</td>
+                            <td style="padding:9px 16px">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <div style="flex:1;height:6px;border-radius:4px;background:#f1f5f9;overflow:hidden">
+                                  <div style="{{ p.barStyle }}"></div>
+                                </div>
+                                <span style="font-size:10.5px;color:#64748b;width:34px;text-align:right;font-variant-numeric:tabular-nums">{{ p.pct }}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        </sc-for>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isProdutos }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+                <div style="font-size:13px;font-weight:700">Produtos da campanha <span style="font-weight:500;color:#94a3b8">({{ sel.produtosCount }})</span></div>
+                <input value="{{ prodQ }}" onInput="{{ onProdSearch }}" placeholder="Filtrar produto" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:11.5px;font-family:inherit;background:#f8fafc;color:#0f172a;width:200px"/>
+              </div>
+              <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                  <thead>
+                    <tr>
+                      <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Produto</th>
+                      <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Abriram</th>
+                      <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Shopee</th>
+                      <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Pedidos</th>
+                      <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Itens</th>
+                      <th style="text-align:right;padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Comissão</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <sc-for list="{{ produtosPage }}" as="p" hint-placeholder-count="8">
+                      <tr style="border-bottom:1px solid #f1f5f9" style-hover="background:#f8fafc">
+                        <td style="{{ cellPad }}">
+                          <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                            <div style="width:34px;height:34px;border-radius:7px;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 4px,#e9eef4 4px,#e9eef4 8px);border:1px solid #e2e8f0;flex:0 0 34px"></div>
+                            <div style="min-width:0">
+                              <div style="font-size:12px;color:#0f172a;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.nome }}</div>
+                              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;margin-top:2px">{{ p.id }}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums">{{ p.abriram }}</td>
+                        <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums">{{ p.clicaram }}</td>
+                        <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums;font-weight:600">{{ p.pedidos }}</td>
+                        <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums;color:#64748b">{{ p.itens }}</td>
+                        <td style="text-align:right;padding:9px 16px;font-variant-numeric:tabular-nums;font-weight:700;color:#047857">{{ p.comissao }}</td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+                <div style="padding:10px 16px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff">
+                  <span style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace">{{ prodRangeLabel }}</span>
+                  <div style="display:flex;gap:8px">
+                    <button type="button" onClick="{{ prevProdPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Anterior</button>
+                    <button type="button" onClick="{{ nextProdPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Próxima</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isVendas }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+                <div style="font-size:13px;font-weight:700">Vendas <span style="font-weight:500;color:#94a3b8">({{ sel.vendasCount }})</span></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <sc-for list="{{ salesFilters }}" as="f" hint-placeholder-count="5">
+                    <button type="button" onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                  <thead>
+                    <tr>
+                      <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Pedido</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Data</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Produto</th>
+                      <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Itens</th>
+                      <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Comissão</th>
+                      <th style="text-align:right;padding:8px 16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <sc-for list="{{ salesPage }}" as="v" hint-placeholder-count="10">
+                      <tr style="border-bottom:1px solid #f1f5f9" style-hover="background:#f8fafc">
+                        <td style="{{ cellPad }}"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#334155">{{ v.id }}</span></td>
+                        <td style="padding:9px 12px;color:#64748b;white-space:nowrap">{{ v.data }}</td>
+                        <td style="padding:9px 12px">
+                          <div style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ v.produto }}</div>
+                        </td>
+                        <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums">{{ v.itens }}</td>
+                        <td style="text-align:right;padding:9px 12px;font-variant-numeric:tabular-nums;font-weight:700;color:#047857">{{ v.comissao }}</td>
+                        <td style="text-align:right;padding:9px 16px"><span style="{{ v.badgeStyle }}">{{ v.statusLabel }}</span></td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+                <div style="padding:10px 16px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff">
+                  <span style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace">{{ salesRangeLabel }}</span>
+                  <div style="display:flex;gap:8px">
+                    <button type="button" onClick="{{ prevSalesPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Anterior</button>
+                    <button type="button" onClick="{{ nextSalesPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Próxima</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </section>
+    </div>
+   </div>
+
+   <div id="am-view-campanhas" style="{{ viewCampanhasStyle }}">
+    <div style="padding:22px 24px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>
+        <h1 style="margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em">Campanhas</h1>
+        <p style="margin:4px 0 0;font-size:12px;color:#64748b">Converta o produto e obtenha o link do anúncio com Pixel.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="padding:4px 10px;border-radius:999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;font-size:10.5px;font-weight:600">API online</span>
+        <button type="button" onClick="{{ goResultado }}" style="padding:9px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:12.5px;color:#0f172a;cursor:pointer" style-hover="background:#f8fafc">Resultado das campanhas</button>
+      </div>
+    </div>
+
+    <div id="am-camp-cols" style="flex:1;min-height:0;display:flex;gap:16px;padding:0 24px 24px;overflow-y:auto">
+
+      <section style="flex:0 0 380px;width:380px;align-self:flex-start;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px">
+        <h2 style="margin:0;font-size:14px;font-weight:700">Nova campanha</h2>
+        <p style="margin:4px 0 16px;font-size:12px;color:#64748b">Cole o produto, defina a Sub ID e clique em Obter Link.</p>
+
+        <label style="display:block;font-size:10px;font-weight:700;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Produto</label>
+        <div style="display:flex;gap:8px">
+          <input placeholder="Nome, ID ou link da Shopee" style="flex:1;min-width:0;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;font-family:inherit;background:#f8fafc;color:#0f172a"/>
+          <button type="button" style="padding:9px 14px;border-radius:8px;border:0;background:#ee4d2d;color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#d8421f">Adicionar</button>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+          <sc-for list="{{ formProdutos }}" as="p" hint-placeholder-count="2">
+            <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid #e2e8f0;border-radius:999px;background:#f8fafc;font-size:11px;color:#334155;max-width:100%">
+              <span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.nome }}</span>
+              <span style="color:#94a3b8;cursor:pointer">×</span>
+            </span>
+          </sc-for>
+        </div>
+
+        <label style="display:block;font-size:10px;font-weight:700;color:#475569;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.06em">Título</label>
+        <input placeholder="ex: Vestidos verão Ads" style="width:100%;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;font-family:inherit;background:#f8fafc;color:#0f172a"/>
+
+        <label style="display:block;font-size:10px;font-weight:700;color:#475569;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.06em">Sub ID</label>
+        <input value="{{ subid }}" onInput="{{ onSubid }}" placeholder="só letras e números — ex: vestidosverao" style="width:100%;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;background:#f8fafc;color:#0f172a"/>
+        <div style="margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#94a3b8">{{ subidNormalized }}</div>
+
+        <div style="margin-top:12px;padding:11px 12px;background:#0b1220;border-radius:9px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#f97316;word-break:break-all">{{ subidPreview }}</div>
+        </div>
+        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#64748b;word-break:break-all">{{ linkPreview }}</div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+          <button type="button" style="padding:9px 16px;border-radius:8px;border:0;background:#ee4d2d;color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#d8421f">Obter Link</button>
+          <button type="button" style="padding:9px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:12.5px;color:#334155;cursor:pointer" style-hover="background:#f8fafc">Limpar</button>
+          <button type="button" style="padding:9px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:12.5px;color:#334155;cursor:pointer" style-hover="background:#f8fafc">Lista de produtos</button>
+        </div>
+      </section>
+
+      <section style="flex:1;min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:12px;display:flex;flex-direction:column;align-self:flex-start;max-height:100%;overflow:hidden">
+        <div style="padding:16px 20px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #f1f5f9">
+          <div>
+            <h2 style="margin:0;font-size:14px;font-weight:700">Campanhas salvas</h2>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Links para anunciar no Facebook.</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input value="{{ savedQ }}" onInput="{{ onSavedSearch }}" placeholder="Buscar Sub ID" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;background:#f8fafc;color:#0f172a;width:180px"/>
+            <button type="button" style="padding:8px 12px;border-radius:8px;border:0;background:#0b1220;color:#fff;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer" style-hover="background:#1e293b">Regerar links Shopee</button>
+          </div>
+        </div>
+
+        <div style="flex:1;min-height:0;overflow-y:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:8px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;position:sticky;top:0">Campanha</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;position:sticky;top:0">Produtos</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;position:sticky;top:0">Criada em</th>
+                <th style="text-align:right;padding:8px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;position:sticky;top:0">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ savedList }}" as="c" hint-placeholder-count="10">
+                <tr style="border-bottom:1px solid #f1f5f9" style-hover="background:#f8fafc">
+                  <td style="padding:9px 20px">
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                      <div style="width:32px;height:32px;border-radius:6px;flex:0 0 32px;background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 4px,#e9eef4 4px,#e9eef4 8px);border:1px solid #e2e8f0"></div>
+                      <div style="min-width:0">
+                        <div style="font-size:12.5px;font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.nome }}</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;margin-top:2px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.utm }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style="padding:9px 12px;color:#475569;white-space:nowrap;font-variant-numeric:tabular-nums">{{ c.produtos }}</td>
+                  <td style="padding:9px 12px;color:#64748b;white-space:nowrap">{{ c.criadaEm }}</td>
+                  <td style="padding:9px 20px">
+                    <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+                      <button type="button" style="padding:5px 10px;border-radius:6px;border:0;background:#0b1220;color:#fff;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer" style-hover="background:#1e293b">Copiar link</button>
+                      <button type="button" style="padding:5px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11px;color:#334155;cursor:pointer" style-hover="background:#f1f5f9">Editar</button>
+                      <button type="button" style="padding:5px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11px;color:#334155;cursor:pointer" style-hover="background:#f1f5f9">Renomear</button>
+                      <button type="button" style="padding:5px 8px;border-radius:6px;border:0;background:transparent;font-family:inherit;font-size:11px;color:#be123c;cursor:pointer" style-hover="background:#fff1f2">Apagar</button>
+                    </div>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="padding:10px 20px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace">{{ savedRangeLabel }}</span>
+          <div style="display:flex;gap:8px">
+            <button type="button" onClick="{{ prevSavedPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Anterior</button>
+            <button type="button" onClick="{{ nextSavedPage }}" style="padding:6px 10px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;font-family:inherit;font-size:11.5px;color:#334155;cursor:pointer">Próxima</button>
+          </div>
+        </div>
+      </section>
+    </div>
+   </div>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Compacta&quot;,&quot;Confortável&quot;],&quot;default&quot;:&quot;Compacta&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Densidade&quot;},&quot;showKpiRow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;listPerPage&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:9,&quot;min&quot;:5,&quot;max&quot;:20,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Layout&quot;},&quot;salesPerPage&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:10,&quot;min&quot;:5,&quot;max&quot;:50,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  data = (() => {
+    let s = 20260830;
+    const r = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const ri = (a, b) => a + Math.floor(r() * (b - a + 1));
+    const nomes = ['vestidosverao','fonesbluetooth','cozinhainox','tenisrunning','skincarecoreana','organizadores','luzledquarto','petshopauto','bolsasfemininas','relogiosmart','maquiagempaleta','fitnesscasa','babyenxoval','ferramentas12v','decorquarto','cafeteiraitaliana','notebookacc','bikeacess','sandaliaverao','jogotoalhas','airfryerpromo','mochilaescolar','copostermicos','tapeteantiderrapante'];
+    const prods = ['Vestido midi canelado','Fone TWS Pro 5.3','Jogo de panelas inox 5 pçs','Tênis leve para corrida','Sérum vitamina C 30ml','Organizador de gaveta 4 pçs','Fita LED RGB 5m com controle','Comedouro automático 3L','Bolsa transversal PU','Smartwatch tela AMOLED','Paleta de sombras 18 cores','Kit elásticos de treino','Kit body bebê 5 peças','Parafusadeira 12V + 20 bits','Quadro decorativo trio','Cafeteira italiana 6 doses','Suporte notebook alumínio','Farol LED bike USB','Sandália plataforma','Jogo de toalhas 4 peças','Air fryer 4L digital','Mochila escolar impermeável','Copo térmico 900ml','Tapete antiderrapante 3 pçs'];
+    const st = ['COMPLETED','COMPLETED','COMPLETED','PENDING','PENDING','UNPAID','CANCELLED'];
+    const camps = [];
+    const canaisPool = ['acs','instagramsocial','organico','facebook','instagram','acessorios'];
+    for (let i = 0; i < 24; i++) {
+      const zero = i >= 20;
+      const nProd = ri(1, 16);
+      const abriram = zero ? ri(4, 90) : ri(240, 11800);
+      const clicaram = Math.round(abriram * (0.24 + r() * 0.48));
+      const fecharam = abriram - clicaram;
+      const pedidos = zero ? 0 : Math.max(1, Math.round(clicaram * (0.015 + r() * 0.1)));
+      const itens = zero ? 0 : pedidos + ri(0, Math.ceil(pedidos * 1.4));
+      const comissao = zero ? 0 : itens * (3.4 + r() * 16);
+      const status = st[i % st.length];
+      const w = [];
+      let wsum = 0;
+      for (let p = 0; p < nProd; p++) { const v = 0.25 + r() * 1.4; w.push(v); wsum += v; }
+      const produtos = w.map((wv, p) => {
+        const share = wv / wsum;
+        const pa = Math.max(4, Math.round(abriram * share));
+        const pc = Math.max(1, Math.round(clicaram * share));
+        const pp = Math.round(pedidos * share);
+        const pi = Math.round(itens * share);
+        return {
+          nome: prods[(i * 3 + p) % prods.length],
+          id: String(1000 + ((i * 977 + p * 61) % 8999)),
+          abriram: pa, clicaram: Math.min(pc, pa), fecharam: Math.max(0, pa - Math.min(pc, pa)),
+          pedidos: pp, itens: pi, comissao: pi * (3.4 + r() * 16)
+        };
+      }).sort((a, b) => b.abriram - a.abriram);
+      const nVendas = Math.min(pedidos, 520);
+      const vendas = [];
+      for (let v = 0; v < nVendas; v++) {
+        const prod = produtos[Math.floor(r() * produtos.length)];
+        const it = ri(1, 3);
+        const d = new Date(2026, 7, 30 - Math.floor(r() * 30), ri(7, 23), ri(0, 59));
+        vendas.push({
+          id: '#' + (240000 + ((i * 1319 + v * 7) % 59999)),
+          ts: d.getTime(),
+          data: String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'),
+          produto: prod.nome, itens: it,
+          comissao: it * (3.4 + r() * 16),
+          status: st[Math.floor(r() * st.length)]
+        });
+      }
+      vendas.sort((a, b) => b.ts - a.ts);
+      const cd = new Date(2026, 7, ri(1, 28));
+      const fdate = d => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+      const nCan = ri(1, 2);
+      const canais = [];
+      for (let k = 0; k < nCan; k++) {
+        const nm = canaisPool[Math.floor(r() * canaisPool.length)];
+        if (!canais.some(x => x.nome === nm)) canais.push({ nome: nm, conv: 0 });
+      }
+      canais.forEach((c, k) => { c.conv = k === 0 ? Math.ceil(pedidos * 0.7) : Math.max(0, pedidos - Math.ceil(pedidos * 0.7)); });
+      camps.push({
+        nome: nomes[i % nomes.length], utm: nomes[i % nomes.length],
+        status, abriram, clicaram, fecharam, pedidos, ativa: !zero,
+        criadaEm: fdate(cd), canais,
+        ultimaVenda: vendas.length ? vendas[0].data : null,
+        conversoes: zero ? 0 : pedidos + ri(0, 4), itens, comissao, produtos, vendas
+      });
+    }
+    return camps.sort((a, b) => b.comissao - a.comissao);
+  })();
+
+  state = { view: 'resultado', sel: 0, tab: 'resumo', q: '', prodQ: '', page: 0, prodPage: 0, salesPage: 0, salesStatus: '', period: '30', status: '', savedQ: '', savedPage: 0, subid: 'vestidosverao' };
+
+  navStyle(on) {
+    return 'display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12.5px;cursor:pointer;' + (on ? 'font-weight:600;color:#fff;background:#111c2f;box-shadow:inset 3px 0 0 #ee4d2d' : 'color:#cbd5e1');
+  }
+  navDot(on) { return 'width:5px;height:5px;border-radius:50%;background:' + (on ? '#ee4d2d' : '#475569'); }
+
+  n(v) { return new Intl.NumberFormat('pt-BR').format(Math.round(v)); }
+  brl(v) { return 'R$ ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v); }
+  pct(a, b) { return b ? (Math.round((a / b) * 1000) / 10).toFixed(1).replace('.', ',') + '%' : '0%'; }
+  badge(status) {
+    const m = {
+      COMPLETED: ['#ecfdf5', '#a7f3d0', '#047857', 'Concluído'],
+      PENDING: ['#fffbeb', '#fde68a', '#b45309', 'Pendente'],
+      CANCELLED: ['#fff1f2', '#fecdd3', '#be123c', 'Cancelado'],
+      UNPAID: ['#fff7ed', '#fed7aa', '#c2410c', 'Não pago']
+    }[status] || ['#f1f5f9', '#e2e8f0', '#475569', status];
+    return {
+      label: m[3],
+      style: 'display:inline-block;padding:2px 8px;border-radius:999px;background:' + m[0] + ';border:1px solid ' + m[1] + ';color:' + m[2] + ';font-size:10.5px;font-weight:600;white-space:nowrap'
+    };
+  }
+  campBadge(ativa) {
+    const m = ativa ? ['#ecfdf5', '#a7f3d0', '#047857', 'ATIVA'] : ['#fffbeb', '#fde68a', '#b45309', 'SEM VENDAS AINDA'];
+    return {
+      label: m[3],
+      style: 'display:inline-block;padding:2px 7px;border-radius:5px;background:' + m[0] + ';border:1px solid ' + m[1] + ';color:' + m[2] + ';font-size:9.5px;font-weight:700;letter-spacing:.06em;white-space:nowrap'
+    };
+  }
+  dot(status) {
+    const c = { COMPLETED: '#059669', PENDING: '#d97706', CANCELLED: '#be123c', UNPAID: '#ea580c' }[status] || '#94a3b8';
+    return 'width:7px;height:7px;border-radius:50%;background:' + c + ';flex:0 0 7px';
+  }
+
+  renderVals() {
+    const st = this.state, D = this.data;
+    const compact = (this.props.density ?? 'Compacta') === 'Compacta';
+    const perPage = this.props.listPerPage ?? 9;
+    const salesPer = this.props.salesPerPage ?? 10;
+
+    const q = st.q.trim().toLowerCase();
+    const filtered = q ? D.filter(c => c.nome.includes(q) || c.utm.includes(q)) : D;
+    const pages = Math.max(1, Math.ceil(filtered.length / perPage));
+    const page = Math.min(st.page, pages - 1);
+    const slice = filtered.slice(page * perPage, page * perPage + perPage);
+
+    const sel = D[Math.min(st.sel, D.length - 1)] || D[0];
+    const b = this.campBadge(sel.ativa);
+
+    const list = slice.map(c => {
+      const active = c === sel;
+      const cb = this.campBadge(c.ativa);
+      return {
+        nome: c.nome, utm: 'utm_campaign=' + c.utm,
+        comissao: this.brl(c.comissao),
+        comissaoStyle: 'margin-left:auto;font-size:12px;font-weight:700;color:' + (c.ativa ? '#047857' : '#cbd5e1') + ';font-variant-numeric:tabular-nums;white-space:nowrap',
+        badgeLabel: cb.label, badgeStyle: cb.style,
+        criada: c.produtos.length + ' produto(s) · criada em ' + c.criadaEm,
+        summary: this.n(c.pedidos) + ' pedido(s) · ' + this.n(c.conversoes) + ' conv. · ' + this.n(c.itens) + ' item(ns)',
+        dotStyle: this.dot(c.status),
+        rowStyle: 'padding:' + (compact ? '9px 14px' : '13px 14px') + ';border-bottom:1px solid #f1f5f9;cursor:pointer;' + (active ? 'background:#f8fafc;box-shadow:inset 2px 0 0 #ee4d2d' : ''),
+        onSelect: () => this.setState({ sel: D.indexOf(c), prodPage: 0, salesPage: 0, prodQ: '', salesStatus: '' })
+      };
+    });
+
+    const mkTab = (id, label, count) => {
+      const on = st.tab === id;
+      return {
+        label, count: count === null ? '' : this.n(count),
+        style: 'padding:9px 14px;border:0;background:transparent;font-family:inherit;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:-1px;' + (on ? 'color:#0f172a;font-weight:600;border-bottom:2px solid #ee4d2d' : 'color:#64748b;border-bottom:2px solid transparent'),
+        countStyle: count === null ? 'display:none' : 'font-size:10.5px;font-weight:600;padding:1px 6px;border-radius:999px;background:' + (on ? '#f1f5f9' : '#f8fafc') + ';color:#64748b;font-variant-numeric:tabular-nums',
+        onClick: () => this.setState({ tab: id })
+      };
+    };
+
+    const total = sel.abriram;
+    const funnel = [
+      { label: 'Abriram o produto', value: this.n(sel.abriram), pct: '100%' },
+      { label: 'Clicaram Ver na Shopee', value: this.n(sel.clicaram), pct: this.pct(sel.clicaram, total) },
+      { label: 'Fecharam sem ir à Shopee', value: this.n(sel.fecharam), pct: this.pct(sel.fecharam, total) }
+    ];
+
+    const pq = st.prodQ.trim().toLowerCase();
+    const prodsFiltered = pq ? sel.produtos.filter(p => p.nome.toLowerCase().includes(pq) || p.id.includes(pq)) : sel.produtos;
+    const prodPages = Math.max(1, Math.ceil(prodsFiltered.length / 8));
+    const prodPage = Math.min(st.prodPage, prodPages - 1);
+    const prodSlice = prodsFiltered.slice(prodPage * 8, prodPage * 8 + 8);
+    const maxAb = Math.max.apply(null, sel.produtos.map(p => p.abriram));
+
+    const vendasFiltered = st.salesStatus ? sel.vendas.filter(v => v.status === st.salesStatus) : sel.vendas;
+    const salesPages = Math.max(1, Math.ceil(vendasFiltered.length / salesPer));
+    const salesPg = Math.min(st.salesPage, salesPages - 1);
+    const salesSlice = vendasFiltered.slice(salesPg * salesPer, salesPg * salesPer + salesPer);
+
+    const counts = { COMPLETED: 0, PENDING: 0, CANCELLED: 0, UNPAID: 0 };
+    sel.vendas.forEach(v => { counts[v.status]++; });
+
+    const filters = [['', 'Todas'], ['COMPLETED', 'Concluído'], ['PENDING', 'Pendente'], ['UNPAID', 'Não pago'], ['CANCELLED', 'Cancelado']].map(f => {
+      const on = st.salesStatus === f[0];
+      return {
+        label: f[1],
+        style: 'padding:5px 11px;border-radius:999px;border:1px solid ' + (on ? '#0f172a' : '#e2e8f0') + ';background:' + (on ? '#0f172a' : '#fff') + ';color:' + (on ? '#fff' : '#475569') + ';font-family:inherit;font-size:11px;cursor:pointer',
+        onClick: () => this.setState({ salesStatus: f[0], salesPage: 0 })
+      };
+    });
+
+    const sums = D.reduce((a, c) => ({ conv: a.conv + c.conversoes, ped: a.ped + c.pedidos, com: a.com + c.comissao, it: a.it + c.itens }), { conv: 0, ped: 0, com: 0, it: 0 });
+
+    const isCamp = st.view === 'campanhas';
+    const sq = st.savedQ.trim().toLowerCase();
+    const savedAll = sq ? D.filter(c => c.nome.includes(sq)) : D;
+    const savedPages = Math.max(1, Math.ceil(savedAll.length / 10));
+    const savedPg = Math.min(st.savedPage, savedPages - 1);
+    const savedSlice = savedAll.slice(savedPg * 10, savedPg * 10 + 10);
+    const norm = st.subid.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    return {
+      viewResultadoStyle: isCamp ? 'display:none' : 'flex:1;min-height:0;display:flex;flex-direction:column',
+      viewCampanhasStyle: isCamp ? 'flex:1;min-height:0;display:flex;flex-direction:column' : 'display:none',
+      navCampStyle: this.navStyle(isCamp), navCampDot: this.navDot(isCamp),
+      navResStyle: this.navStyle(!isCamp), navResDot: this.navDot(!isCamp),
+      goCampanhas: () => this.setState({ view: 'campanhas' }),
+      goResultado: () => this.setState({ view: 'resultado' }),
+      subid: st.subid,
+      onSubid: e => this.setState({ subid: e.target.value }),
+      subidNormalized: norm ? 'sub_id: ' + norm : 'só letras e números',
+      subidPreview: 'utm_source=facebook&utm_medium=ads&utm_campaign=' + (norm || 'subid'),
+      linkPreview: 'https://afiliadamestre.com/p/' + (sel.produtos[0] ? sel.produtos[0].id : '0000') + '?utm_campaign=' + (norm || 'subid'),
+      formProdutos: sel.produtos.slice(0, 2).map(p => ({ nome: p.nome })),
+      savedQ: st.savedQ,
+      onSavedSearch: e => this.setState({ savedQ: e.target.value, savedPage: 0 }),
+      savedList: savedSlice.map(c => ({
+        nome: c.nome, utm: 'utm_campaign=' + c.utm,
+        produtos: c.produtos.length + (c.produtos.length > 1 ? ' produtos' : ' produto'),
+        criadaEm: c.criadaEm
+      })),
+      savedRangeLabel: (savedPg * 10 + 1) + '–' + (savedPg * 10 + savedSlice.length) + ' de ' + savedAll.length + ' campanhas',
+      prevSavedPage: () => this.setState(s => ({ savedPage: Math.max(0, s.savedPage - 1) })),
+      nextSavedPage: () => this.setState(s => ({ savedPage: Math.min(savedPages - 1, s.savedPage + 1) })),
+      showKpis: this.props.showKpiRow ?? true,
+      cellPad: compact ? 'padding:9px 16px' : 'padding:13px 16px',
+      period: st.period, status: st.status,
+      periodLabel: 'últimos ' + st.period + ' dias',
+      totalCampaigns: this.n(D.length),
+      onPeriod: e => this.setState({ period: e.target.value }),
+      onStatus: e => this.setState({ status: e.target.value }),
+      onSearch: e => this.setState({ q: e.target.value, page: 0 }),
+      onProdSearch: e => this.setState({ prodQ: e.target.value, prodPage: 0 }),
+      q: st.q, prodQ: st.prodQ,
+      kpis: [
+        { label: 'Campanhas', value: this.n(D.length) },
+        { label: 'Conversões', value: this.n(sums.conv) },
+        { label: 'Pedidos', value: this.n(sums.ped) },
+        { label: 'Comissão', value: this.brl(sums.com) },
+        { label: 'Itens', value: this.n(sums.it) }
+      ],
+      list,
+      listRangeLabel: (page * perPage + 1) + '–' + (page * perPage + slice.length) + ' de ' + filtered.length,
+      pageLabel: 'pág. ' + (page + 1) + '/' + pages,
+      prevPage: () => this.setState(s => ({ page: Math.max(0, s.page - 1) })),
+      nextPage: () => this.setState(s => ({ page: Math.min(pages - 1, s.page + 1) })),
+      sel: {
+        nome: sel.nome, utm: sel.utm, statusLabel: b.label, badgeStyle: b.style,
+        criada: sel.produtos.length + ' produto(s) · criada em ' + sel.criadaEm,
+        canais: sel.canais.map(c => c.nome + ' (' + c.conv + ')').join(' · '),
+        ultimaVenda: sel.ultimaVenda ? 'Última venda: ' + sel.ultimaVenda : 'Sem pedidos no período',
+        produtosCount: this.n(sel.produtos.length), vendasCount: this.n(sel.vendas.length)
+      },
+      tabs: [mkTab('resumo', 'Resumo', null), mkTab('funil', 'Funil', null), mkTab('produtos', 'Produtos', sel.produtos.length), mkTab('vendas', 'Vendas', sel.vendas.length)],
+      isResumo: st.tab === 'resumo', isFunil: st.tab === 'funil', isProdutos: st.tab === 'produtos', isVendas: st.tab === 'vendas',
+      goFunil: () => this.setState({ tab: 'funil' }),
+      resumoCards: [
+        { label: 'Comissão', value: this.brl(sel.comissao), hint: 'no período' },
+        { label: 'Pedidos', value: this.n(sel.pedidos), hint: this.n(sel.itens) + ' itens' },
+        { label: 'Conversões', value: this.n(sel.conversoes), hint: 'registradas' },
+        { label: 'Produtos', value: this.n(sel.produtos.length), hint: 'na campanha' },
+        { label: 'Abriram o produto', value: this.n(sel.abriram), hint: 'visitantes únicos' },
+        { label: 'Foram à Shopee', value: this.n(sel.clicaram), hint: this.pct(sel.clicaram, total) + ' de quem abriu' }
+      ],
+      funnel,
+      f0: funnel[0], f1: funnel[1], f2: funnel[2],
+      barClick: 'width:' + (total ? (sel.clicaram / total) * 100 : 0).toFixed(2) + '%;background:#0f172a',
+      barClose: 'flex:1;background:#cbd5e1',
+      funnelScopeLabel: sel.produtos.length + ' produto' + (sel.produtos.length > 1 ? 's' : ''),
+      hasManyProducts: sel.produtos.length > 1,
+      funnelProducts: prodsFiltered.slice(0, 60).map(p => ({
+        nome: p.nome, id: 'ID ' + p.id,
+        abriram: this.n(p.abriram), clicaram: this.n(p.clicaram), fecharam: this.n(p.fecharam),
+        pct: this.pct(p.clicaram, p.abriram),
+        barStyle: 'height:6px;width:' + ((p.clicaram / p.abriram) * 100).toFixed(1) + '%;background:#0f172a;border-radius:4px'
+      })),
+      statusRows: ['COMPLETED', 'PENDING', 'UNPAID', 'CANCELLED'].map(k => {
+        const bb = this.badge(k);
+        return { label: bb.label, count: this.n(counts[k]), pct: this.pct(counts[k], sel.vendas.length), dotStyle: this.dot(k) };
+      }),
+      produtosPage: prodSlice.map(p => ({
+        nome: p.nome, id: 'ID ' + p.id,
+        abriram: this.n(p.abriram), clicaram: this.n(p.clicaram),
+        pedidos: this.n(p.pedidos), itens: this.n(p.itens), comissao: this.brl(p.comissao)
+      })),
+      prodRangeLabel: (prodPage * 8 + 1) + '–' + (prodPage * 8 + prodSlice.length) + ' de ' + prodsFiltered.length + ' produtos',
+      prevProdPage: () => this.setState(s => ({ prodPage: Math.max(0, s.prodPage - 1) })),
+      nextProdPage: () => this.setState(s => ({ prodPage: Math.min(prodPages - 1, s.prodPage + 1) })),
+      salesFilters: filters,
+      salesPage: salesSlice.map(v => {
+        const vb = this.badge(v.status);
+        return { id: v.id, data: v.data, produto: v.produto, itens: this.n(v.itens), comissao: this.brl(v.comissao), statusLabel: vb.label, badgeStyle: vb.style };
+      }),
+      salesRangeLabel: (salesPg * salesPer + 1) + '–' + (salesPg * salesPer + salesSlice.length) + ' de ' + vendasFiltered.length + ' vendas',
+      prevSalesPage: () => this.setState(s => ({ salesPage: Math.max(0, s.salesPage - 1) })),
+      nextSalesPage: () => this.setState(s => ({ salesPage: Math.min(salesPages - 1, s.salesPage + 1) })),
+      maxAb
+    };
+  }
+}
+</script>
+</body>
+</html>

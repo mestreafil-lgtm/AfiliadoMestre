@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preview — Ferramenta de Mineração (Busca / Varredura)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ===== CSS do admin Afiliada Mestre — design da mineração ===== */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, Nunito, system-ui, sans-serif;
+    color: #0f172a;
+    background: #f1f5f9;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: #ea580c; text-decoration: none; }
+  a:hover { color: #c2410c; }
+  .banner {
+    background: linear-gradient(135deg,#f97316,#ee4d2d);
+    color: #fff;
+    padding: 14px 28px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .banner span { opacity: .9; font-weight: 500; }
+  #admin-panel-root {
+    --am-orange: #ee4d2d;
+    --am-orange-hot: #f97316;
+    --am-orange-soft: #fff7ed;
+    --am-slate-900: #0f172a;
+    --am-slate-500: #64748b;
+    --am-slate-400: #94a3b8;
+    --am-slate-200: #e2e8f0;
+    --am-slate-100: #f1f5f9;
+    --am-surface: #fff;
+    --am-radius-card: 14px;
+    --am-radius-control: 9px;
+    --am-space-section: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 48px;
+  }
+  #admin-panel-root .am-card {
+    background: var(--am-surface);
+    border: 1px solid var(--am-slate-200);
+    border-radius: var(--am-radius-card);
+    padding: 20px 22px;
+  }
+  #admin-panel-root .am-section { margin-bottom: var(--am-space-section); }
+  #admin-panel-root .chip {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  #admin-panel-root .chip:hover { background: #f1f5f9; }
+  #admin-panel-root .chip.active {
+    background: #ee4d2d !important;
+    color: #fff !important;
+    border-color: #ee4d2d !important;
+  }
+  #admin-panel-root .explorer-scan-toggle {
+    display: flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+    gap: 4px;
+    margin-bottom: 14px;
+  }
+  #admin-panel-root .explorer-scan-toggle button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #admin-panel-root .explorer-scan-toggle button.active {
+    background: #fff;
+    color: #e11d48;
+    box-shadow: 0 1px 2px rgba(15,23,42,.08);
+  }
+  #admin-panel-root .kw-suggest {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #fbcfe8;
+    background: #fdf2f8;
+    color: #9d174d;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #admin-panel-root .kw-suggest:hover { background: #fce7f3; }
+  #admin-panel-root .btn-primary {
+    background: linear-gradient(135deg,#f97316,#ee4d2d);
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    box-shadow: 0 6px 14px -6px rgba(238,77,45,.6);
+    padding: 8px 14px;
+    border-radius: var(--am-radius-control);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  #admin-panel-root .btn-primary:hover { filter: brightness(1.05); }
+  #admin-panel-root .btn-ghost {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: var(--am-radius-control);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  #admin-panel-root .btn-ghost:hover { border-color: #cbd5e1; background: #f8fafc; }
+  #admin-panel-root .btn-dark {
+    background: #0f172a;
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: var(--am-radius-control);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  #admin-panel-root .btn-dark:hover { background: #1e293b; }
+  #admin-panel-root input,
+  #admin-panel-root select,
+  #admin-panel-root textarea { font-family: inherit; }
+  #admin-panel-root input:focus,
+  #admin-panel-root select:focus,
+  #admin-panel-root textarea:focus {
+    outline: 2px solid #ee4d2d;
+    outline-offset: 1px;
+  }
+  #admin-panel-root .hidden { display: none !important; }
+  #explorer-progress:not(.hidden) { display: flex !important; }
+  @media (max-width: 720px) {
+    #admin-panel-root #explorer-broad-panel > div {
+      grid-template-columns: 1fr !important;
+    }
+    #admin-panel-root { padding: 16px 12px 40px; }
+  }
+  .demo-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .demo-row:hover { background: #f8fafc; }
+  .demo-thumb {
+    width: 56px; height: 56px; border-radius: 8px;
+    background: linear-gradient(135deg,#fed7aa,#fdba74);
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="banner">Preview estático — Ferramenta de Mineração (Catálogo → Buscar produtos / Varredura) <span>· HTML + CSS do admin · sem API</span></div>
+<div id="admin-panel-root">
+<!-- ============ VIEW: BUSCAR PRODUTOS (3 abas + atalhos) ============ -->
+      <section id="admin-view-catalogo-buscar" class="admin-view">
+        <div id="cat-panel-buscar">
+          <!-- Atalhos rápidos -->
+          <div class="am-card am-section">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+              <div>
+                <h2 style="margin:0;font-size:15px;font-weight:700">Buscar produtos na Shopee</h2>
+                <p style="margin:2px 0 0;font-size:12px;color:#64748b">Varredura em massa por categoria ou busca por palavra. A API da Shopee já está ligada neste servidor. Só entram produtos que ainda não estão na vitrine.</p>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" onclick="runCoverageShortcut()" class="btn-primary" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Preencher lacunas femininas</button>
+                <button type="button" onclick="showMoneyQueueShortcut()" class="btn-dark" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Top comissão da vitrine</button>
+                <button type="button" onclick="loadCoverageReport()" class="btn-ghost" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer">Relatório de cobertura</button>
+              </div>
+            </div>
+            <!-- Cobertura (aparece após clicar em Relatório) -->
+            <div id="coverage-summary" class="hidden" style="display:none;padding:12px;background:#f8fafc;border-radius:9px;margin-top:8px">
+              <p id="coverage-status-line" style="margin:0 0 8px;font-size:12px;color:#64748b">Carregando cobertura…</p>
+              <div id="coverage-table" style="border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#64748b;padding:12px;max-height:320px;overflow-y:auto">—</div>
+              <button type="button" id="btn-coverage-fill" onclick="runCoverageFill()" class="btn-primary" style="margin-top:10px;padding:7px 12px;border-radius:7px;font-size:12px;cursor:pointer">Preencher lacunas</button>
+            </div>
+            <!-- Money queue (aparece após clicar em Top comissão) -->
+            <div id="money-queue-card" class="hidden" style="display:none;padding:12px;background:#fff7ed;border-radius:9px;margin-top:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+                <p style="margin:0;font-size:12px;color:#78350f"><strong>Top comissão da vitrine</strong> — score = comissão × vendas × nota</p>
+                <div style="display:flex;gap:6px">
+                  <button type="button" onclick="renderMoneyQueue()" class="btn-ghost" style="padding:6px 10px;border-radius:7px;font-size:11.5px;cursor:pointer">Recalcular</button>
+                  <button type="button" onclick="moneyQueueShortlinkTop()" class="btn-primary" style="padding:6px 10px;border-radius:7px;font-size:11.5px;cursor:pointer">Gerar links curtos do topo</button>
+                </div>
+              </div>
+              <div id="money-queue-box" style="font-size:12px;color:#78350f;max-height:360px;overflow-y:auto">Clique em Recalcular para listar os top 20.</div>
+            </div>
+          </div>
+
+          <!-- Card principal: abas -->
+          <div class="am-card am-section">
+            <!-- Tabs -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px">
+              <button type="button" id="cat-buscar-tab-palavras" onclick="switchCatalogoBuscarTab('palavras')" class="chip active">Busca / varredura</button>
+              <button type="button" id="cat-buscar-tab-lojas" onclick="switchCatalogoBuscarTab('lojas')" class="chip">Lojas afiliadas</button>
+              <button type="button" id="cat-buscar-tab-ofertas" onclick="switchCatalogoBuscarTab('ofertas')" class="chip">Ofertas oficiais</button>
+              <span id="explorer-mode-hint" style="margin-left:auto;font-size:11px;color:#ea580c;font-weight:600;padding:4px 10px;background:#fff7ed;border-radius:999px">Modo: MAIS VENDIDOS</span>
+            </div>
+
+            <!-- Aba 1: Palavras-chave -->
+            <div id="cat-buscar-pane-palavras" class="cat-buscar-pane">
+              <div class="explorer-scan-toggle" role="tablist" aria-label="Modo de busca">
+                <button type="button" id="explorer-mode-broad" onclick="setExplorerScanMode('broad')" class="active">Varredura (massa)</button>
+                <button type="button" id="explorer-mode-keyword" onclick="setExplorerScanMode('keyword')">Palavra-chave</button>
+              </div>
+
+              <div id="explorer-broad-panel" style="margin-bottom:14px;padding:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px">
+                <p style="margin:0 0 10px;font-size:12px;color:#9a3412"><strong>Varredura em massa</strong> — percorre a categoria oficial da Shopee, página a página (até 50 itens cada). Sem App ID: as credenciais ficam no servidor.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Categoria Shopee</label>
+                    <select id="admin-product-cat" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff">
+                      <option value="100017" selected>Moda Feminina</option>
+                      <option value="100630">Beleza e Perfumaria</option>
+                      <option value="100009">Bolsas e Acessórios</option>
+                      <option value="100534">Óculos e Relógios</option>
+                      <option value="100637">Fitness e Esportes</option>
+                      <option value="100632">Mães e Bebês</option>
+                      <option value="100633">Moda Infantil</option>
+                      <option value="100636">Casa e Construção</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Páginas da varredura</label>
+                    <input id="admin-pages-mass" type="range" min="1" max="20" value="5" oninput="updateExplorerMassHint()" style="width:100%;accent-color:#ee4d2d"/>
+                    <p id="explorer-mass-hint" style="margin:4px 0 0;font-size:11px;color:#c2410c;font-weight:600">5 páginas × 50 = até 250 produtos</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Presets -->
+              <div id="explorer-presets" style="display:none;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed #e2e8f0">
+                <button type="button" data-preset="female_money" onclick="applyExplorerPreset('female_money')" class="chip explorer-preset active" style="background:#fce7f3;color:#9d174d;font-weight:700">♀ Feminino elite</button>
+                <button type="button" data-preset="female_9" onclick="applyExplorerPreset('female_9')" class="chip explorer-preset" style="background:#fce7f3;color:#9d174d">♀ Feminino 9%+</button>
+                <button type="button" data-preset="beleza" onclick="applyExplorerPreset('beleza')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Beleza & Skincare</button>
+                <button type="button" data-preset="moda" onclick="applyExplorerPreset('moda')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Moda feminina</button>
+                <button type="button" data-preset="fitness" onclick="applyExplorerPreset('fitness')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Fitness feminino</button>
+                <button type="button" data-preset="acessorios" onclick="applyExplorerPreset('acessorios')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Acessórios</button>
+                <button type="button" data-preset="mae_bebe" onclick="applyExplorerPreset('mae_bebe')" class="chip explorer-preset" style="background:#fdf2f8;color:#be185d">Mãe & Bebê</button>
+                <button type="button" data-preset="casa" onclick="applyExplorerPreset('casa')" class="chip explorer-preset">Casa & Decoração</button>
+                <button type="button" data-preset="ams" onclick="applyExplorerPreset('ams')" class="chip explorer-preset">Ofertas AMS</button>
+                <button type="button" data-preset="bestsellers" onclick="applyExplorerPreset('bestsellers')" class="chip explorer-preset">Mais vendidos</button>
+                <button type="button" data-preset="topperf" onclick="applyExplorerPreset('topperf')" class="chip explorer-preset">Top Shopee</button>
+                <button type="button" data-preset="commission" onclick="applyExplorerPreset('commission')" class="chip explorer-preset">Maior comissão</button>
+                <button type="button" data-preset="rated" onclick="applyExplorerPreset('rated')" class="chip explorer-preset">Bem avaliados</button>
+                <button type="button" data-preset="budget" onclick="applyExplorerPreset('budget')" class="chip explorer-preset">Custo-benefício</button>
+                <button type="button" data-preset="diverse_5" onclick="applyExplorerPreset('diverse_5')" class="chip explorer-preset">Diverso 5%</button>
+                <button type="button" onclick="resetExplorerForm()" class="chip" style="margin-left:auto;color:#64748b">Redefinir filtros</button>
+              </div>
+
+              <!-- Palavras-chave (chips + textarea) -->
+              <div id="explorer-keyword-panel" style="display:none;margin-bottom:12px">
+                <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Palavras-chave</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Vestido Midi')">Vestido Midi</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Conjunto Alfaiataria')">Conjunto Alfaiataria</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Cropped')">Cropped</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Skincare')">Skincare</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Maquiagem')">Maquiagem</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Lingerie Renda')">Lingerie Renda</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Bolsa Transversal')">Bolsa Transversal</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Moda Fitness')">Moda Fitness</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Sandália Plataforma')">Sandália Plataforma</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Acessórios Prata')">Acessórios Prata</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Blusa Tricot')">Blusa Tricot</button>
+                  <button type="button" class="kw-suggest" onclick="addExplorerKeyword('Óculos Gatinho')">Óculos Gatinho</button>
+                </div>
+                <div id="admin-keyword-chips" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid #e2e8f0;border-radius:9px 9px 0 0;background:#f8fafc;min-height:32px;border-bottom:0"></div>
+                <textarea id="admin-keyword" oninput="updateExplorerKwCount()" onkeydown="onExplorerKeywordKey(event)" placeholder="digite e pressione Enter ou vírgula — ex: vestido longo feminino, kit skincare" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:0 0 9px 9px;font-size:13px;min-height:44px;resize:vertical;background:#f8fafc">vestido longo feminino, kit skincare, bolsa transversal feminina, perfume feminino, conjunto fitness feminino, sandália feminina, batom líquido matte, colágeno hidrolisado</textarea>
+                <div id="explorer-kw-count" style="font-size:10.5px;color:#94a3b8;margin-top:4px">0 palavras-chave · até 80</div>
+              </div>
+
+              <!-- Filtros principais (4 campos visíveis) -->
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo de lista</label>
+                  <select id="admin-list-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="0" selected>Recomendados (mais volume)</option>
+                    <option value="1">Maior comissão</option>
+                    <option value="2">Mais vendidos na Shopee</option>
+                    <option value="3">Categoria (página)</option>
+                    <option value="4">Categoria (detalhe)</option>
+                    <option value="5">Loja</option>
+                    <option value="6">Coleção</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenação</label>
+                  <select id="admin-sort-type" onchange="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1">Relevância</option>
+                    <option value="2" selected>Mais vendidos</option>
+                    <option value="3">Maior preço</option>
+                    <option value="4">Menor preço</option>
+                    <option value="5">Maior comissão</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Itens / página</label>
+                  <select id="admin-limit" onchange="updateExplorerMassHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                    <option value="50" selected>50</option>
+                  </select>
+                </div>
+                <div id="explorer-pages-select-wrap" style="display:none">
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Páginas</label>
+                  <select id="admin-pages" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="5">5</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20 (máx)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- IDs (só aparecem para listType 3/4/5/6) -->
+              <div id="explorer-ids-wrap" class="hidden" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">ID da coleção / categoria</label>
+                  <input id="admin-match-id" type="number" min="1" placeholder="Cole o ID da oferta oficial" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">ID da loja</label>
+                  <input id="admin-shop-id" type="number" min="1" placeholder="ID da loja Shopee" oninput="updateExplorerModeHint()" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+              </div>
+
+              <!-- Filtros avançados (colapsados) -->
+              <details style="margin-bottom:12px;border:1px solid #e2e8f0;border-radius:9px;padding:8px 12px;background:#f8fafc">
+                <summary style="cursor:pointer;font-size:12px;font-weight:600;color:#475569;user-select:none">Filtros avançados de qualidade</summary>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Comissão mín. %</label>
+                    <input id="admin-min-commission" type="number" min="0" max="100" step="0.5" value="0" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#fff"/>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nota mín.</label>
+                    <input id="admin-min-rating" type="number" step="0.1" min="0" max="5" value="4.0" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#fff"/>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Vendas mín.</label>
+                    <input id="admin-min-sales" type="number" value="20" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#fff"/>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-require-commission" type="checkbox" checked style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Exigir comissão
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-ams-offer" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Só ofertas AMS (Shopee paga a mais)
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;cursor:pointer;margin-top:22px">
+                    <input id="admin-key-seller" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Só vendedor-chave
+                  </label>
+                </div>
+              </details>
+
+              <!-- Ações -->
+              <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid #f1f5f9">
+                <button id="btn-explorer-search" onclick="runExplorerSearch({sync:false})" class="btn-primary" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Iniciar varredura</button>
+                <button id="btn-explorer-sync" onclick="runExplorerSearch({sync:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Alimentar vitrine</button>
+                <button id="btn-explorer-save" onclick="saveExplorerSelection()" class="btn-ghost" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px">Salvar seleção</button>
+                <button type="button" id="btn-explorer-cancel" onclick="cancelExplorerSearch()" class="btn-ghost hidden" style="padding:10px 18px;border-radius:9px;cursor:pointer;font-size:13px;margin-left:auto;display:none">Cancelar</button>
+              </div>
+
+              <!-- Progresso -->
+              <div id="explorer-progress" class="hidden" style="display:none;margin-top:14px;padding:12px;background:#f8fafc;border-radius:9px;align-items:center;gap:12px">
+                <div style="flex:1">
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:6px">
+                    <span id="explorer-progress-label">Aguardando</span><span id="explorer-progress-pct">0%</span>
+                  </div>
+                  <div style="height:6px;background:#e2e8f0;border-radius:999px;overflow:hidden">
+                    <div id="explorer-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#f97316,#ee4d2d);border-radius:999px;transition:width .3s"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Aba 2: Lojas afiliadas -->
+            <div id="cat-buscar-pane-lojas" class="cat-buscar-pane hidden" style="display:none">
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca lojas afiliadas. Escolha uma loja — os produtos dela aparecem na lista abaixo.</p>
+              <div style="display:grid;grid-template-columns:1fr 160px 160px auto;gap:8px;align-items:end;margin-bottom:14px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da loja</label>
+                  <input id="shops-keyword" type="text" onkeydown="if(event.key==='Enter'){event.preventDefault();loadAffiliateShops();}" placeholder="ex: Nike, O Boticário" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Tipo</label>
+                  <select id="shops-type" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="">Todas</option>
+                    <option value="1">Loja oficial</option>
+                    <option value="2">Loja estrela</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenar por</label>
+                  <select id="shops-sort" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1">Recentes</option>
+                    <option value="2" selected>Maior comissão</option>
+                    <option value="3">Mais populares</option>
+                  </select>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                  <button type="button" onclick="loadAffiliateShops()" class="btn-primary" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Buscar</button>
+                  <button type="button" onclick="loadTopAffiliateShops()" class="btn-ghost" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Top lojas</button>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+                    <input id="shops-key-seller" type="checkbox" style="width:14px;height:14px;accent-color:#ee4d2d"/>
+                    Vendedor-chave
+                  </label>
+                </div>
+              </div>
+              <div id="shops-preview" style="font-size:12px;color:#64748b;max-height:420px;overflow-y:auto">Digite o nome e busque — ou clique em <strong>Top lojas</strong> para ver as mais populares agora.</div>
+            </div>
+
+            <!-- Aba 3: Ofertas oficiais -->
+            <div id="cat-buscar-pane-ofertas" class="cat-buscar-pane hidden" style="display:none">
+              <p style="margin:0 0 12px;font-size:12px;color:#64748b">Busca coleções e categorias oficiais da Shopee. Escolha uma coleção — os produtos aparecem na lista abaixo.</p>
+              <div style="display:grid;grid-template-columns:1fr 160px auto;gap:8px;align-items:end;margin-bottom:14px">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Nome da oferta</label>
+                  <input id="official-keyword" type="text" onkeydown="if(event.key==='Enter'){event.preventDefault();loadOfficialShopeeOffers();}" placeholder="ex: beleza, feminino, cozinha" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc"/>
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">Ordenar por</label>
+                  <select id="official-sort" style="width:100%;padding:9px 10px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;background:#f8fafc">
+                    <option value="1" selected>Mais recentes</option>
+                    <option value="2">Maior comissão</option>
+                  </select>
+                </div>
+                <button type="button" onclick="loadOfficialShopeeOffers()" class="btn-primary" style="padding:9px 14px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap">Buscar</button>
+              </div>
+              <div id="official-offers-box" style="font-size:12px;color:#64748b;max-height:420px;overflow-y:auto">Digite uma palavra ou clique em Buscar para ver as coleções oficiais.</div>
+            </div>
+          </div>
+
+          <!-- Prévia unificada (todas as abas escrevem aqui) -->
+          <div class="am-card" style="padding:0;overflow:hidden">
+            <div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:12px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;font-weight:500">
+                  <input id="explorer-select-all" type="checkbox" onchange="toggleExplorerSelectAll(this.checked)" style="width:15px;height:15px;accent-color:#ee4d2d"/>
+                  Selecionar todos
+                </label>
+                <span id="explorer-selection-meta" style="font-size:11.5px;color:#64748b">0 selecionados</span>
+              </div>
+              <div id="explorer-status" style="font-size:11.5px;color:#64748b">Pronto para buscar</div>
+            </div>
+            <div id="explorer-preview" style="max-height:520px;overflow-y:auto">
+              <div style="text-align:center;padding:40px 16px;color:#94a3b8;font-size:12px">Escolha <strong>Varredura (massa)</strong> por categoria ou <strong>Palavra-chave</strong>, depois <strong>Iniciar varredura</strong> para prévia ou <strong>Alimentar vitrine</strong> para gravar. Só entram produtos que ainda não estão na vitrine.</div>
+            </div>
+            <div id="explorer-pagination" style="padding:12px;text-align:center;display:none">
+              <button type="button" id="btn-explorer-load-more" onclick="runExplorerSearch({append:true})" class="btn-dark" style="padding:10px 18px;border-radius:9px;font-size:13px;cursor:pointer">Carregar mais</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      
+  <div class="am-card" style="padding:0;overflow:hidden;margin-top:16px;border-style:dashed">
+    <div style="padding:10px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;font-size:11px;color:#9a3412;font-weight:600">EXEMPLO DE LISTA (mock só neste preview)</div>
+    <div class="demo-row"><input type="checkbox" checked style="accent-color:#ee4d2d"/><div class="demo-thumb"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">Vestido Midi Feminino</div><div style="font-size:11px;color:#64748b">★ 4.8 · 1.2k vendidos · comissão 8.5%</div></div><div style="font-weight:800;color:#ee4d2d">R$ 89,90</div></div>
+    <div class="demo-row"><input type="checkbox" style="accent-color:#ee4d2d"/><div class="demo-thumb"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">Kit Skincare Facial</div><div style="font-size:11px;color:#64748b">★ 4.9 · 3.4k vendidos · comissão 12%</div></div><div style="font-weight:800;color:#ee4d2d">R$ 129,90</div></div>
+  </div>
+</div>
+<script>
+function noop(){ return false; }
+["runCoverageShortcut","showMoneyQueueShortcut","loadCoverageReport","runCoverageFill","renderMoneyQueue","moneyQueueShortlinkTop","applyExplorerPreset","resetExplorerForm","addExplorerKeyword","updateExplorerKwCount","onExplorerKeywordKey","updateExplorerModeHint","updateExplorerMassHint","runExplorerSearch","saveExplorerSelection","cancelExplorerSearch","toggleExplorerSelectAll","loadAffiliateShops","loadTopAffiliateShops","loadOfficialShopeeOffers"].forEach(function(n){ window[n]=noop; });
+
+function switchCatalogoBuscarTab(tab){
+  document.querySelectorAll("#admin-panel-root .chip").forEach(function(c){ c.classList.remove("active"); });
+  var map={palavras:"cat-buscar-tab-palavras",lojas:"cat-buscar-tab-lojas",ofertas:"cat-buscar-tab-ofertas"};
+  var el=document.getElementById(map[tab]);
+  if(el) el.classList.add("active");
+  document.querySelectorAll(".cat-buscar-pane").forEach(function(p){ p.classList.add("hidden"); p.style.display="none"; });
+  var pane=document.getElementById("cat-buscar-pane-"+tab);
+  if(pane){ pane.classList.remove("hidden"); pane.style.display="block"; }
+}
+function setExplorerScanMode(mode){
+  var broadBtn=document.getElementById("explorer-mode-broad");
+  var kwBtn=document.getElementById("explorer-mode-keyword");
+  if(broadBtn) broadBtn.classList.toggle("active", mode==="broad");
+  if(kwBtn) kwBtn.classList.toggle("active", mode==="keyword");
+  var broad=document.getElementById("explorer-broad-panel");
+  var kw=document.getElementById("explorer-keyword-panel");
+  var presets=document.getElementById("explorer-presets");
+  var pagesWrap=document.getElementById("explorer-pages-select-wrap");
+  if(mode==="broad"){
+    if(broad) broad.style.display="block";
+    if(kw) kw.style.display="none";
+    if(presets) presets.style.display="none";
+    if(pagesWrap) pagesWrap.style.display="none";
+  } else {
+    if(broad) broad.style.display="none";
+    if(kw) kw.style.display="block";
+    if(presets) presets.style.display="flex";
+    if(pagesWrap) pagesWrap.style.display="block";
+  }
+}
+</script>
+</body>
+</html>

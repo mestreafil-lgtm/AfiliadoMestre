@@ -6,3 +6,4 @@
 .claude/
 .cursor/
 *_vars.txt
+supabase/.temp/
