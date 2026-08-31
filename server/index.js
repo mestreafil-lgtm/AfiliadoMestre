@@ -1636,7 +1636,14 @@ app.get("/api/admin/campanhas/performance", requireAdmin, async (req, res) => {
     const { campaignPerformanceFromDb } = require("./conversions");
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
     const status = String(req.query.status || "").trim();
-    const result = await campaignPerformanceFromDb({ days, status });
+    const from = String(req.query.from || req.query.start || "").trim();
+    const to = String(req.query.to || req.query.end || "").trim();
+    const result = await campaignPerformanceFromDb({
+      days,
+      status,
+      from: from || undefined,
+      to: to || undefined,
+    });
     res.json(result);
   } catch (err) {
     console.error("[/api/admin/campanhas/performance]", err.message);
@@ -1652,11 +1659,19 @@ app.get("/api/admin/campanhas/funnel", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "campaign obrigatorio" });
     }
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const from = String(req.query.from || req.query.start || "").trim();
+    const to = String(req.query.to || req.query.end || "").trim();
     const rawIds = String(req.query.product_ids || req.query.product_id || "").trim();
     const productIds = rawIds
       ? rawIds.split(/[,|]+/).map((s) => s.trim()).filter(Boolean)
       : [];
-    const result = await queryCampaignFunnel({ campaign, days, productIds });
+    const result = await queryCampaignFunnel({
+      campaign,
+      days,
+      productIds,
+      from: from || undefined,
+      to: to || undefined,
+    });
     res.json(result);
   } catch (err) {
     console.error("[/api/admin/campanhas/funnel]", err.message);

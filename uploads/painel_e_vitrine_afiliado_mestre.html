@@ -3183,13 +3183,22 @@
         <div class="am-card am-section" style="padding:16px 20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
           <button onclick="resetCampaignForm(); switchAdminView('campanhas')" class="btn-primary" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer">+ Nova campanha</button>
           <div>
-            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período</label>
-            <select id="camp-perf-days" onchange="loadCampaignPerformance({reset:true,pull:false})" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+            <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Período rápido</label>
+            <select id="camp-perf-days" onchange="onCampPerfPresetChange()" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
             <option value="7">Últimos 7 dias</option>
             <option value="30" selected>Últimos 30 dias</option>
             <option value="60">Últimos 60 dias</option>
             <option value="90">Últimos 90 dias</option>
+            <option value="custom">Personalizado</option>
           </select>
+          </div>
+          <div>
+            <label for="camp-perf-from" style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">De</label>
+            <input type="date" id="camp-perf-from" onchange="onCampPerfDateChange()" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc;font-family:inherit;color:#0f172a">
+          </div>
+          <div>
+            <label for="camp-perf-to" style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Até</label>
+            <input type="date" id="camp-perf-to" onchange="onCampPerfDateChange()" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc;font-family:inherit;color:#0f172a">
           </div>
           <div>
             <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Status</label>

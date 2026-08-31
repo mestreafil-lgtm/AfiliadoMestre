@@ -321,18 +321,28 @@ async function pullValidatedReport({
   return { ok: true, pages, totalNodes, saved, ms: Date.now() - started };
 }
 
+function parseWindowBound(value, endOfDay = false) {
+  if (!value) return null;
+  const s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return endOfDay ? new Date(`${s}T23:59:59.999`) : new Date(`${s}T00:00:00`);
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function windowFromParams({ from, to, days } = {}) {
   const now = new Date();
-  let end = to ? new Date(to) : now;
-  if (isNaN(end.getTime())) end = now;
-  let start;
-  if (from) {
-    start = new Date(from);
-    if (isNaN(start.getTime())) start = null;
-  }
+  let end = parseWindowBound(to, true) || now;
+  let start = parseWindowBound(from, false);
   if (!start) {
     const d = Math.max(1, Number(days) || 30);
     start = new Date(end.getTime() - d * 24 * 3600 * 1000);
+  }
+  if (start.getTime() > end.getTime()) {
+    const swap = start;
+    start = end;
+    end = swap;
   }
   return {
     fromIso: start.toISOString(),
@@ -653,8 +663,8 @@ async function decodeSubIdsFromUrl(url) {
  * Devolve nós no formato que o painel já espera (utmContent + orders/items),
  * pra não divergir do summary que lê sub_id3 direto da tabela.
  */
-async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
-  const { fromIso, toIso } = windowFromParams({ days });
+async function campaignPerformanceFromDb({ days = 30, status = "", from, to } = {}) {
+  const { fromIso, toIso } = windowFromParams({ from, to, days });
   const statusFilter = String(status || "").trim().toUpperCase();
   const mineFilter = await buildMineFilter();
   let path =
@@ -736,10 +746,15 @@ async function campaignPerformanceFromDb({ days = 30, status = "" } = {}) {
     }
   } catch (_) {}
 
+  const spanDays = Math.max(
+    1,
+    Math.ceil((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 86400000)
+  );
+
   return {
     ok: true,
     source: "db",
-    days: Number(days) || 30,
+    days: spanDays,
     window: { from: fromIso, to: toIso },
     count: conversions.length,
     conversions,
@@ -759,4 +774,5 @@ module.exports = {
   reprocessSubIds,
   decodeSubIdsFromUrl,
   upsertConversions,
+  windowFromParams,
 };

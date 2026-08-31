@@ -2,6 +2,7 @@
 
 const crypto = require("crypto");
 const { supabaseRequest } = require("./supabase");
+const { windowFromParams } = require("./conversions");
 
 const ALLOWED_EVENTS = new Set([
   "SiteView",
@@ -188,19 +189,37 @@ function normalizeCampaignKey(name) {
   return sanitizeUtmSlug(name) || "sem_campanha";
 }
 
-async function queryCampaignFunnel({ campaign, days = 30, productIds = [] } = {}) {
+function formatRangeLabel(fromIso, toIso) {
+  const fmt = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("pt-BR");
+  };
+  const a = fmt(fromIso);
+  const b = fmt(toIso);
+  return a && b ? `${a} – ${b}` : "";
+}
+
+async function queryCampaignFunnel({ campaign, days = 30, productIds = [], from, to } = {}) {
   const campaignKey = normalizeCampaignKey(campaign);
   if (!campaignKey || campaignKey === "sem_campanha") {
     return { campaign: campaignKey, days, totals: { opens: 0, checkout: 0, close: 0 }, products: [] };
   }
 
-  const safeDays = Math.min(Math.max(Number(days) || 30, 1), 90);
-  const since = new Date(Date.now() - safeDays * 86400000).toISOString();
+  const { fromIso, toIso } = windowFromParams({ from, to, days });
+  const spanDays = Math.min(
+    Math.max(
+      1,
+      Math.ceil((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 86400000)
+    ),
+    90
+  );
   const ids = (Array.isArray(productIds) ? productIds : [])
     .map((id) => Number(String(id).replace(/[^\d]/g, "")))
     .filter((id) => Number.isSafeInteger(id) && id > 0);
 
-  let path = `/analytics_events?created_at=gte.${encodeURIComponent(since)}`
+  let path = `/analytics_events?created_at=gte.${encodeURIComponent(fromIso)}`
+    + `&created_at=lte.${encodeURIComponent(toIso)}`
     + `&or=(utm_campaign.eq.${encodeURIComponent(campaignKey)},raw-%3E%3Eutm_campaign.eq.${encodeURIComponent(campaignKey)})`
     + `&event_name=in.(ProductOpen,ProductClose,InitiateCheckout,ClickShopee)`
     + `&select=event_name,session_id,product_id,raw`
@@ -218,7 +237,9 @@ async function queryCampaignFunnel({ campaign, days = 30, productIds = [] } = {}
     console.warn("[analytics] funnel query falhou:", err.message);
     return {
       campaign: campaignKey,
-      days: safeDays,
+      days: spanDays,
+      window: { from: fromIso, to: toIso },
+      rangeLabel: formatRangeLabel(fromIso, toIso),
       totals: { opens: 0, checkout: 0, close: 0 },
       products: [],
       error: err.message,
@@ -288,7 +309,9 @@ async function queryCampaignFunnel({ campaign, days = 30, productIds = [] } = {}
 
   return {
     campaign: campaignKey,
-    days: safeDays,
+    days: spanDays,
+    window: { from: fromIso, to: toIso },
+    rangeLabel: formatRangeLabel(fromIso, toIso),
     totals: {
       opens: totalOpens,
       checkout: totalCheckout,

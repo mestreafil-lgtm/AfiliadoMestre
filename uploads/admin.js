@@ -202,6 +202,7 @@
     const CAMP_PERF_LIST_PAGE_SIZE = 12;
     const CAMP_PERF_PROD_PAGE_SIZE = 10;
     const CAMP_PERF_SALES_PAGE_SIZE = 15;
+    const CAMP_PERF_MAX_DAYS = 90;
     let campaignSavedList = [];
     let campaignProductResolving = false;
     let campaignShopeeLinks = {};
@@ -664,6 +665,7 @@
                 updateCampaignLinkPreview();
                 syncSavedCampaigns().then(() => renderSavedCampaignsList());
             } else if (view === "campanha-desempenho") {
+                initCampPerfDateFilters();
                 loadCampaignPerformance({ reset: true, pull: true });
             } else if (view === "desempenho") {
                 loadConversions({ reset: true, pull: true });
@@ -3061,6 +3063,143 @@
             );
         }
 
+        function campPerfTodayStr() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        }
+
+        function campPerfFromStr(days = 30) {
+            const end = new Date();
+            const start = new Date(end);
+            start.setDate(start.getDate() - (Math.max(1, Number(days) || 30) - 1));
+            const y = start.getFullYear();
+            const m = String(start.getMonth() + 1).padStart(2, "0");
+            const day = String(start.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        }
+
+        function campPerfSpanDays(fromStr, toStr) {
+            const from = new Date(`${fromStr}T00:00:00`);
+            const to = new Date(`${toStr}T23:59:59`);
+            if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+            return Math.max(1, Math.ceil((to - from) / 86400000));
+        }
+
+        function campPerfRangeLabel(fromStr, toStr) {
+            if (!fromStr || !toStr) return "";
+            const fmt = (s) => {
+                const [y, m, d] = String(s).split("-");
+                return d && m && y ? `${d}/${m}/${y}` : s;
+            };
+            return `${fmt(fromStr)} – ${fmt(toStr)}`;
+        }
+
+        function campPerfFunnelPeriodLabel(data) {
+            if (data?.rangeLabel) return data.rangeLabel;
+            if (data?.window?.from && data?.window?.to) {
+                const from = String(data.window.from).slice(0, 10);
+                const to = String(data.window.to).slice(0, 10);
+                return campPerfRangeLabel(from, to);
+            }
+            const days = Number(data?.days) || 30;
+            return `últimos ${days} dias`;
+        }
+
+        function initCampPerfDateFilters() {
+            const fromEl = document.getElementById("camp-perf-from");
+            const toEl = document.getElementById("camp-perf-to");
+            const presetEl = document.getElementById("camp-perf-days");
+            if (!fromEl || !toEl) return;
+            if (!toEl.value) toEl.value = campPerfTodayStr();
+            if (!fromEl.value) fromEl.value = campPerfFromStr(presetEl?.value === "custom" ? 30 : (presetEl?.value || 30));
+            syncCampPerfPresetFromDates({ silent: true });
+        }
+
+        function syncCampPerfPresetFromDates({ silent = false } = {}) {
+            const fromEl = document.getElementById("camp-perf-from");
+            const toEl = document.getElementById("camp-perf-to");
+            const presetEl = document.getElementById("camp-perf-days");
+            if (!fromEl || !toEl || !presetEl) return;
+            const from = fromEl.value;
+            const to = toEl.value;
+            if (!from || !to) return;
+            const today = campPerfTodayStr();
+            const span = campPerfSpanDays(from, to);
+            if (to === today) {
+                const match = ["7", "30", "60", "90"].find((p) => Number(p) === span);
+                if (match) {
+                    presetEl.value = match;
+                    return;
+                }
+            }
+            presetEl.value = "custom";
+        }
+
+        function onCampPerfPresetChange() {
+            const presetEl = document.getElementById("camp-perf-days");
+            const fromEl = document.getElementById("camp-perf-from");
+            const toEl = document.getElementById("camp-perf-to");
+            if (!presetEl || !fromEl || !toEl) return;
+            if (presetEl.value === "custom") return;
+            toEl.value = campPerfTodayStr();
+            fromEl.value = campPerfFromStr(Number(presetEl.value) || 30);
+            loadCampaignPerformance({ reset: true, pull: false });
+        }
+
+        function onCampPerfDateChange() {
+            const fromEl = document.getElementById("camp-perf-from");
+            const toEl = document.getElementById("camp-perf-to");
+            if (!fromEl?.value || !toEl?.value) return;
+            if (fromEl.value > toEl.value) {
+                showToast("A data inicial não pode ser depois da final", "error");
+                return;
+            }
+            const span = campPerfSpanDays(fromEl.value, toEl.value);
+            if (span > CAMP_PERF_MAX_DAYS) {
+                showToast(`O período máximo é de ${CAMP_PERF_MAX_DAYS} dias`, "error");
+                fromEl.value = campPerfFromStr(CAMP_PERF_MAX_DAYS);
+            }
+            syncCampPerfPresetFromDates();
+            loadCampaignPerformance({ reset: true, pull: false });
+        }
+
+        function getCampPerfQueryParams() {
+            const status = document.getElementById("camp-perf-status")?.value || "";
+            const fromEl = document.getElementById("camp-perf-from");
+            const toEl = document.getElementById("camp-perf-to");
+            const presetEl = document.getElementById("camp-perf-days");
+            let from = fromEl?.value || "";
+            let to = toEl?.value || "";
+            if (!from || !to) {
+                const days = presetEl?.value === "custom" ? 30 : (Number(presetEl?.value) || 30);
+                to = campPerfTodayStr();
+                from = campPerfFromStr(days);
+                if (fromEl) fromEl.value = from;
+                if (toEl) toEl.value = to;
+            }
+            if (from > to) {
+                showToast("A data inicial não pode ser depois da final", "error");
+                return null;
+            }
+            const span = campPerfSpanDays(from, to);
+            if (span > CAMP_PERF_MAX_DAYS) {
+                showToast(`O período máximo é de ${CAMP_PERF_MAX_DAYS} dias`, "error");
+                return null;
+            }
+            const params = new URLSearchParams({ from, to });
+            if (status) params.set("status", status);
+            return {
+                params,
+                from,
+                to,
+                spanDays: span,
+                rangeLabel: campPerfRangeLabel(from, to),
+            };
+        }
+
         /**
          * Puxa conversionReport da Shopee → Supabase.
          * Throttle de 5 min (sessionStorage) pra não estourar quota ao trocar de aba.
@@ -3074,7 +3213,9 @@
             if (conversionPullBusy) return { skipped: true, busy: true };
             conversionPullBusy = true;
             try {
-                const days = Number(document.getElementById("conversion-days")?.value
+                const campRange = getCampPerfQueryParams();
+                const days = campRange?.spanDays
+                    || Number(document.getElementById("conversion-days")?.value
                     || document.getElementById("ms-days")?.value
                     || document.getElementById("camp-perf-days")?.value
                     || 30);
@@ -3116,12 +3257,16 @@
                     }
                 }
                 await syncSavedCampaigns();
-                const days = document.getElementById('camp-perf-days')?.value || '30';
+                const range = getCampPerfQueryParams();
+                if (!range) {
+                    campaignPerfLoading = false;
+                    return;
+                }
                 const status = document.getElementById('camp-perf-status')?.value || '';
                 // Mesma fonte do "Meu Site": conversions no Supabase
                 // (campanha standalone em sub_id1; formato antigo em sub_id3).
                 // não o scroll ao vivo da Shopee — aquele mistura tudo e perde vendas.
-                const params = new URLSearchParams({ days: String(days) });
+                const params = range.params;
                 if (status) params.set('status', status);
                 list.innerHTML = '<div class="py-8 text-center text-slate-400 text-xs"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando vendas do banco…</div>';
                 const res = await adminFetch(`${API_BASE}/api/admin/campanhas/performance?${params}`);
@@ -3708,7 +3853,7 @@
             const totals = data?.totals || { opens: 0, checkout: 0, close: 0 };
             const products = Array.isArray(data?.products) ? data.products : [];
             const savedMap = new Map((savedProducts || []).map((p) => [String(p.id), p]));
-            const days = Number(data?.days) || 30;
+            const periodLabel = campPerfFunnelPeriodLabel(data);
             const hasData = totals.opens > 0 || products.some((p) => p.opens > 0 || p.checkout > 0 || p.close > 0);
             const clickPct = campPerfPct(totals.checkout, totals.opens);
             const closePct = campPerfPct(totals.close, totals.opens);
@@ -3720,7 +3865,7 @@
                     <div class="camp-perf-panel-toolbar">
                         <div>
                             <div style="font-size:13px;font-weight:700">Funil do anúncio</div>
-                            <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · últimos ${days} dias</div>
+                            <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · ${escapeHtml(periodLabel)}</div>
                         </div>
                     </div>
                     <p class="camp-funnel-empty-msg" style="font-size:12px;color:#94a3b8">Ainda sem eventos neste período. Use o link da campanha com <code>utm_campaign</code> para registrar aberturas, cliques na Shopee e fechamentos.</p>`;
@@ -3754,7 +3899,7 @@
                 <div class="camp-perf-panel-toolbar">
                     <div>
                         <div style="font-size:13px;font-weight:700">Funil do anúncio</div>
-                        <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · últimos ${days} dias · utm_campaign=${escapeHtml(String(data?.campaign || campaignPerfSelected || ''))}</div>
+                        <div style="font-size:11.5px;color:#64748b;margin-top:3px">Visitantes únicos · ${escapeHtml(periodLabel)} · utm_campaign=${escapeHtml(String(data?.campaign || campaignPerfSelected || ''))}</div>
                     </div>
                     <div class="camp-perf-mono" style="font-size:11px;color:#94a3b8">Total da campanha</div>
                 </div>
@@ -3818,8 +3963,9 @@
             if (!el) return;
             el.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando funil…</div>';
             try {
-                const days = document.getElementById('camp-perf-days')?.value || '30';
-                const params = new URLSearchParams({ campaign: campaignKey, days: String(days) });
+                const range = getCampPerfQueryParams();
+                if (!range) return;
+                const params = new URLSearchParams({ campaign: campaignKey, from: range.from, to: range.to });
                 const ids = (savedProducts || []).map((p) => p.id).filter(Boolean);
                 if (ids.length) params.set('product_ids', ids.join(','));
                 const res = await adminFetch(`${API_BASE}/api/admin/campanhas/funnel?${params}`);
@@ -6181,7 +6327,8 @@
         updateCampaignLinkPreview, updateSubIdPreview, loadCampaignPerformance, openCampaignPerfDetail,
         closeCampaignPerfDetail, openCampaignPerfByName, loadCampaignFunnel, renderCampaignFunnel,
         onCampPerfSearch, setCampPerfListPage, switchCampPerfTab, setCampPerfSalesFilter,
-        setCampPerfProdSearch, setCampPerfProdPage, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
+        setCampPerfProdSearch, setCampPerfProdPage, initCampPerfDateFilters, onCampPerfPresetChange,
+        onCampPerfDateChange, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
         previewFeed, lookupConversion, loadDashboardSales,
