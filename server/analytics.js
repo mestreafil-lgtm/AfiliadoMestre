@@ -31,6 +31,10 @@ const STR_LIMITS = {
   utm_campaign: 40,
   utm_source: 40,
   utm_medium: 40,
+  click_id: 40,
+  fbclid: 255,
+  fbc: 255,
+  fbp: 255,
 };
 
 function stripControl(str) {
@@ -81,6 +85,10 @@ function normalizePayload(raw) {
   const utmCampaign = sanitizeUtmSlug(p.utm_campaign);
   const utmSource = sanitizeUtmSlug(p.utm_source);
   const utmMedium = sanitizeUtmSlug(p.utm_medium);
+  const clickId = toBoundedString(p.click_id, STR_LIMITS.click_id);
+  const fbclid = toBoundedString(p.fbclid, STR_LIMITS.fbclid);
+  const fbc = toBoundedString(p.fbc, STR_LIMITS.fbc);
+  const fbp = toBoundedString(p.fbp, STR_LIMITS.fbp);
   const productId = toBoundedInt(p.product_id, { min: 0, max: Number.MAX_SAFE_INTEGER });
   const position = toBoundedInt(p.position, { min: 1, max: MAX_POSITION });
   const durationMs = toBoundedInt(p.duration_ms, { min: 0, max: MAX_DURATION_MS });
@@ -115,6 +123,10 @@ function normalizePayload(raw) {
       utm_campaign: utmCampaign ?? undefined,
       utm_source: utmSource ?? undefined,
       utm_medium: utmMedium ?? undefined,
+      click_id: clickId ?? undefined,
+      fbclid: fbclid ?? undefined,
+      fbc: fbc ?? undefined,
+      fbp: fbp ?? undefined,
     },
   };
 }

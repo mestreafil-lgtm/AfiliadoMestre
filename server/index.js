@@ -137,6 +137,7 @@ const {
   buildCampaignSubIds,
   sanitizeSubId,
 } = require("./tracking");
+const { createClickId, buildClickSubIds } = require("./clickAttribution");
 const {
   generateShortlinksForRows,
   saveOffersWithShortlinks,
@@ -2539,6 +2540,67 @@ app.post("/api/shortlink", shortlinkRateLimit, async (req, res) => {
 });
 
 /**
+ * Homologação do closed-loop: gera um shortlink somente no clique, mantendo
+ * campanha no sub_id1 e um identificador único no sub_id2.
+ * Não altera o shortlink salvo do produto.
+ */
+app.post("/api/shortlink/click-test", shortlinkRateLimit, async (req, res) => {
+  try {
+    const itemId = Number(String(req.body?.itemId || "").replace(/[^\d]/g, ""));
+    if (!Number.isSafeInteger(itemId) || itemId <= 0) {
+      return res.status(400).json({ error: "itemId invalido" });
+    }
+    const campaign = sanitizeSubId(req.body?.campaign, "");
+    if (!campaign || campaign === "vitrine") {
+      return res.status(400).json({ error: "campaign obrigatoria" });
+    }
+
+    let rows = await getOffersByItemIds([itemId], { full: true });
+    let row = Array.isArray(rows) && rows.length ? rows[0] : null;
+    if (!row) row = await ensureAffiliateOffer(itemId);
+    if (!row) return res.status(404).json({ error: "produto nao encontrado" });
+
+    const originUrl = resolveProductOriginUrl(row);
+    if (!originUrl) return res.status(422).json({ error: "produto sem URL de origem" });
+
+    const clickId = createClickId();
+    const subIds = buildClickSubIds(campaign, clickId);
+    const shortLink = await generateShortLink(originUrl, subIds, { preserveExact: true });
+    if (!shortLink) throw new Error("Shopee nao retornou o shortlink");
+
+    await insertAnalyticsEvent({
+      event: "ClickShopee",
+      sessionId: req.body?.session_id,
+      payload: {
+        product_id: itemId,
+        product_name: row.item_name || row.title || "",
+        section: "campaign",
+        source: "modal",
+        url: req.body?.event_source_url,
+        utm_campaign: campaign,
+        utm_source: req.body?.utm_source,
+        utm_medium: req.body?.utm_medium,
+        click_id: clickId,
+        fbclid: req.body?.fbclid,
+        fbc: req.body?.fbc,
+        fbp: req.body?.fbp,
+      },
+      req,
+    });
+
+    res.json({
+      ok: true,
+      shortLink,
+      clickId,
+      subIds,
+      cached: false,
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, details: err.payload || null });
+  }
+});
+
+/**
  * Analytics próprio (V1): ProductOpen, ProductClose (+ session).
  * Meta padrão: PageView, Search, InitiateCheckout.
  * Público (SPA chama sem sessão) e sempre 204 — falha silenciosa pra nunca quebrar UX.
@@ -3129,6 +3191,7 @@ app.get("/p/:itemId", async (req, res) => {
     campaign: String(q.utm_campaign || q.campanha || q.campaign || "vitrine"),
     medium: String(q.utm_medium || q.medium || "social"),
   };
+  const clickTest = String(q.click_test || "") === "1";
 
   try {
     let row = await ensureAffiliateOffer(itemId);
@@ -3214,6 +3277,7 @@ app.get("/p/:itemId", async (req, res) => {
       shopName,
       priceNewFmt: brl(priceNew),
       attribution,
+      clickTest,
     }));
   } catch (err) {
     console.error("[/p/:itemId]", err.message);
@@ -3285,7 +3349,7 @@ function pixelProductJsonSSR(product) {
   return JSON.stringify(payload).replace(/</g, "\\u003c");
 }
 
-function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, discountHtml, shopName, priceNewFmt, attribution }) {
+function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, discountHtml, shopName, priceNewFmt, attribution, clickTest = false }) {
   const title = escapeHtmlSSR(product.title || "Oferta Shopee");
   const image = escapeHtmlSSR(product.image || "");
   const category = escapeHtmlSSR(categoryLabelSSR(product.category));
@@ -3301,6 +3365,13 @@ function renderFastPopup({ product, buyHref, backHref, embedHref, oldPriceHtml, 
   const embedHrefSafe = escapeHtmlSSR(embedHref || backHref);
   const utmPayload = JSON.stringify({
     utm_campaign: sanitizeSubId(attribution?.campaign || "vitrine", "vitrine"),
+    utm_source: sanitizeSubId(attribution?.channel || "organico", "organico"),
+    utm_medium: sanitizeSubId(attribution?.medium || "", ""),
+  }).replace(/</g, "\\u003c");
+  const clickTestPayload = JSON.stringify({
+    enabled: clickTest === true,
+    itemId: Number(product.id || product.itemId) || null,
+    campaign: sanitizeSubId(attribution?.campaign || "", ""),
     utm_source: sanitizeSubId(attribution?.channel || "organico", "organico"),
     utm_medium: sanitizeSubId(attribution?.medium || "", ""),
   }).replace(/</g, "\\u003c");
@@ -3366,6 +3437,7 @@ ${image ? `<link rel="preload" as="image" href="${image}">` : ""}
       return amGenSessionId();
     }
   }
+  window.__amSessionId = amSessionId;
   function analyticsPost(event, extra){
     try {
       var body = {
@@ -3525,6 +3597,51 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
 (function(){
   var backHref = ${JSON.stringify(backHref)};
   var buyHref = ${JSON.stringify(buyHref)};
+  var clickTest = ${clickTestPayload};
+  var resolvingClick = false;
+  function readCookie(name){
+    var prefix = name + '=';
+    var parts = String(document.cookie || '').split(';');
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i].trim();
+      if (part.indexOf(prefix) === 0) return decodeURIComponent(part.slice(prefix.length));
+    }
+    return '';
+  }
+  function clickMatchData(){
+    var params = new URLSearchParams(location.search || '');
+    var fbclid = params.get('fbclid') || '';
+    var fbc = readCookie('_fbc');
+    if (!fbc && fbclid) fbc = 'fb.1.' + Date.now() + '.' + fbclid;
+    return {
+      fbclid: fbclid,
+      fbc: fbc,
+      fbp: readCookie('_fbp')
+    };
+  }
+  function resolveTestClick(){
+    var match = clickMatchData();
+    return fetch('/api/shortlink/click-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemId: clickTest.itemId,
+        campaign: clickTest.campaign,
+        utm_source: clickTest.utm_source,
+        utm_medium: clickTest.utm_medium,
+        session_id: (typeof window.__amSessionId === 'function' ? window.__amSessionId() : null),
+        event_source_url: location.href,
+        fbclid: match.fbclid,
+        fbc: match.fbc,
+        fbp: match.fbp
+      })
+    }).then(function(res){
+      return res.json().then(function(data){
+        if (!res.ok || !data.shortLink) throw new Error(data.error || 'Falha ao gerar link');
+        return data;
+      });
+    });
+  }
   function goVitrine(){
     try { if (typeof window.__amPixelClose === 'function') window.__amPixelClose(); } catch (_) {}
     setTimeout(function(){
@@ -3545,6 +3662,28 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       return;
     }
     try { if (typeof window.__amPixelCheckout === 'function') window.__amPixelCheckout(); } catch (_) {}
+    if (clickTest.enabled) {
+      e.preventDefault();
+      if (resolvingClick) return;
+      resolvingClick = true;
+      var originalText = btnBuy.textContent;
+      btnBuy.textContent = 'Preparando link seguro...';
+      btnBuy.setAttribute('aria-disabled', 'true');
+      var sameTab = inAppBrowser();
+      var target = sameTab ? null : window.open('about:blank', '_blank');
+      resolveTestClick().then(function(data){
+        if (target && !target.closed) target.location.href = data.shortLink;
+        else location.href = data.shortLink;
+      }).catch(function(){
+        if (target && !target.closed) target.location.href = href;
+        else location.href = href;
+      }).finally(function(){
+        resolvingClick = false;
+        btnBuy.textContent = originalText;
+        btnBuy.removeAttribute('aria-disabled');
+      });
+      return;
+    }
     if (inAppBrowser()) {
       e.preventDefault();
       setTimeout(function(){ location.href = href; }, 180);

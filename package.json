@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js",
     "build:css": "tailwindcss -i ./uploads/tailwind.input.css -o ./uploads/tailwind.css --minify",
     "build:js": "terser uploads/storefront.js -c -m -o uploads/storefront.min.js && terser uploads/admin.js -c -m -o uploads/admin.min.js",
     "build": "npm run build:css && npm run build:js"
