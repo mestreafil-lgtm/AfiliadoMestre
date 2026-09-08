@@ -3621,9 +3621,14 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
   }
   function resolveTestClick(){
     var match = clickMatchData();
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timeout = setTimeout(function(){
+      if (controller) controller.abort();
+    }, 12000);
     return fetch('/api/shortlink/click-test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller ? controller.signal : undefined,
       body: JSON.stringify({
         itemId: clickTest.itemId,
         campaign: clickTest.campaign,
@@ -3640,6 +3645,8 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
         if (!res.ok || !data.shortLink) throw new Error(data.error || 'Falha ao gerar link');
         return data;
       });
+    }).finally(function(){
+      clearTimeout(timeout);
     });
   }
   function goVitrine(){
@@ -3669,14 +3676,15 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       var originalText = btnBuy.textContent;
       btnBuy.textContent = 'Preparando link seguro...';
       btnBuy.setAttribute('aria-disabled', 'true');
-      var sameTab = inAppBrowser();
-      var target = sameTab ? null : window.open('about:blank', '_blank');
+      var fallbackTimer = setTimeout(function(){
+        if (resolvingClick) location.href = href;
+      }, 15000);
       resolveTestClick().then(function(data){
-        if (target && !target.closed) target.location.href = data.shortLink;
-        else location.href = data.shortLink;
+        clearTimeout(fallbackTimer);
+        location.href = data.shortLink;
       }).catch(function(){
-        if (target && !target.closed) target.location.href = href;
-        else location.href = href;
+        clearTimeout(fallbackTimer);
+        location.href = href;
       }).finally(function(){
         resolvingClick = false;
         btnBuy.textContent = originalText;
