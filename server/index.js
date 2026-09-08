@@ -48,6 +48,7 @@ const {
   countShortlinkStatus,
 } = require("./supabase");
 const { insertAnalyticsEvent, queryCampaignFunnel } = require("./analytics");
+const { getMetaCapiConfig, processMetaPurchases } = require("./metaCapi");
 const { CATEGORIAS, categoryForKeyword, weightedKeywords, allKeywords, metaOnly, sortCategoriesForHome, DEFAULT_FEMALE_PERCENT, normalizeKeywordEntry, isFemaleAudience } = require("./categorias");
 const { buildCoverageReport, buildCoverageQueue } = require("./coverage");
 const { refillVitrine } = require("./refillVitrine");
@@ -524,10 +525,18 @@ app.get("/api/health", (_req, res) => {
   } catch {
     supabaseOk = false;
   }
+  const metaCapi = getMetaCapiConfig();
   res.json({
     ok: true,
     shopeeConfigured: hasShopee,
     supabaseConfigured: supabaseOk,
+    metaCapi: {
+      mode: metaCapi.mode,
+      configured: metaCapi.configured,
+      pixelConfigured: Boolean(metaCapi.pixelId),
+      tokenConfigured: Boolean(metaCapi.accessToken),
+      testCodeConfigured: Boolean(metaCapi.testEventCode),
+    },
     time: new Date().toISOString(),
     // Ajuda a confirmar se o Railway publicou o commit certo.
     deploy: process.env.RAILWAY_GIT_COMMIT_SHA
@@ -1592,10 +1601,36 @@ app.get("/api/cron/conversions", requireCronOrAdmin, async (req, res) => {
     const { pullConversionReport } = require("./conversions");
     const sinceMin = Math.min(Math.max(Number(req.query.sinceMin) || 60 * 48, 15), 60 * 24 * 30);
     const result = await pullConversionReport({ sinceMin });
-    res.json({ ok: true, result });
+    const metaCapi = await processMetaPurchases();
+    res.json({ ok: true, result, metaCapi });
   } catch (err) {
     console.error("[/api/cron/conversions]", err.message);
     res.status(500).json({ error: err.message, rateLimited: !!err.rateLimited });
+  }
+});
+
+/** Admin — configuração e execução segura do closed-loop Meta CAPI. */
+app.get("/api/admin/meta-capi/status", requireAdmin, (_req, res) => {
+  const config = getMetaCapiConfig();
+  res.json({
+    mode: config.mode,
+    configured: config.configured,
+    pixelConfigured: Boolean(config.pixelId),
+    tokenConfigured: Boolean(config.accessToken),
+    testCodeConfigured: Boolean(config.testEventCode),
+    actionSource: config.actionSource,
+    graphVersion: config.graphVersion,
+  });
+});
+
+app.post("/api/admin/meta-capi/sync", requireAdmin, async (req, res) => {
+  try {
+    const dryRun = req.body?.dryRun !== false;
+    const limit = Math.min(Math.max(Number(req.body?.limit) || 200, 1), 500);
+    const result = await processMetaPurchases({ dryRun, limit });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -3191,7 +3226,6 @@ app.get("/p/:itemId", async (req, res) => {
     campaign: String(q.utm_campaign || q.campanha || q.campaign || "vitrine"),
     medium: String(q.utm_medium || q.medium || "social"),
   };
-  const clickTest = String(q.click_test || "") === "1";
 
   try {
     let row = await ensureAffiliateOffer(itemId);
@@ -3215,8 +3249,9 @@ app.get("/p/:itemId", async (req, res) => {
     const campaignSlug = sanitizeSubId(attribution.campaign, "vitrine");
     const isDefaultAttribution = channelSlug === "organico" && campaignSlug === "vitrine";
     const useStandalone = !isDefaultAttribution && campaignSlug && campaignSlug !== "vitrine";
-    // Gera shortlink com Sub IDs da campanha (ou usa o cacheado quando é orgânico)
-    if (rawOrigin && (!shortLink || !isDefaultAttribution)) {
+    // Campanhas geram o link individual somente no clique. Aqui só garantimos
+    // o link orgânico/legado, evitando gastar duas chamadas Shopee por visita.
+    if (rawOrigin && !useStandalone && (!shortLink || !isDefaultAttribution)) {
       try {
         const subIds = useStandalone
           ? buildCampaignSubIds(campaignSlug)
@@ -3277,7 +3312,7 @@ app.get("/p/:itemId", async (req, res) => {
       shopName,
       priceNewFmt: brl(priceNew),
       attribution,
-      clickTest,
+      clickTest: useStandalone,
     }));
   } catch (err) {
     console.error("[/p/:itemId]", err.message);
@@ -3664,10 +3699,6 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
   var overlay  = document.getElementById('overlay');
   if (btnBuy) btnBuy.addEventListener('click', function(e){
     var href = btnBuy.getAttribute('href') || buyHref;
-    if (!href || href === '#') {
-      e.preventDefault();
-      return;
-    }
     try { if (typeof window.__amPixelCheckout === 'function') window.__amPixelCheckout(); } catch (_) {}
     if (clickTest.enabled) {
       e.preventDefault();
@@ -3677,19 +3708,38 @@ h1{font-size:clamp(15px,4.2vw,17px);line-height:1.35;margin-bottom:8px;font-weig
       btnBuy.textContent = 'Preparando link seguro...';
       btnBuy.setAttribute('aria-disabled', 'true');
       var fallbackTimer = setTimeout(function(){
-        if (resolvingClick) location.href = href;
+        if (!resolvingClick) return;
+        if (href && href !== '#') {
+          location.href = href;
+          return;
+        }
+        resolvingClick = false;
+        btnBuy.textContent = 'Tentar novamente';
+        btnBuy.removeAttribute('aria-disabled');
       }, 15000);
       resolveTestClick().then(function(data){
         clearTimeout(fallbackTimer);
         location.href = data.shortLink;
       }).catch(function(){
         clearTimeout(fallbackTimer);
-        location.href = href;
+        if (href && href !== '#') {
+          location.href = href;
+          return;
+        }
+        resolvingClick = false;
+        btnBuy.textContent = 'Tentar novamente';
+        btnBuy.removeAttribute('aria-disabled');
       }).finally(function(){
         resolvingClick = false;
-        btnBuy.textContent = originalText;
-        btnBuy.removeAttribute('aria-disabled');
+        if (btnBuy.textContent !== 'Tentar novamente') {
+          btnBuy.textContent = originalText;
+          btnBuy.removeAttribute('aria-disabled');
+        }
       });
+      return;
+    }
+    if (!href || href === '#') {
+      e.preventDefault();
       return;
     }
     if (inAppBrowser()) {
