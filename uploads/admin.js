@@ -677,7 +677,7 @@
             } else if (view === "meu-site") {
                 loadMeuSiteSummary({ pull: true });
             } else if (view === "vendas-organicas") {
-                loadOrganicSales({ pull: true });
+                loadOrganicSales({ pull: false });
             } else if (view === "financeiro") {
                 loadFinanceiro({ pull: true });
             }
