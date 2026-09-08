@@ -211,6 +211,8 @@
     let campaignEditingId = "";
     let campaignSavedSearch = "";
     let campaignSavedPage = 0;
+    let organicSalesData = null;
+    let organicSalesLoading = false;
     const CAMP_SAVED_PAGE_SIZE = 10;
     const CAMPAIGN_CHANNEL = "ads";
 
@@ -227,6 +229,7 @@
         "campanha-desempenho": { title: "Resultado das campanhas", subtitle: "Resultados por Sub ID" },
         desempenho: { title: "Todas as conversões", subtitle: "Conversões e comissões da Shopee" },
         "meu-site": { title: "Vendas do site", subtitle: "Vendas atribuídas à vitrine pública" },
+        "vendas-organicas": { title: "Vendas Orgânicas", subtitle: "Cliques e compras dos produtos navegados na vitrine" },
         financeiro: { title: "Financeiro", subtitle: "Resumo financeiro das conversões no período selecionado" },
         visualizacoes: { title: "Visualizações", subtitle: "Visitas e tráfego via Cloudflare" },
     };
@@ -671,6 +674,8 @@
                 loadConversions({ reset: true, pull: true });
             } else if (view === "meu-site") {
                 loadMeuSiteSummary({ pull: true });
+            } else if (view === "vendas-organicas") {
+                loadOrganicSales({ pull: true });
             } else if (view === "financeiro") {
                 loadFinanceiro({ pull: true });
             }
@@ -4058,6 +4063,158 @@
             renderCampaignPerformance();
         }
 
+        function organicSalesFilteredProducts() {
+            const products = Array.isArray(organicSalesData?.products) ? organicSalesData.products : [];
+            const origin = document.getElementById("organic-sales-origin")?.value || "all";
+            const search = String(document.getElementById("organic-sales-search")?.value || "").trim().toLowerCase();
+            return products.filter((product) => {
+                if (origin === "direct" && !(product.directClicks > 0 || product.directOrders > 0)) return false;
+                if (origin === "assisted" && !(product.assistedClicks > 0 || product.assistedOrders > 0)) return false;
+                if (!search) return true;
+                const haystack = [
+                    product.name,
+                    product.itemId,
+                    ...(Array.isArray(product.campaigns) ? product.campaigns : []),
+                ].join(" ").toLowerCase();
+                return haystack.includes(search);
+            });
+        }
+
+        function renderOrganicSales() {
+            const listEl = document.getElementById("organic-sales-list");
+            if (!listEl || !organicSalesData) return;
+            const products = organicSalesFilteredProducts();
+            const totals = products.reduce((acc, product) => {
+                acc.clicks += Number(product.clicks) || 0;
+                acc.directClicks += Number(product.directClicks) || 0;
+                acc.assistedClicks += Number(product.assistedClicks) || 0;
+                acc.orders += Number(product.orders) || 0;
+                acc.directOrders += Number(product.directOrders) || 0;
+                acc.assistedOrders += Number(product.assistedOrders) || 0;
+                acc.completed += Number(product.completed) || 0;
+                acc.pending += Number(product.pending) || 0;
+                acc.cancelled += Number(product.cancelled) || 0;
+                acc.commissionCompleted += Number(product.commissionCompleted) || 0;
+                acc.commissionEstimated += Number(product.commissionEstimated) || 0;
+                return acc;
+            }, {
+                clicks: 0, directClicks: 0, assistedClicks: 0,
+                orders: 0, directOrders: 0, assistedOrders: 0,
+                completed: 0, pending: 0, cancelled: 0,
+                commissionCompleted: 0, commissionEstimated: 0,
+            });
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+            setText("organic-sales-clicks", String(totals.clicks));
+            setText("organic-sales-clicks-break", `${totals.directClicks} diretos · ${totals.assistedClicks} assistidos`);
+            setText("organic-sales-products", String(products.length));
+            setText("organic-sales-orders", String(totals.orders));
+            setText("organic-sales-orders-break", `${totals.directOrders} diretas · ${totals.assistedOrders} assistidas`);
+            setText("organic-sales-commission", formatMoneyBRL(totals.commissionCompleted));
+            setText("organic-sales-estimated", `${formatMoneyBRL(totals.commissionEstimated)} estimado`);
+            setText("organic-sales-count", `${products.length} produto${products.length === 1 ? "" : "s"}`);
+
+            const windowData = organicSalesData.window || {};
+            const fmtDate = (iso) => {
+                const date = iso ? new Date(iso) : null;
+                return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("pt-BR") : "—";
+            };
+            setText("organic-sales-window", `${fmtDate(windowData.from)} até ${fmtDate(windowData.to)} · dados internos + relatório Shopee`);
+
+            if (!products.length) {
+                listEl.innerHTML = `
+                    <div style="padding:42px 20px;text-align:center">
+                        <div style="font-size:13px;font-weight:700;color:#475569">Nenhum produto encontrado</div>
+                        <div style="font-size:12px;color:#94a3b8;margin-top:5px">Altere o período, origem ou busca.</div>
+                    </div>`;
+                return;
+            }
+
+            const rows = products.map((product) => {
+                const direct = Number(product.directClicks) > 0 || Number(product.directOrders) > 0;
+                const assisted = Number(product.assistedClicks) > 0 || Number(product.assistedOrders) > 0;
+                const originBadges = [
+                    direct ? '<span class="camp-perf-status-pill" style="background:#ecfdf5;color:#047857;border-color:#a7f3d0">Direta</span>' : "",
+                    assisted ? '<span class="camp-perf-status-pill" style="background:#fff7ed;color:#c2410c;border-color:#fed7aa">Assistida</span>' : "",
+                ].filter(Boolean).join(" ");
+                const campaigns = Array.isArray(product.campaigns) && product.campaigns.length
+                    ? `<div style="font-size:10.5px;color:#c2410c;margin-top:3px">via ${escapeHtml(product.campaigns.join(", "))}</div>`
+                    : "";
+                const image = product.image || "https://placehold.co/52x52/fff7ed/ea580c?text=AM";
+                const conversionRate = product.conversionRate == null
+                    ? "—"
+                    : `${String(product.conversionRate).replace(".", ",")}%`;
+                return `
+                    <tr>
+                        <td style="padding:10px 16px;min-width:280px">
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <img src="${escapeAttr(image)}" alt="" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc"
+                                    onerror="this.onerror=null;this.src='https://placehold.co/52x52/fff7ed/ea580c?text=AM'">
+                                <div style="min-width:0">
+                                    <div class="camp-perf-table-name">${escapeHtml(product.name || `Produto ${product.itemId}`)}</div>
+                                    <div class="camp-perf-table-id">ID ${escapeHtml(String(product.itemId || ""))}</div>
+                                    ${campaigns}
+                                </div>
+                            </div>
+                        </td>
+                        <td style="padding:10px 16px;white-space:nowrap">${originBadges}</td>
+                        <td class="num" style="font-weight:700">${Number(product.clicks) || 0}</td>
+                        <td class="num" style="font-weight:700;color:#c2410c">${Number(product.orders) || 0}</td>
+                        <td class="num">
+                            <div style="font-size:11.5px;color:#047857">${Number(product.completed) || 0} concluídos</div>
+                            <div style="font-size:10.5px;color:#64748b">${Number(product.pending) || 0} pend. · ${Number(product.cancelled) || 0} cancel.</div>
+                        </td>
+                        <td class="num" style="font-weight:700;color:#047857">${formatMoneyBRL(product.commissionCompleted)}</td>
+                        <td class="num">${conversionRate}</td>
+                    </tr>`;
+            }).join("");
+            listEl.innerHTML = `
+                <table class="camp-perf-table">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Origem</th>
+                            <th class="num">Cliques</th>
+                            <th class="num">Compras</th>
+                            <th class="num">Status</th>
+                            <th class="num">Líquido</th>
+                            <th class="num">Conversão</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+        }
+
+        async function loadOrganicSales({ pull = false } = {}) {
+            if (!isAdminMode() || organicSalesLoading) return;
+            const listEl = document.getElementById("organic-sales-list");
+            if (!listEl) return;
+            organicSalesLoading = true;
+            listEl.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:12px"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando cliques e compras…</div>';
+            try {
+                const days = Math.min(Math.max(Number(document.getElementById("organic-sales-days")?.value) || 30, 1), 90);
+                if (pull) {
+                    const sinceMin = Math.min(days, 30) * 24 * 60;
+                    await adminFetch(`${API_BASE}/api/cron/conversions?sinceMin=${sinceMin}`);
+                }
+                const res = await adminFetch(`${API_BASE}/api/admin/vendas-organicas?days=${days}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                organicSalesData = data;
+                renderOrganicSales();
+            } catch (err) {
+                organicSalesData = null;
+                listEl.innerHTML = `
+                    <div style="padding:32px;text-align:center;color:#b91c1c;font-size:12px">
+                        Não foi possível carregar Vendas Orgânicas: ${escapeHtml(err.message || String(err))}
+                    </div>`;
+            } finally {
+                organicSalesLoading = false;
+            }
+        }
+
         async function loadFinanceiro({ pull = false } = {}) {
             if (!isAdminMode()) return;
             const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -6328,7 +6485,8 @@
         closeCampaignPerfDetail, openCampaignPerfByName, loadCampaignFunnel, renderCampaignFunnel,
         onCampPerfSearch, setCampPerfListPage, switchCampPerfTab, setCampPerfSalesFilter,
         setCampPerfProdSearch, setCampPerfProdPage, initCampPerfDateFilters, onCampPerfPresetChange,
-        onCampPerfDateChange, loadMeuSiteSummary, loadFinanceiro, pullConversionsNow,
+        onCampPerfDateChange, loadMeuSiteSummary, loadOrganicSales, renderOrganicSales,
+        loadFinanceiro, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,
         previewFeed, lookupConversion, loadDashboardSales,

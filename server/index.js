@@ -1663,6 +1663,21 @@ app.get("/api/admin/meu-site/summary", requireAdmin, async (req, res) => {
   }
 });
 
+/** Admin — cliques e vendas diretas/assistidas dos produtos da vitrine. */
+app.get("/api/admin/vendas-organicas", requireAdmin, async (req, res) => {
+  try {
+    const { organicSalesSummary } = require("./organicSales");
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const from = String(req.query.from || "").trim() || undefined;
+    const to = String(req.query.to || "").trim() || undefined;
+    const result = await organicSalesSummary({ days, from, to });
+    res.json(result);
+  } catch (err) {
+    console.error("[/api/admin/vendas-organicas]", err.message);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 /**
  * Admin — desempenho por campanha a partir do banco (mesma fonte do Meu Site).
  * Evita o /api/conversions ao vivo, que pagina misturado e perde vendas do site.
