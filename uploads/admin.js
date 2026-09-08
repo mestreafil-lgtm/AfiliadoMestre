@@ -213,6 +213,8 @@
     let campaignSavedPage = 0;
     let organicSalesData = null;
     let organicSalesLoading = false;
+    let organicSalesPage = 0;
+    const ORGANIC_SALES_PAGE_SIZE = 20;
     const CAMP_SAVED_PAGE_SIZE = 10;
     const CAMPAIGN_CHANNEL = "ads";
 
@@ -4080,10 +4082,32 @@
             });
         }
 
+        function onOrganicSalesFiltersChange() {
+            organicSalesPage = 0;
+            renderOrganicSales();
+        }
+
+        function setOrganicSalesPage(page) {
+            organicSalesPage = Math.max(0, Number(page) || 0);
+            renderOrganicSales();
+            document.getElementById("organic-sales-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        function changeOrganicSalesPage(delta) {
+            setOrganicSalesPage(organicSalesPage + (Number(delta) || 0));
+        }
+
         function renderOrganicSales() {
             const listEl = document.getElementById("organic-sales-list");
             if (!listEl || !organicSalesData) return;
             const products = organicSalesFilteredProducts();
+            const pageCount = Math.max(1, Math.ceil(products.length / ORGANIC_SALES_PAGE_SIZE));
+            organicSalesPage = Math.min(organicSalesPage, pageCount - 1);
+            const pageProducts = products.slice(
+                organicSalesPage * ORGANIC_SALES_PAGE_SIZE,
+                (organicSalesPage + 1) * ORGANIC_SALES_PAGE_SIZE
+            );
+            const paginationEl = document.getElementById("organic-sales-pagination");
             const totals = products.reduce((acc, product) => {
                 acc.clicks += Number(product.clicks) || 0;
                 acc.directClicks += Number(product.directClicks) || 0;
@@ -4114,7 +4138,8 @@
             setText("organic-sales-orders-break", `${totals.directOrders} diretas · ${totals.assistedOrders} assistidas`);
             setText("organic-sales-commission", formatMoneyBRL(totals.commissionCompleted));
             setText("organic-sales-estimated", `${formatMoneyBRL(totals.commissionEstimated)} estimado`);
-            setText("organic-sales-count", `${products.length} produto${products.length === 1 ? "" : "s"}`);
+            const allCount = Array.isArray(organicSalesData.products) ? organicSalesData.products.length : products.length;
+            setText("organic-sales-count", `${products.length} de ${allCount} produto${allCount === 1 ? "" : "s"}`);
 
             const windowData = organicSalesData.window || {};
             const fmtDate = (iso) => {
@@ -4124,6 +4149,10 @@
             setText("organic-sales-window", `${fmtDate(windowData.from)} até ${fmtDate(windowData.to)} · dados internos + relatório Shopee`);
 
             if (!products.length) {
+                if (paginationEl) {
+                    paginationEl.classList.add("hidden");
+                    paginationEl.style.display = "none";
+                }
                 listEl.innerHTML = `
                     <div style="padding:42px 20px;text-align:center">
                         <div style="font-size:13px;font-weight:700;color:#475569">Nenhum produto encontrado</div>
@@ -4132,7 +4161,17 @@
                 return;
             }
 
-            const rows = products.map((product) => {
+            if (paginationEl) {
+                paginationEl.classList.remove("hidden");
+                paginationEl.style.display = "flex";
+            }
+            setText("organic-sales-page-info", `Página ${organicSalesPage + 1} de ${pageCount}`);
+            const prev = document.getElementById("organic-sales-prev");
+            const next = document.getElementById("organic-sales-next");
+            if (prev) prev.disabled = organicSalesPage <= 0;
+            if (next) next.disabled = organicSalesPage >= pageCount - 1;
+
+            const rows = pageProducts.map((product) => {
                 const direct = Number(product.directClicks) > 0 || Number(product.directOrders) > 0;
                 const assisted = Number(product.assistedClicks) > 0 || Number(product.assistedOrders) > 0;
                 const originBadges = [
@@ -4195,6 +4234,7 @@
             listEl.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:12px"><i class="fas fa-spinner fa-spin mr-2"></i>Carregando cliques e compras…</div>';
             try {
                 const days = Math.min(Math.max(Number(document.getElementById("organic-sales-days")?.value) || 30, 1), 90);
+                organicSalesPage = 0;
                 if (pull) {
                     const sinceMin = Math.min(days, 30) * 24 * 60;
                     await adminFetch(`${API_BASE}/api/cron/conversions?sinceMin=${sinceMin}`);
@@ -6486,6 +6526,7 @@
         onCampPerfSearch, setCampPerfListPage, switchCampPerfTab, setCampPerfSalesFilter,
         setCampPerfProdSearch, setCampPerfProdPage, initCampPerfDateFilters, onCampPerfPresetChange,
         onCampPerfDateChange, loadMeuSiteSummary, loadOrganicSales, renderOrganicSales,
+        onOrganicSalesFiltersChange, setOrganicSalesPage, changeOrganicSalesPage,
         loadFinanceiro, pullConversionsNow,
         reprocessSubIdsDry, reprocessSubIdsRun, runFeed, runRefreshMetrics,
         loadFeedInventory, loadShopeeHealth, loadValidatedReport,

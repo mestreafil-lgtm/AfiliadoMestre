@@ -3300,13 +3300,13 @@
           </div>
           <div>
             <label style="display:block;font-size:10.5px;font-weight:600;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Origem</label>
-            <select id="organic-sales-origin" onchange="renderOrganicSales()" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
+            <select id="organic-sales-origin" onchange="onOrganicSalesFiltersChange()" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc">
               <option value="all">Todas</option>
               <option value="direct">Orgânica direta</option>
               <option value="assisted">Assistida por campanha</option>
             </select>
           </div>
-          <input id="organic-sales-search" oninput="renderOrganicSales()" type="search" placeholder="Buscar produto ou campanha" style="flex:1;min-width:210px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
+          <input id="organic-sales-search" oninput="onOrganicSalesFiltersChange()" type="search" placeholder="Buscar produto ou campanha" style="flex:1;min-width:210px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;background:#f8fafc"/>
           <button type="button" onclick="loadOrganicSales({pull:true})" class="btn-primary" style="padding:9px 14px;border-radius:8px;font-size:12.5px;cursor:pointer;margin-left:auto">Atualizar Shopee</button>
         </div>
 
@@ -3351,6 +3351,11 @@
           </div>
           <div id="organic-sales-list" class="camp-perf-table-wrap">
             <div style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">Carregando dados internos…</div>
+          </div>
+          <div id="organic-sales-pagination" class="hidden" style="display:none;justify-content:space-between;align-items:center;padding:12px 18px;border-top:1px solid #e2e8f0;gap:10px;flex-wrap:wrap">
+            <button type="button" id="organic-sales-prev" onclick="changeOrganicSalesPage(-1)" class="btn-ghost" style="padding:7px 12px;font-size:11.5px">Anterior</button>
+            <span id="organic-sales-page-info" style="font-size:11.5px;color:#64748b">Página 1</span>
+            <button type="button" id="organic-sales-next" onclick="changeOrganicSalesPage(1)" class="btn-dark" style="padding:7px 12px;font-size:11.5px">Próxima</button>
           </div>
         </div>
       </section>

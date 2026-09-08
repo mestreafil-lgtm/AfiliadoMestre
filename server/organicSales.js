@@ -191,20 +191,28 @@ async function organicSalesSummary({ days = 30, from, to } = {}) {
   }
 
   const itemIds = [...products.keys()].filter(Boolean);
+  const activeCatalogIds = new Set();
   if (itemIds.length) {
-    try {
-      const offers = await getOffersByItemIds(itemIds, { full: true });
-      const offerMap = new Map((offers || []).map((row) => [String(row.item_id), row]));
-      for (const [itemId, product] of products) {
-        const offer = offerMap.get(itemId);
-        if (!offer) continue;
-        product.name = offer.product_name || offer.item_name || product.name;
-        product.image = offer.image_url || "";
-      }
-    } catch (_) {}
+    const offers = await getOffersByItemIds(itemIds, { full: true });
+    const offerMap = new Map();
+    for (const offer of Array.isArray(offers) ? offers : []) {
+      if (offer?.hidden === true) continue;
+      const itemId = String(offer.item_id || "");
+      if (!itemId) continue;
+      activeCatalogIds.add(itemId);
+      offerMap.set(itemId, offer);
+    }
+    for (const [itemId, product] of products) {
+      const offer = offerMap.get(itemId);
+      if (!offer) continue;
+      product.name = offer.product_name || offer.item_name || product.name;
+      product.image = offer.image_url || "";
+    }
   }
 
-  const list = [...products.values()]
+  const allProducts = [...products.values()];
+  const list = allProducts
+    .filter((product) => activeCatalogIds.has(String(product.itemId)))
     .map((product) => ({
       ...product,
       campaigns: [...product.campaigns].sort(),
@@ -247,6 +255,7 @@ async function organicSalesSummary({ days = 30, from, to } = {}) {
     window: { from: fromIso, to: toIso },
     totals,
     products: list,
+    excludedNotInCatalog: Math.max(0, allProducts.length - list.length),
     definitions: {
       organic_direct: "Visitou a vitrine sem campanha reconhecida.",
       campaign_assisted: "Veio por campanha e clicou ou comprou outro produto da vitrine.",
