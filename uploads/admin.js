@@ -548,15 +548,20 @@
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-                showToast(`CAPI: ${data.sent || 0} enviados · ${data.duplicate || 0} já mandados · ${data.unmatched || 0} sem match`, "success");
-                const modal = document.getElementById("meta-capi-silence-modal");
-                if (modal) {
-                    modal.classList.add("hidden");
-                    modal.classList.remove("flex");
-                    modal.style.display = "none";
+                const sent = Number(data.sent) || 0;
+                const duplicate = Number(data.duplicate) || 0;
+                const unmatched = Number(data.unmatched) || 0;
+                const ready = Number(data.ready) || 0;
+                if (sent > 0) {
+                    showToast(`CAPI: ${sent} Purchase enviado(s) pra Meta`, "success");
+                } else {
+                    showToast(
+                        `Nenhum Purchase novo. Já mandados: ${duplicate} · sem match de clique: ${unmatched} · prontos: ${ready}`,
+                        unmatched > 0 ? "warning" : "info"
+                    );
                 }
-                try { sessionStorage.removeItem("am_meta_silence_dismissed"); } catch (_) {}
-                setTimeout(() => checkMetaCapiSilenceAlert(), 800);
+                // Fecha e não reabre na hora — evita o popup voltar quando não há venda elegível.
+                dismissMetaCapiSilencePopup();
             } catch (err) {
                 showToast(`Falha no envio CAPI: ${err.message}`, "error");
             } finally {
