@@ -50,14 +50,31 @@ const config = {
   requestGapMs: clampNum(process.env.AUTO_SYNC_GAP_MS, 400, 100, 5000),
   shortlinkBackfillPerRun: clampNum(process.env.AUTO_SYNC_SHORTLINKS, 50, 0, 200),
   refreshTopPerRun: clampNum(process.env.AUTO_SYNC_REFRESH_TOP, 40, 0, 80),
-  // Puxa conversionReport sozinho só se CONVERSIONS_PULL_HOURS > 0.
-  // No seu setup o Google Cloud Scheduler já bate em /api/cron/conversions —
-  // deixe 0 pra não duplicar. Em servidor long-running dá pra ligar de novo.
-  conversionsPullHours: clampNum(process.env.CONVERSIONS_PULL_HOURS, 0, 0, 168),
+  // Intervalo do pull de conversões + CAPI (minutos).
+  // Preferência: CONVERSIONS_PULL_MIN. Senão CONVERSIONS_PULL_HOURS * 60.
+  // Se CAPI estiver live/test e nada for definido, usa 60 (hora em hora).
+  // Se o Cloud Scheduler já bate /api/cron/conversions de hora em hora,
+  // defina CONVERSIONS_PULL_MIN=0 pra não duplicar.
+  conversionsPullMin: resolveConversionsPullMin(),
   conversionsSinceMin: clampNum(process.env.CONVERSIONS_SINCE_MIN, 60 * 48, 60, 60 * 24 * 30),
   femalePercent: FEMALE_PERCENT,
   minCommissionPct: MIN_COMMISSION_PCT,
 };
+
+function resolveConversionsPullMin(env = process.env) {
+  if (env.CONVERSIONS_PULL_MIN != null && String(env.CONVERSIONS_PULL_MIN).trim() !== "") {
+    return clampNum(env.CONVERSIONS_PULL_MIN, 0, 0, 60 * 24 * 7);
+  }
+  if (env.CONVERSIONS_PULL_HOURS != null && String(env.CONVERSIONS_PULL_HOURS).trim() !== "") {
+    return clampNum(Number(env.CONVERSIONS_PULL_HOURS) * 60, 0, 0, 60 * 24 * 7);
+  }
+  try {
+    const { getMetaCapiConfig } = require("./metaCapi");
+    const capi = getMetaCapiConfig(env);
+    if (capi.configured) return 60;
+  } catch (_) {}
+  return 0;
+}
 
 const state = {
   running: false,
@@ -384,7 +401,8 @@ function getStatus() {
     pruneDays: config.pruneDays,
     shortlinkBackfillPerRun: config.shortlinkBackfillPerRun,
     refreshTopPerRun: config.refreshTopPerRun,
-    conversionsPullHours: config.conversionsPullHours,
+    conversionsPullMin: config.conversionsPullMin,
+    conversionsPullHours: config.conversionsPullMin / 60,
     conversionsSinceMin: config.conversionsSinceMin,
     minCommissionPct: config.minCommissionPct,
     femalePercentTarget: config.femalePercent,
@@ -436,7 +454,16 @@ async function pullConversionsOnce({ manual = false } = {}) {
   }
   try {
     const { pullConversionReport } = require("./conversions");
+    const { processMetaPurchases, checkPurchaseSilence } = require("./metaCapi");
     const result = await pullConversionReport({ sinceMin: config.conversionsSinceMin });
+    const metaCapi = await processMetaPurchases().catch((err) => ({
+      ok: false,
+      error: err.message,
+    }));
+    const silence = await checkPurchaseSilence().catch((err) => ({
+      ok: false,
+      error: err.message,
+    }));
     state.lastConversionsPullAt = new Date().toISOString();
     state.lastConversionsResult = {
       ok: true,
@@ -446,9 +473,12 @@ async function pullConversionsOnce({ manual = false } = {}) {
       totalNodes: result.totalNodes || 0,
       rateLimited: !!result.rateLimited,
       ms: result.ms || 0,
+      metaCapi,
+      silence,
     };
     console.log(
       `[autosync] conversions saved=${result.saved || 0} pages=${result.pages || 0}` +
+        ` metaSent=${metaCapi?.sent || 0}` +
         (result.rateLimited ? " rateLimited" : "")
     );
     return state.lastConversionsResult;
@@ -464,11 +494,11 @@ async function pullConversionsOnce({ manual = false } = {}) {
 function scheduleConversionsPull() {
   if (conversionsTimer) clearTimeout(conversionsTimer);
   conversionsTimer = null;
-  if (config.conversionsPullHours <= 0) {
+  if (config.conversionsPullMin <= 0) {
     state.nextConversionsPullAt = null;
     return;
   }
-  const ms = config.conversionsPullHours * 3600 * 1000;
+  const ms = config.conversionsPullMin * 60 * 1000;
   state.nextConversionsPullAt = new Date(Date.now() + ms).toISOString();
   conversionsTimer = setTimeout(() => {
     pullConversionsOnce().catch(() => {});
@@ -485,13 +515,13 @@ function start() {
     );
     scheduleNext();
   }
-  // Conversões: agenda diária mesmo com AUTO_SYNC=0.
-  if (config.conversionsPullHours > 0) {
+  // Conversões + CAPI: agenda mesmo com AUTO_SYNC=0.
+  if (config.conversionsPullMin > 0) {
     console.log(
-      `[autosync] conversions a cada ${config.conversionsPullHours}h (janela ${Math.round(config.conversionsSinceMin / 60)}h)`
+      `[autosync] conversions+capi a cada ${config.conversionsPullMin}min (janela ${Math.round(config.conversionsSinceMin / 60)}h)`
     );
     // Primeira puxada após ~2 min do boot (não bloqueia startup / cold start).
-    const bootDelay = Math.min(120000, config.conversionsPullHours * 3600 * 1000);
+    const bootDelay = Math.min(120000, config.conversionsPullMin * 60 * 1000);
     state.nextConversionsPullAt = new Date(Date.now() + bootDelay).toISOString();
     conversionsTimer = setTimeout(() => {
       pullConversionsOnce().catch(() => {});

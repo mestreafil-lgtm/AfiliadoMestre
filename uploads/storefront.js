@@ -869,18 +869,20 @@
         // DOMContentLoaded (não window.onload): não espera fontes/imagens do CDN
         // antes de buscar ofertas — corta ~0,5–2s no mobile.
         async function bootStorefront() {
-            captureTrafficAttribution();
             window.addEventListener("popstate", () => applyRoute({ fromNav: true }));
-            initDatabase();
-            initCountdown();
-            renderCategories();
-            renderSubcategories();
-            renderStoreProducts();
-            renderPopularTerms();
-            // Hero com o que já está no cache local — sem 2º fetch ainda.
-            loadHeroProducts({ fromCacheOnly: true });
-
             const admin = isAdminMode();
+            if (!admin) {
+                captureTrafficAttribution();
+                initDatabase();
+                initCountdown();
+                renderCategories();
+                renderSubcategories();
+                renderStoreProducts();
+                renderPopularTerms();
+                // Hero com o que já está no cache local — sem 2º fetch ainda.
+                loadHeroProducts({ fromCacheOnly: true });
+            }
+
             if (admin) {
                 try { await loadAdminBundle(); } catch (e) { console.error("[admin]", e); }
                 if (typeof window.initAdminUi === "function") await window.initAdminUi();
@@ -914,8 +916,10 @@
             } else if (admin) {
                 showToast("Backend offline — rode: npm start", "error");
             }
-            await applyRoute({ fromNav: false });
-            await applyCampaignLanding();
+            if (!admin) {
+                await applyRoute({ fromNav: false });
+                await applyCampaignLanding();
+            }
         }
 
         function scheduleHomeSections() {

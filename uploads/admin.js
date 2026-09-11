@@ -281,7 +281,9 @@
                     err.classList.add("hidden");
                 }
             }
-            document.getElementById("admin-login-pass")?.focus();
+            const user = document.getElementById("admin-login-user");
+            const password = document.getElementById("admin-login-pass");
+            (user?.value ? password : user)?.focus();
         }
 
         function hideAdminLogin() {
@@ -490,6 +492,76 @@
             if (legacyMap[view]) view = legacyMap[view];
             if (!ADMIN_VIEWS[view]) view = "dashboard";
             setTimeout(() => switchAdminView(view, { skipUrl: true, ...(legacyIntent || {}) }), 0);
+            checkMetaCapiSilenceAlert();
+        }
+
+        function dismissMetaCapiSilencePopup() {
+            const modal = document.getElementById("meta-capi-silence-modal");
+            if (modal) {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                modal.style.display = "none";
+            }
+            try { sessionStorage.setItem("am_meta_silence_dismissed", String(Date.now())); } catch (_) {}
+        }
+
+        function showMetaCapiSilencePopup(status) {
+            const modal = document.getElementById("meta-capi-silence-modal");
+            const msg = document.getElementById("meta-capi-silence-msg");
+            if (!modal || !msg) return;
+            const hoursLine = status.hoursSilent == null
+                ? "Ainda não houve nenhum Purchase enviado pra Meta"
+                : `Faz ${status.hoursSilent}h sem Purchase enviado pra Meta`;
+            const last = status.lastPurchaseSentAt
+                ? new Date(status.lastPurchaseSentAt).toLocaleString("pt-BR")
+                : "nunca";
+            msg.textContent = `Modo ${status.mode || "—"}. ${hoursLine} `
+                + `(limite ${status.silenceHours || 6}h). Último envio: ${last}. `
+                + "Sem isso a campanha otimizada por Compra pode perder entrega.";
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            modal.style.display = "flex";
+        }
+
+        async function checkMetaCapiSilenceAlert() {
+            if (!isAdminMode() || !adminLoggedIn) return;
+            try {
+                const dismissed = Number(sessionStorage.getItem("am_meta_silence_dismissed") || 0);
+                if (dismissed && Date.now() - dismissed < 60 * 60 * 1000) return;
+            } catch (_) {}
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/meta-capi/status`);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.configured || !data.isSilent) return;
+                showMetaCapiSilencePopup(data);
+            } catch (_) {}
+        }
+
+        async function runMetaCapiSyncFromAlert() {
+            const btn = document.getElementById("meta-capi-silence-sync");
+            if (btn) { btn.disabled = true; btn.textContent = "Enviando…"; }
+            try {
+                const res = await adminFetch(`${API_BASE}/api/admin/meta-capi/sync`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dryRun: false, limit: 200 }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                showToast(`CAPI: ${data.sent || 0} enviados · ${data.duplicate || 0} já mandados · ${data.unmatched || 0} sem match`, "success");
+                const modal = document.getElementById("meta-capi-silence-modal");
+                if (modal) {
+                    modal.classList.add("hidden");
+                    modal.classList.remove("flex");
+                    modal.style.display = "none";
+                }
+                try { sessionStorage.removeItem("am_meta_silence_dismissed"); } catch (_) {}
+                setTimeout(() => checkMetaCapiSilenceAlert(), 800);
+            } catch (err) {
+                showToast(`Falha no envio CAPI: ${err.message}`, "error");
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = "Enviar agora"; }
+            }
         }
 
         function toggleAdminSidebar(forceOpen) {
@@ -2485,7 +2557,7 @@
 
             let remote = null;
             try {
-                const res = await fetch(`${API_BASE}/api/campanhas-rastreio`);
+                const res = await adminFetch(`${API_BASE}/api/campanhas-rastreio`);
                 const data = await res.json();
                 if (res.ok && Array.isArray(data.campaigns)) remote = data.campaigns;
             } catch (_) {}
@@ -6509,6 +6581,7 @@
         resetExplorerForm, runCoverageShortcut, showMoneyQueueShortcut,
         loadTopAffiliateShops, moneyQueueCopyAdLink, moneyQueueCopyShopeeLink,
         submitAdminLogin, logoutAdmin,
+        dismissMetaCapiSilencePopup, runMetaCapiSyncFromAlert, checkMetaCapiSilenceAlert,
         syncAllCategories, syncCategory, applyExplorerPreset, runExplorerSearch,
         saveExplorerSelection, cancelExplorerSearch, toggleExplorerSelectAll, onExplorerItemToggle,
         saveCurrentCampaign, deleteSavedCampaign, loadSavedCampaignIntoEditor, copyCampaignLink,

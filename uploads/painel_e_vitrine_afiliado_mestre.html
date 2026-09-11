@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script>
+    // Marca o admin antes do primeiro paint; não executa tracking nem chamadas externas.
+    if (/^\/admin(\/|$)/.test(location.pathname) || /[?&](admin=|mode=admin)/.test(location.search)) {
+      document.documentElement.classList.add('admin-mode');
+    }
+    </script>
     <title>Afiliada Mestre — Ofertas selecionadas na Shopee</title>
     <link rel="icon" type="image/png" href="/uploads/logo-bg.png">
     <meta name="description" content="Afiliada Mestre — ofertas selecionadas facilitando sua vida. Achadinhos e promoções da Shopee todos os dias.">
@@ -108,11 +114,11 @@
           height: auto !important;
           max-height: none !important;
         }
-        body.admin-mode #main-storefront-section,
-        body.admin-mode #mobile-category-sheet,
-        body.admin-mode #back-to-top-btn,
-        body.admin-mode > footer { display: none !important; }
-        body.admin-mode #product-modal { display: none !important; }
+        html.admin-mode #main-storefront-section,
+        html.admin-mode #mobile-category-sheet,
+        html.admin-mode #back-to-top-btn,
+        html.admin-mode body > footer { display: none !important; }
+        html.admin-mode #product-modal { display: none !important; }
 
         /* NEW ADMIN SHELL */
         #admin-panel-root {
@@ -2312,16 +2318,30 @@
         <div style="font-size:11px;opacity:.9">Painel Administrativo &amp; Gestão Shopee</div>
       </div>
       <form id="admin-login-form" onsubmit="return submitAdminLogin(event)">
-        <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase">E-mail</label>
-        <input id="admin-login-user" type="email" required style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:12px"/>
-        <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase">Senha</label>
-        <input id="admin-login-pass" type="password" required style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:12px"/>
+        <label for="admin-login-user" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase">E-mail</label>
+        <input id="admin-login-user" name="email" type="email" autocomplete="username" required style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:12px"/>
+        <label for="admin-login-pass" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;text-transform:uppercase">Senha</label>
+        <input id="admin-login-pass" name="password" type="password" autocomplete="current-password" required style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:13px;margin-bottom:12px"/>
         <div id="admin-login-error" class="hidden" style="font-size:11.5px;color:#dc2626;margin-bottom:10px;min-height:14px"></div>
         <button id="admin-login-submit" type="submit" class="btn-primary" style="width:100%;padding:12px;border-radius:9px;font-size:13px;cursor:pointer">Acessar Console</button>
         <a href="/" style="display:block;text-align:center;font-size:12px;color:#64748b;margin-top:12px">← Voltar à vitrine</a>
       </form>
     </div>
   </div>
+
+  <!-- Alerta: silêncio de Purchase Meta CAPI -->
+  <div id="meta-capi-silence-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="meta-capi-silence-title" style="display:none;position:fixed;inset:0;z-index:120;background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35);border-top:4px solid #dc2626">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#dc2626;margin-bottom:8px">Alerta Meta CAPI</div>
+      <h2 id="meta-capi-silence-title" style="margin:0 0 10px;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-.02em">Purchase parado</h2>
+      <p id="meta-capi-silence-msg" style="margin:0 0 18px;font-size:13.5px;line-height:1.5;color:#475569"></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button type="button" id="meta-capi-silence-sync" onclick="runMetaCapiSyncFromAlert()" class="btn-primary" style="flex:1;min-width:140px;padding:11px 14px;border-radius:9px;font-size:13px;cursor:pointer">Enviar agora</button>
+        <button type="button" onclick="dismissMetaCapiSilencePopup()" class="btn-ghost" style="flex:1;min-width:120px;padding:11px 14px;border-radius:9px;font-size:13px;cursor:pointer;border:1px solid #e2e8f0;background:#fff;color:#334155">Entendi</button>
+      </div>
+    </div>
+  </div>
+
     <div id="admin-panel-root" class="hidden" style="display:none;min-height:100vh;background:#f1f5f9;font-family:Inter,Nunito,system-ui,sans-serif">
 <div class="admin-shell" style="display:flex;min-height:100vh;width:100%;background:#f1f5f9">
     <div id="admin-sidebar-backdrop" onclick="toggleAdminSidebar(false)" class="hidden" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:65"></div>
@@ -2445,7 +2465,7 @@
 
     <!-- Top bar -->
     <header class="am-topbar">
-      <button onclick="toggleAdminSidebar()" class="hamburger" style="background:transparent;border:1px solid #e2e8f0;padding:8px;border-radius:8px;cursor:pointer">
+      <button type="button" onclick="toggleAdminSidebar()" class="hamburger" aria-label="Abrir menu administrativo" style="background:transparent;border:1px solid #e2e8f0;padding:8px;border-radius:8px;cursor:pointer">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div style="flex:1;min-width:0">
@@ -2470,7 +2490,7 @@
 
         <!-- KPI GRID -->
         <div class="am-kpi-grid">
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('produtos')" style="cursor:pointer;position:relative;overflow:hidden;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" role="button" tabindex="0" onclick="switchAdminView('produtos')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchAdminView('produtos')}" style="cursor:pointer;position:relative;overflow:hidden;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Produtos no banco</div>
@@ -2483,7 +2503,7 @@
             </div>
           </div>
 
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-atualizar')" style="cursor:pointer;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" role="button" tabindex="0" onclick="switchAdminView('catalogo-atualizar')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchAdminView('catalogo-atualizar')}" style="cursor:pointer;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Categorias ativas</div>
@@ -2496,7 +2516,7 @@
             </div>
           </div>
 
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-atualizar')" style="cursor:pointer;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" role="button" tabindex="0" onclick="switchAdminView('catalogo-atualizar')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchAdminView('catalogo-atualizar')}" style="cursor:pointer;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Auto-sync</div>
@@ -2509,7 +2529,7 @@
             </div>
           </div>
 
-          <div class="admin-stat-card kpi-card am-card" onclick="switchAdminView('catalogo-saude')" style="cursor:pointer;padding:20px">
+          <div class="admin-stat-card kpi-card am-card" role="button" tabindex="0" onclick="switchAdminView('catalogo-saude')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchAdminView('catalogo-saude')}" style="cursor:pointer;padding:20px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
               <div>
                 <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#64748b">Última sincronização</div>

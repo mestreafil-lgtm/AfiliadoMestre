@@ -48,7 +48,7 @@ const {
   countShortlinkStatus,
 } = require("./supabase");
 const { insertAnalyticsEvent, queryCampaignFunnel } = require("./analytics");
-const { getMetaCapiConfig, processMetaPurchases } = require("./metaCapi");
+const { getMetaCapiConfig, processMetaPurchases, checkPurchaseSilence, silenceConfig } = require("./metaCapi");
 const { CATEGORIAS, categoryForKeyword, weightedKeywords, allKeywords, metaOnly, sortCategoriesForHome, DEFAULT_FEMALE_PERCENT, normalizeKeywordEntry, isFemaleAudience } = require("./categorias");
 const { buildCoverageReport, buildCoverageQueue } = require("./coverage");
 const { refillVitrine } = require("./refillVitrine");
@@ -1602,7 +1602,8 @@ app.get("/api/cron/conversions", requireCronOrAdmin, async (req, res) => {
     const sinceMin = Math.min(Math.max(Number(req.query.sinceMin) || 60 * 48, 15), 60 * 24 * 30);
     const result = await pullConversionReport({ sinceMin });
     const metaCapi = await processMetaPurchases();
-    res.json({ ok: true, result, metaCapi });
+    const silence = await checkPurchaseSilence();
+    res.json({ ok: true, result, metaCapi, silence });
   } catch (err) {
     console.error("[/api/cron/conversions]", err.message);
     res.status(500).json({ error: err.message, rateLimited: !!err.rateLimited });
@@ -1610,17 +1611,28 @@ app.get("/api/cron/conversions", requireCronOrAdmin, async (req, res) => {
 });
 
 /** Admin — configuração e execução segura do closed-loop Meta CAPI. */
-app.get("/api/admin/meta-capi/status", requireAdmin, (_req, res) => {
-  const config = getMetaCapiConfig();
-  res.json({
-    mode: config.mode,
-    configured: config.configured,
-    pixelConfigured: Boolean(config.pixelId),
-    tokenConfigured: Boolean(config.accessToken),
-    testCodeConfigured: Boolean(config.testEventCode),
-    actionSource: config.actionSource,
-    graphVersion: config.graphVersion,
-  });
+app.get("/api/admin/meta-capi/status", requireAdmin, async (_req, res) => {
+  try {
+    const config = getMetaCapiConfig();
+    const silence = silenceConfig();
+    const silenceStatus = await checkPurchaseSilence({ alert: false });
+    res.json({
+      mode: config.mode,
+      configured: config.configured,
+      pixelConfigured: Boolean(config.pixelId),
+      tokenConfigured: Boolean(config.accessToken),
+      testCodeConfigured: Boolean(config.testEventCode),
+      actionSource: config.actionSource,
+      graphVersion: config.graphVersion,
+      silenceHours: silence.silenceHours,
+      alertWebhookConfigured: Boolean(silence.webhook),
+      lastPurchaseSentAt: silenceStatus.lastSentAt,
+      hoursSilent: silenceStatus.hoursSilent,
+      isSilent: silenceStatus.isSilent,
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
 app.post("/api/admin/meta-capi/sync", requireAdmin, async (req, res) => {
@@ -1965,8 +1977,8 @@ app.get("/api/admin/validated", requireAdmin, async (req, res) => {
   }
 });
 
-/** Campanhas de rastreio salvas no Supabase */
-app.get("/api/campanhas-rastreio", async (_req, res) => {
+/** Campanhas de rastreio salvas no Supabase (somente painel autenticado). */
+app.get("/api/campanhas-rastreio", requireAdmin, async (_req, res) => {
   try {
     const rows = await listCampanhasRastreio();
     const campaigns = (Array.isArray(rows) ? rows : []).map((r) => ({
@@ -2761,7 +2773,7 @@ app.post("/api/shortlinks/backfill", requireAdmin, async (req, res) => {
  * Relatório real de conversões da Shopee para o painel admin.
  * Por padrão (siteOnly=1) só retorna vendas rastreadas por este site.
  */
-app.get("/api/conversions", async (req, res) => {
+app.get("/api/conversions", requireAdmin, async (req, res) => {
   try {
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
     const now = Math.floor(Date.now() / 1000);
@@ -3829,7 +3841,6 @@ app.use("/uploads", express.static(path.join(ROOT, "uploads"), {
     }
   },
 }));
-app.use(express.static(ROOT, { index: false, maxAge: "1d" }));
 
 const APP_PAGE_RE = /^\/(categoria(\/[^/]+){0,2}|busca(\/[^/]+)?|relampago|mais-vendidos|maiores-descontos|melhor-avaliados|lojas-oficiais|admin(\/[\w-]+)?)\/?$/;
 

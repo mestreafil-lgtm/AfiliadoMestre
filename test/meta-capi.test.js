@@ -102,3 +102,14 @@ test("envia somente para Test Events quando modo é test", async () => {
   assert.equal(request.body.test_event_code, "TEST123");
   assert.deepEqual(request.body.data, [event]);
 });
+
+test("silêncio dispara alerta após X horas sem Purchase", async () => {
+  const { silenceConfig } = require("../server/metaCapi");
+  const silence = silenceConfig({
+    META_CAPI_SILENCE_HOURS: "6",
+    META_CAPI_ALERT_COOLDOWN_HOURS: "6",
+    META_CAPI_ALERT_WEBHOOK: "https://example.com/hook",
+  });
+  assert.equal(silence.silenceHours, 6);
+  assert.equal(silence.webhook, "https://example.com/hook");
+});

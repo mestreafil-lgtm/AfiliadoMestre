@@ -267,6 +267,94 @@ async function processMetaPurchases({ dryRun = false, limit = 200, fetchImpl = f
   return result;
 }
 
+function clampNum(v, def, min, max) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return def;
+  return Math.min(Math.max(n, min), max);
+}
+
+let lastSilenceAlertAt = 0;
+
+async function getLastPurchaseSentAt() {
+  const rows = await supabaseRequest(
+    `/analytics_events?event_name=eq.ClickShopee`
+      + `&raw-%3E%3Erecord_type=eq.meta_purchase`
+      + `&select=created_at,raw`
+      + `&order=created_at.desc&limit=1`,
+    { method: "GET", useService: true }
+  );
+  if (!Array.isArray(rows) || !rows.length) return null;
+  return rows[0].created_at || null;
+}
+
+function silenceConfig(env = process.env) {
+  return {
+    silenceHours: clampNum(env.META_CAPI_SILENCE_HOURS, 6, 1, 168),
+    alertCooldownHours: clampNum(env.META_CAPI_ALERT_COOLDOWN_HOURS, 6, 1, 168),
+    webhook: String(env.META_CAPI_ALERT_WEBHOOK || "").trim(),
+  };
+}
+
+/**
+ * Se passar X horas sem nenhum Purchase enviado, avisa (webhook Discord/Slack).
+ * Não mexe em Pixel/Shopee — só lê o ledger local de meta_purchase.
+ */
+async function checkPurchaseSilence({ fetchImpl = fetch, now = Date.now(), alert = true } = {}) {
+  const config = getMetaCapiConfig();
+  const silence = silenceConfig();
+  const lastSentAt = await getLastPurchaseSentAt().catch(() => null);
+  const lastMs = lastSentAt ? new Date(lastSentAt).getTime() : null;
+  const hoursSilent = lastMs && Number.isFinite(lastMs)
+    ? Math.max(0, (now - lastMs) / 3600000)
+    : null;
+  const isSilent = config.configured && (
+    hoursSilent == null || hoursSilent >= silence.silenceHours
+  );
+  const result = {
+    ok: true,
+    mode: config.mode,
+    configured: config.configured,
+    lastSentAt,
+    silenceHours: silence.silenceHours,
+    hoursSilent: hoursSilent == null ? null : Math.round(hoursSilent * 10) / 10,
+    isSilent,
+    webhookConfigured: Boolean(silence.webhook),
+    alerted: false,
+  };
+  if (!alert || !isSilent || !silence.webhook) return result;
+
+  const cooldownMs = silence.alertCooldownHours * 3600000;
+  if (now - lastSilenceAlertAt < cooldownMs) {
+    result.skipped = "cooldown";
+    return result;
+  }
+
+  const text = hoursSilent == null
+    ? `[Afiliada Mestre] Meta CAPI em modo ${config.mode}: nenhum Purchase enviado ainda (limite ${silence.silenceHours}h).`
+    : `[Afiliada Mestre] Meta CAPI em modo ${config.mode}: ${result.hoursSilent}h sem Purchase (limite ${silence.silenceHours}h). Último: ${lastSentAt}`;
+
+  try {
+    const response = await fetchImpl(silence.webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        content: text,
+        username: "Afiliada Mestre CAPI",
+      }),
+    });
+    if (!response.ok) {
+      result.alertError = `webhook HTTP ${response.status}`;
+      return result;
+    }
+    lastSilenceAlertAt = now;
+    result.alerted = true;
+  } catch (err) {
+    result.alertError = err.message;
+  }
+  return result;
+}
+
 module.exports = {
   DEFAULT_PIXEL_ID,
   MAX_EVENT_AGE_SEC,
@@ -276,4 +364,7 @@ module.exports = {
   buildPurchaseEvent,
   sendMetaPurchase,
   processMetaPurchases,
+  getLastPurchaseSentAt,
+  checkPurchaseSilence,
+  silenceConfig,
 };
